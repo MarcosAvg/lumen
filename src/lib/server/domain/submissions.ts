@@ -12,6 +12,8 @@ import {
 import type { TargetStatus, WorkMode } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
+import { createReviewNotifications, createSubmissionNotifications } from './notifications';
+import { dispatchPushToUsers } from './push';
 import { listRequirements } from './requirements';
 import { getTargetContext, isEditableStatus } from './targets';
 
@@ -38,7 +40,7 @@ export async function submitEvidence(
 	db: Database,
 	input: { targetId: string; expectedVersion: number; userId: string }
 ): Promise<SubmitResult> {
-	return db.transaction(async (tx) => {
+	const outcome = await db.transaction(async (tx) => {
 		const [locked] = await tx
 			.select()
 			.from(evidenceTargets)
@@ -165,8 +167,30 @@ export async function submitEvidence(
 			metadata: { targetId: input.targetId, sequenceNo }
 		});
 
-		return { submissionId: submission.id, sequenceNo, version: updated.version };
+		// Notificaciones internas para supervisores asignados, dentro de la transacción.
+		const outbound = await createSubmissionNotifications(tx, {
+			serviceId: context.serviceId,
+			targetId: input.targetId,
+			submissionId: submission.id,
+			sequenceNo,
+			serviceName: context.serviceName,
+			workName: context.workName,
+			label: context.label
+		});
+
+		return { submissionId: submission.id, sequenceNo, version: updated.version, outbound };
 	});
+
+	// Push best-effort, después del commit: nunca revierte la entrega.
+	await dispatchPushToUsers(db, outcome.outbound.recipientIds, outcome.outbound.message).catch(
+		(error) => console.error('[push] envío tras entrega falló', error)
+	);
+
+	return {
+		submissionId: outcome.submissionId,
+		sequenceNo: outcome.sequenceNo,
+		version: outcome.version
+	};
 }
 
 export interface ReviewResult {
@@ -188,7 +212,7 @@ export async function reviewSubmission(
 		reviewerId: string;
 	}
 ): Promise<ReviewResult> {
-	return db.transaction(async (tx) => {
+	const outcome = await db.transaction(async (tx) => {
 		const [submission] = await tx
 			.select()
 			.from(evidenceSubmissions)
@@ -212,13 +236,18 @@ export async function reviewSubmission(
 			throw new DomainError(400, 'El motivo del rechazo es obligatorio.');
 		}
 
+		let reviewId: string;
 		try {
-			await tx.insert(reviews).values({
-				submissionId: submission.id,
-				reviewerId: input.reviewerId,
-				decision: input.decision,
-				reason: reason.length > 0 ? reason : null
-			});
+			const [created] = await tx
+				.insert(reviews)
+				.values({
+					submissionId: submission.id,
+					reviewerId: input.reviewerId,
+					decision: input.decision,
+					reason: reason.length > 0 ? reason : null
+				})
+				.returning({ id: reviews.id });
+			reviewId = created.id;
 		} catch (error) {
 			if ((error as { cause?: { code?: string }; code?: string }).cause?.code === '23505') {
 				throw new DomainError(409, 'Esta entrega ya fue revisada.');
@@ -245,12 +274,37 @@ export async function reviewSubmission(
 			metadata: { targetId: submission.targetId, reason: reason || null }
 		});
 
+		// Notificaciones internas para los técnicos asignados, dentro de la transacción.
+		const outbound = await createReviewNotifications(tx, {
+			serviceId: context.serviceId,
+			targetId: submission.targetId,
+			submissionId: submission.id,
+			reviewId,
+			decision: input.decision,
+			serviceName: context.serviceName,
+			workName: context.workName,
+			label: context.label,
+			targetDeepLink: context.workId ? `/works/${context.workId}` : `/elements/${context.elementId}`
+		});
+
 		return {
 			decision: input.decision,
 			targetId: submission.targetId,
-			serviceId: context.serviceId
+			serviceId: context.serviceId,
+			outbound
 		};
 	});
+
+	// Push best-effort, después del commit: nunca revierte la revisión.
+	await dispatchPushToUsers(db, outcome.outbound.recipientIds, outcome.outbound.message).catch(
+		(error) => console.error('[push] envío tras revisión falló', error)
+	);
+
+	return {
+		decision: outcome.decision,
+		targetId: outcome.targetId,
+		serviceId: outcome.serviceId
+	};
 }
 
 export interface HistoryEntry {

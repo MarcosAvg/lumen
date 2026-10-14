@@ -385,6 +385,61 @@ export const reviews = pgTable(
 	]
 );
 
+export const notifications = pgTable(
+	'notifications',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		recipientUserId: uuid('recipient_user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		// Las referencias al ámbito se eliminan en cascada con el borrado destructivo.
+		serviceId: uuid('service_id').references(() => services.id, { onDelete: 'cascade' }),
+		targetId: uuid('target_id').references(() => evidenceTargets.id, { onDelete: 'cascade' }),
+		submissionId: uuid('submission_id').references(() => evidenceSubmissions.id, {
+			onDelete: 'cascade'
+		}),
+		reviewId: uuid('review_id').references(() => reviews.id, { onDelete: 'cascade' }),
+		eventType: text('event_type').notNull(),
+		title: text('title').notNull(),
+		body: text('body').notNull(),
+		deepLink: text('deep_link').notNull(),
+		// Clave idempotente por destinatario: evita duplicados en reintentos.
+		eventKey: text('event_key').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		readAt: timestamp('read_at', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('notifications_recipient_event_unique').on(table.recipientUserId, table.eventKey),
+		index('notifications_recipient_read_idx').on(
+			table.recipientUserId,
+			table.readAt,
+			table.createdAt
+		),
+		index('notifications_service_idx').on(table.serviceId)
+	]
+);
+
+export const pushSubscriptions = pgTable(
+	'push_subscriptions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		endpoint: text('endpoint').notNull(),
+		p256dh: text('p256dh').notNull(),
+		auth: text('auth').notNull(),
+		userAgent: text('user_agent'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+		revokedAt: timestamp('revoked_at', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('push_subscriptions_endpoint_unique').on(table.endpoint),
+		index('push_subscriptions_user_idx').on(table.userId, table.revokedAt)
+	]
+);
+
 export const auditEvents = pgTable(
 	'audit_events',
 	{
@@ -414,3 +469,5 @@ export type Photo = typeof photos.$inferSelect;
 export type EvidenceSubmission = typeof evidenceSubmissions.$inferSelect;
 export type SubmissionPhoto = typeof submissionPhotos.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;

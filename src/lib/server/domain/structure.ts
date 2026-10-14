@@ -15,6 +15,7 @@ import {
 import type { WorkMode } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
+import { countNotificationsForTargets } from './notifications';
 
 /**
  * Cambios estructurales posteriores (docs/06 §8): borrado explícito con impacto
@@ -77,6 +78,7 @@ export interface StructuralImpact {
 	submissions: number;
 	photos: number;
 	activePhotos: number;
+	notifications: number;
 }
 
 async function impactForTargets(
@@ -84,7 +86,7 @@ async function impactForTargets(
 	targetIds: string[]
 ): Promise<Omit<StructuralImpact, 'works' | 'elements'>> {
 	if (targetIds.length === 0) {
-		return { targets: 0, submissions: 0, photos: 0, activePhotos: 0 };
+		return { targets: 0, submissions: 0, photos: 0, activePhotos: 0, notifications: 0 };
 	}
 	const [photoCount] = await db
 		.select({ value: countInt() })
@@ -98,12 +100,14 @@ async function impactForTargets(
 		.select({ value: countInt() })
 		.from(evidenceSubmissions)
 		.where(inArray(evidenceSubmissions.targetId, targetIds));
+	const notifications = await countNotificationsForTargets(db, targetIds);
 
 	return {
 		targets: targetIds.length,
 		submissions: submissionCount?.value ?? 0,
 		photos: photoCount?.value ?? 0,
-		activePhotos: activeCount?.value ?? 0
+		activePhotos: activeCount?.value ?? 0,
+		notifications
 	};
 }
 

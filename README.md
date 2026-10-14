@@ -2,7 +2,7 @@
 
 **Lumen** es una aplicación web progresiva (PWA), autohospedada y orientada a equipos pequeños de servicios en campo. Permite que los técnicos capturen **evidencia fotográfica compartida**, que supervisores asignados la **aprueben o rechacen por entrega** y que administradores organicen servicios, trabajos, catálogos y usuarios.
 
-> **Estado:** implementación v1 en curso (Etapas 0–4 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica y envíos/revisiones). El repositorio ya es una **aplicación ejecutable**; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Los ejemplos de rutas, entidades y parámetros pueden concretarse sin cambiar las reglas de negocio aprobadas.
+> **Estado:** implementación v1 en curso (Etapas 0–6 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica, envíos/revisiones y bandeja interna + Web Push). El repositorio ya es una **aplicación ejecutable**; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Los ejemplos de rutas, entidades y parámetros pueden concretarse sin cambiar las reglas de negocio aprobadas.
 
 ## Qué resuelve
 
@@ -129,6 +129,19 @@ automáticamente); si no hay PostgreSQL disponible se omiten con un aviso.
 pnpm maintenance:cleanup   # borra temporales y binarios huérfanos (no toca los referenciados)
 ```
 
+### Notificaciones push (opcional)
+
+La **bandeja interna** funciona siempre. Web Push es opcional y requiere un par de claves
+**VAPID** y HTTPS (en iOS, además, añadir la PWA a la pantalla de inicio):
+
+```bash
+pnpm vapid:generate        # imprime VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY y VAPID_SUBJECT
+# copia el resultado en tu .env (la clave privada es un secreto)
+```
+
+Sin esas variables, la app y la bandeja interna siguen siendo plenamente operativas; la página
+**Ajustes** indicará «Push no configurado».
+
 ### Scripts
 
 | Script                                     | Descripción                                                     |
@@ -138,3 +151,4 @@ pnpm maintenance:cleanup   # borra temporales y binarios huérfanos (no toca los
 | `test` / `test:integration`                | pruebas unitarias y con base de datos real                      |
 | `db:generate` / `db:migrate` / `db:studio` | migraciones Drizzle (generar, aplicar, explorar)                |
 | `maintenance:cleanup`                      | limpieza de archivos temporales/huérfanos                       |
+| `vapid:generate`                           | genera un par de claves VAPID para Web Push                     |

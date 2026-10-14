@@ -14,6 +14,7 @@
 		submissions: number;
 		photos: number;
 		activePhotos: number;
+		notifications?: number;
 	};
 
 	let {
@@ -106,7 +107,8 @@
 				{#if impact.elements > 0}{impact.elements} elemento(s),
 				{/if}
 				{impact.targets} objetivo(s), {impact.submissions} entrega(s) y {impact.photos} foto(s) ({impact.activePhotos}
-				vigente(s)).
+				vigente(s)).{#if impact.notifications}
+					Se eliminarán {impact.notifications} notificación(es) vinculada(s).{/if}
 			</p>
 		{/if}
 		<div class="mt-2 flex gap-2">

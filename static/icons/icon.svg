@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Lumen">
+	<rect width="512" height="512" rx="112" fill="#0f172a" />
+	<circle cx="256" cy="216" r="92" fill="#fbbf24" />
+	<g stroke="#f8fafc" stroke-width="26" stroke-linecap="round">
+		<line x1="256" y1="60" x2="256" y2="104" />
+		<line x1="256" y1="328" x2="256" y2="372" />
+		<line x1="100" y1="216" x2="144" y2="216" />
+		<line x1="368" y1="216" x2="412" y2="216" />
+	</g>
+</svg>
