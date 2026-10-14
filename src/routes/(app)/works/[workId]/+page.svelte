@@ -5,15 +5,14 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
-	import * as Tabs from '#lib/components/ui/tabs';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import ConvertWorkMode from '#lib/components/convert-work-mode.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
-	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
-	import type { CatalogGroup } from '#lib/components/catalog/types';
+	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
+	import type { CatalogGroup, ElementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string; elementErrors?: Record<string, string> };
@@ -22,10 +21,7 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let elementOpen = $state(false);
-	let elementSource = $state<'catalog' | 'custom'>('catalog');
-	let elementCatalogItemId = $state('');
-	let elementName = $state('');
-	let elementSeeded = false;
+	let newElements = $state<ElementDraft[]>([]);
 
 	const catalogsForPicker = $derived<CatalogGroup[]>(
 		data.catalogs
@@ -37,15 +33,12 @@
 			}))
 	);
 
+	const elementsJson = $derived(JSON.stringify(newElements));
+
 	$effect(() => {
-		if (!elementSeeded) {
-			elementSource = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
-			elementSeeded = true;
-		}
 		if (action?.success) {
 			elementOpen = false;
-			elementName = '';
-			elementCatalogItemId = '';
+			newElements = [];
 		}
 	});
 
@@ -122,7 +115,7 @@
 			<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 				<Card.Title class="text-base">Elementos</Card.Title>
 				{#if data.isAdmin}
-					<Button size="sm" onclick={() => (elementOpen = true)}>Añadir elemento</Button>
+					<Button size="sm" onclick={() => (elementOpen = true)}>Añadir elementos</Button>
 				{/if}
 			</Card.Header>
 			<Card.Content>
@@ -178,42 +171,22 @@
 
 		<Dialog.Root bind:open={elementOpen}>
 			<Dialog.Content>
-				<form method="POST" action="?/createElement" class="space-y-4">
+				<form method="POST" action="?/createElements" class="space-y-4">
 					<input type="hidden" name="workId" value={data.work.id} />
+					<input type="hidden" name="elements" value={elementsJson} />
 					<Dialog.Header>
-						<Dialog.Title>Añadir elemento</Dialog.Title>
+						<Dialog.Title>Añadir elementos</Dialog.Title>
 						<Dialog.Description>
-							Elige un ítem del catálogo o escribe un nombre propio.
+							Añade varios ítems de un catálogo o escribe nombres propios.
 						</Dialog.Description>
 					</Dialog.Header>
-					<Tabs.Root bind:value={elementSource}>
-						<Tabs.List class="grid w-full grid-cols-2">
-							<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
-							<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
-						</Tabs.List>
-					</Tabs.Root>
-					{#if elementSource === 'catalog'}
-						<div class="space-y-1">
-							<Label for="el-catalog">Ítem del catálogo</Label>
-							<CatalogItemPicker
-								name="catalogItemId"
-								catalogs={catalogsForPicker}
-								bind:value={elementCatalogItemId}
-								itemPlaceholder="Elige ítem…"
-							/>
-						</div>
-					{:else}
-						<div class="space-y-1">
-							<Label for="el-name">Nombre propio</Label>
-							<Input id="el-name" name="name" bind:value={elementName} required />
-							{#if action?.elementErrors?.name}
-								<p class="text-sm text-destructive">{action.elementErrors.name}</p>
-							{/if}
-						</div>
+					<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
+					{#if action?.elementErrors?._form}
+						<p class="text-sm text-destructive">{action.elementErrors._form}</p>
 					{/if}
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
-						<Button type="submit">Añadir elemento</Button>
+						<Button type="submit" disabled={newElements.length === 0}>Añadir elementos</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>

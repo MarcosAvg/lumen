@@ -203,6 +203,67 @@ export async function createElement(
 	});
 }
 
+export interface AddElementsInput {
+	workId: string;
+	elements: CreateWorkElementInput[];
+	actorId: string;
+}
+
+/** Añade varios elementos a un trabajo dividido y sus objetivos, en una transacción. */
+export async function addElements(
+	db: Database,
+	input: AddElementsInput
+): Promise<{ elementIds: string[] }> {
+	return db.transaction(async (tx) => {
+		const [work] = await tx
+			.select({ id: works.id, mode: works.mode, serviceId: works.serviceId })
+			.from(works)
+			.where(eq(works.id, input.workId))
+			.limit(1);
+		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.mode !== 'divided') {
+			throw new DomainError(409, 'Solo los trabajos divididos pueden tener elementos.');
+		}
+		if (input.elements.length === 0) {
+			throw new DomainError(400, 'Añade al menos un elemento.');
+		}
+
+		const [base] = await tx
+			.select({ value: sql<number>`coalesce(max(${elements.sortOrder}), -1) + 1` })
+			.from(elements)
+			.where(eq(elements.workId, input.workId));
+		let sortOrder = base?.value ?? 0;
+
+		const elementIds: string[] = [];
+		for (const element of input.elements) {
+			const name = await resolveNameSource(tx, element);
+			const [created] = await tx
+				.insert(elements)
+				.values({
+					workId: input.workId,
+					catalogItemId: name.catalogItemId,
+					customName: name.customName,
+					sortOrder
+				})
+				.returning({ id: elements.id });
+			await tx.insert(evidenceTargets).values({ elementId: created.id });
+			elementIds.push(created.id);
+			sortOrder += 1;
+		}
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: work.serviceId,
+			entityType: 'element',
+			entityId: work.id,
+			action: 'elements.created',
+			metadata: { count: elementIds.length }
+		});
+
+		return { elementIds };
+	});
+}
+
 export interface UpdateNamedItemInput {
 	id: string;
 	name: string;

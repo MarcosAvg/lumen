@@ -11,7 +11,9 @@
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
-	import type { CatalogGroup } from '#lib/components/catalog/types';
+	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
+	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
+	import type { CatalogGroup, ElementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -24,14 +26,10 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let workOpen = $state(false);
+	let generateOpen = $state(false);
 	let workSource = $state<'catalog' | 'custom'>('catalog');
 	let workMode = $state<'direct' | 'divided'>('direct');
-	interface WorkElementRow {
-		source: 'catalog' | 'custom';
-		name: string;
-		catalogItemId: string;
-	}
-	let workElements = $state<WorkElementRow[]>([]);
+	let workElements = $state<ElementDraft[]>([]);
 	let sourceSeeded = false;
 	$effect(() => {
 		// Origen por defecto: catálogo si hay alguno, si no nombre propio.
@@ -45,36 +43,9 @@
 			workMode = 'direct';
 			workElements = [];
 		}
-		// El trabajo dividido necesita al menos una fila de elemento.
-		if (workMode === 'divided' && workElements.length === 0) {
-			workElements = [newElementRow()];
-		}
 	});
 
-	function newElementRow(): WorkElementRow {
-		return { source: 'custom', name: '', catalogItemId: '' };
-	}
-
-	function addElementRow() {
-		workElements = [...workElements, newElementRow()];
-	}
-
-	function removeElementRow(index: number) {
-		workElements = workElements.filter((_, position) => position !== index);
-	}
-
-	// Solo filas con un origen definido se envían al servidor.
-	const elementsJson = $derived(
-		JSON.stringify(
-			workElements
-				.map((row) =>
-					row.source === 'catalog'
-						? { catalogItemId: row.catalogItemId, name: '' }
-						: { catalogItemId: '', name: row.name.trim() }
-				)
-				.filter((row) => row.catalogItemId.length > 0 || row.name.length > 0)
-		)
-	);
+	const elementsJson = $derived(JSON.stringify(workElements));
 
 	const accessLabel = {
 		admin: 'Administrador',
@@ -200,11 +171,10 @@
 				<div class="flex flex-wrap gap-2">
 					<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
 					<Button
-						href={resolve('/(app)/admin/services/[serviceId]/generate', {
-							serviceId: data.service.id
-						})}
 						variant="outline"
-						size="sm">Generar en lote</Button
+						size="sm"
+						disabled={catalogsForPicker.length === 0}
+						onclick={() => (generateOpen = true)}>Generar en lote</Button
 					>
 				</div>
 			{/if}
@@ -335,56 +305,8 @@
 					</div>
 					{#if workMode === 'divided'}
 						<div class="space-y-3 rounded-lg border p-3">
-							<div class="flex items-center justify-between">
-								<Label>Elementos</Label>
-								<Button type="button" variant="outline" size="sm" onclick={addElementRow}>
-									Añadir elemento
-								</Button>
-							</div>
-							{#each workElements as row, index (index)}
-								<div class="space-y-2 rounded-md border border-input p-2">
-									<div class="flex flex-wrap items-center justify-between gap-2">
-										<div class="flex gap-1">
-											<Button
-												type="button"
-												size="sm"
-												variant={row.source === 'catalog' ? 'default' : 'outline'}
-												onclick={() => (workElements[index].source = 'catalog')}
-											>
-												Desde catálogo
-											</Button>
-											<Button
-												type="button"
-												size="sm"
-												variant={row.source === 'custom' ? 'default' : 'outline'}
-												onclick={() => (workElements[index].source = 'custom')}
-											>
-												Nombre propio
-											</Button>
-										</div>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											aria-label={`Quitar elemento ${index + 1}`}
-											onclick={() => removeElementRow(index)}>Quitar</Button
-										>
-									</div>
-									{#if row.source === 'catalog'}
-										<CatalogItemPicker
-											catalogs={catalogsForPicker}
-											bind:value={workElements[index].catalogItemId}
-											itemPlaceholder="Elige ítem…"
-										/>
-									{:else}
-										<Input
-											bind:value={workElements[index].name}
-											placeholder="Nombre del elemento"
-											aria-label={`Nombre del elemento ${index + 1}`}
-										/>
-									{/if}
-								</div>
-							{/each}
+							<Label>Elementos</Label>
+							<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
 						</div>
 					{/if}
 					<input type="hidden" name="elements" value={elementsJson} />
@@ -395,5 +317,11 @@
 				</form>
 			</Dialog.Content>
 		</Dialog.Root>
+
+		<GenerateStructureDialog
+			serviceId={data.service.id}
+			catalogs={catalogsForPicker}
+			bind:open={generateOpen}
+		/>
 	{/if}
 </div>

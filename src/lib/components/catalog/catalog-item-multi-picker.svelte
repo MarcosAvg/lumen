@@ -15,7 +15,7 @@
 		itemPlaceholder = 'Añadir ítems…',
 		disabled = false
 	}: {
-		name: string;
+		name?: string;
 		catalogs: CatalogGroup[];
 		value?: string[];
 		itemPlaceholder?: string;
@@ -44,9 +44,11 @@
 	}
 </script>
 
-{#each value as id (id)}
-	<input type="hidden" {name} value={id} />
-{/each}
+{#if name}
+	{#each value as id (id)}
+		<input type="hidden" {name} value={id} />
+	{/each}
+{/if}
 
 <div class="space-y-2">
 	{#if selected.length > 0}

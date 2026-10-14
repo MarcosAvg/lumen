@@ -48,9 +48,10 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await dialog.getByRole('tab', { name: 'Nombre propio' }).click();
 	await dialog.locator('#work-name').fill(workName);
 
-	await dialog.getByLabel('Nombre del elemento 1').fill('UMA 1');
-	await dialog.getByRole('button', { name: 'Añadir elemento' }).click();
-	await dialog.getByLabel('Nombre del elemento 2').fill('UMA 2');
+	await dialog.locator('#element-name-draft').fill('UMA 1');
+	await dialog.getByRole('button', { name: 'Agregar' }).last().click();
+	await dialog.locator('#element-name-draft').fill('UMA 2');
+	await dialog.getByRole('button', { name: 'Agregar' }).last().click();
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
@@ -64,12 +65,12 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await expect(page.getByText('UMA 2')).toBeVisible();
 
 	// Añadir un elemento desde el propio trabajo.
-	await page.getByRole('button', { name: 'Añadir elemento' }).click();
+	await page.getByRole('button', { name: 'Añadir elementos' }).click();
 	const elementDialog = page.getByRole('dialog');
-	await elementDialog.getByRole('tab', { name: 'Nombre propio' }).click();
-	await elementDialog.getByLabel('Nombre propio').fill('UMA 3');
-	await elementDialog.getByRole('button', { name: 'Añadir elemento' }).click();
+	await elementDialog.locator('#element-name-draft').fill('UMA 3');
+	await elementDialog.getByRole('button', { name: 'Agregar' }).last().click();
+	await elementDialog.getByRole('button', { name: 'Añadir elementos' }).click();
 
-	await expect(page.getByText('Elemento añadido.')).toBeVisible();
+	await expect(page.getByText('Elementos añadidos.')).toBeVisible();
 	await expect(page.getByText('UMA 3')).toBeVisible();
 });

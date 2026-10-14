@@ -10,3 +10,9 @@ export interface CatalogGroup {
 	name: string;
 	items: CatalogItemRef[];
 }
+
+/** Elemento en construcción: por ítem de catálogo o por nombre propio. */
+export interface ElementDraft {
+	catalogItemId: string;
+	name: string;
+}

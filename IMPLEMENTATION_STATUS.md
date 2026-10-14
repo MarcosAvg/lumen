@@ -251,10 +251,14 @@ Se eliminó el volcado plano de catálogos en selectores:
 «Desde catálogo» (catálogo → ítem) y «Nombre propio» (input), evitando ambigüedad y garantizando que
 se envía exactamente un origen; el modo inicial es catálogo si el servicio tiene catálogos.
 
-**Elementos**: se pueden crear **al crear el trabajo dividido** (sección «Elementos» con filas
-catálogo/nombre) y **dentro del propio trabajo** (botón «Añadir elemento»). `createWork` acepta
-`elements` y los crea con sus objetivos en una transacción; el antiguo «Añadir elemento» del
-servicio se retiró. Renombrar y eliminar siguen en el trabajo.
+**Elementos**: se pueden crear **al crear el trabajo dividido** y **dentro del propio trabajo** con un
+editor reutilizable que permite **elegir varios ítems de un catálogo a la vez** o añadir nombres
+propios. `createWork` acepta `elements` y `addElements` crea N elementos con sus objetivos en una
+transacción; el antiguo «Añadir elemento» del servicio se retiró.
+
+**Generación en lote**: pasó de ser una **ruta separada** a un **modal** en el servicio
+(`generate-structure-dialog`) con dos pasos (selección → vista previa → aplicar) apoyado en endpoints
+JSON `.../generate/preview` y `.../generate/apply`; la ruta antigua se eliminó.
 
 ## Cómo ejecutar
 

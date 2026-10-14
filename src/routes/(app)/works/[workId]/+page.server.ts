@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { z } from 'zod';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
@@ -7,15 +8,15 @@ import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getWorkForConversion } from '#lib/server/domain/structure';
 import { isEditableStatus, getTargetForWork } from '#lib/server/domain/targets';
 import {
-	createElement,
+	addElements,
 	getWorkDetail,
 	listElementsDetailed,
 	updateElement,
 	updateWork
 } from '#lib/server/domain/works';
-import { failFrom, parseForm } from '#lib/server/forms';
-import { requireUuidParam } from '#lib/server/params';
-import { createElementSchema, updateElementSchema, updateWorkSchema } from '#lib/schemas/works';
+import { failFrom, fieldErrors, parseForm } from '#lib/server/forms';
+import { isUuid, requireUuidParam } from '#lib/server/params';
+import { createWorkElementSchema, updateElementSchema, updateWorkSchema } from '#lib/schemas/works';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -84,23 +85,31 @@ export const actions: Actions = {
 		return { success: 'Trabajo actualizado.' };
 	},
 
-	createElement: async (event) => {
+	createElements: async (event) => {
 		const admin = requireAdmin(event.locals);
-		const parsed = parseForm(createElementSchema, await event.request.formData());
-		if (!parsed.ok) return fail(400, { elementErrors: parsed.errors });
+		const form = await event.request.formData();
+		const workId = String(form.get('workId') ?? '');
+		if (!isUuid(workId)) return fail(400, { elementErrors: { _form: 'Trabajo inválido.' } });
+
+		let raw: unknown;
+		try {
+			raw = JSON.parse(String(form.get('elements') ?? '[]'));
+		} catch {
+			raw = null;
+		}
+		const parsed = z.array(createWorkElementSchema).min(1).safeParse(raw);
+		if (!parsed.success) return fail(400, { elementErrors: fieldErrors(parsed.error) });
 
 		try {
-			await createElement(getDatabase().db, {
-				workId: parsed.data.workId,
-				name: parsed.data.name,
-				catalogItemId: parsed.data.catalogItemId || null,
-				description: parsed.data.description,
+			await addElements(getDatabase().db, {
+				workId,
+				elements: parsed.data,
 				actorId: admin.id
 			});
 		} catch (error) {
 			return failFrom(error);
 		}
-		return { success: 'Elemento añadido.' };
+		return { success: 'Elementos añadidos.' };
 	},
 
 	updateElement: async (event) => {
