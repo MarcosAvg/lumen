@@ -35,10 +35,6 @@ export const variables = defineEnvVars({
 		description: 'Cadena de conexión interna a PostgreSQL.',
 		schema: requiredAtRuntime()
 	},
-	ORIGIN: {
-		description: 'URL pública HTTPS de Lumen (redirecciones, cookies y CSRF).',
-		schema: building ? z.string().optional() : z.url()
-	},
 	PHOTO_STORAGE_PATH: {
 		description: 'Ruta del volumen persistente donde se guardan fotos y miniaturas.',
 		schema: z.string().min(1).default('/data/photos')

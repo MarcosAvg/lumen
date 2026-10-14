@@ -1,14 +1,14 @@
 # Estado de implementación de Lumen
 
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
-> Última actualización: **Etapa 0 completada**.
+> Última actualización: **Etapa 1 completada**.
 
 ## Resumen
 
 | Etapa                                             | Estado        |
 | ------------------------------------------------- | ------------- |
 | 0 — Proyecto y entorno reproducible               | ✅ Completada |
-| 1 — Identidad, sesiones, roles y asignaciones     | ⏳ Pendiente  |
+| 1 — Identidad, sesiones, roles y asignaciones     | ✅ Completada |
 | 2 — Catálogos, servicios y trabajos               | ⏳ Pendiente  |
 | 3 — Captura y almacenamiento fotográfico          | ⏳ Pendiente  |
 | 4 — Envíos, revisiones e historial inmutable      | ⏳ Pendiente  |
@@ -17,119 +17,135 @@
 | 7 — Búsqueda y exportaciones                      | ⏳ Pendiente  |
 | 8 — Calidad, operaciones y publicación            | ⏳ Pendiente  |
 
-El repositorio dejó de ser documentación y ahora es una **aplicación SvelteKit ejecutable** con
-PostgreSQL, migraciones versionadas y despliegue con Docker Compose.
-
 ## Stack real en uso
 
 - **SvelteKit 3** + **Svelte 5** (runes forzadas) + **TypeScript 6** estricto, `@sveltejs/adapter-node`.
-- **Tailwind CSS 4** (`@tailwindcss/vite`) + **shadcn-svelte 1.7** (estilo `nova`, color base `neutral`).
+- **Tailwind CSS 4** + **shadcn-svelte 1.7** (estilo `nova`, base `neutral`).
 - **PostgreSQL 17** (contenedor) + **Drizzle ORM 0.45** / **Drizzle Kit 0.31** (cliente `postgres.js`).
-- **Zod 4** para validación de entorno (Standard Schema).
-- **pnpm 9.15.4** (fijado en `packageManager`), **Vitest 4**, **ESLint 10** + **Prettier 3**.
+- **Zod 4** (validación, Standard Schema) y **`@node-rs/argon2` 2.2** (Argon2id).
+- **pnpm 9.15.4**, **Vitest 4**, **ESLint 10** + **Prettier 3**.
 
-## Qué se implementó (Etapa 0)
+## Convenciones del proyecto (SvelteKit 3)
 
-1. **Proyecto y tooling**: scaffold oficial `sv` (Svelte 5 + SvelteKit + TS), Prettier, ESLint,
-   Vitest, Tailwind y adapter-node. `strict: true` en TypeScript.
-2. **Variables de entorno** (`src/env.ts`): configuración central con `defineEnvVars` y Zod.
-   - `DATABASE_URL`, `ORIGIN` requeridas al arrancar (opcionales durante el build vía `building`).
-   - `PHOTO_STORAGE_PATH`, `MAX_UPLOAD_BYTES`, `IMAGE_MAX_DIMENSION`, `IMAGE_THUMB_DIMENSION`, `TZ`
-     con valores por defecto.
-   - `VAPID_PUBLIC_KEY` (pública), `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` opcionales: la app arranca
-     sin Web Push configurado.
-3. **Base de datos** (`src/lib/server/db/`):
-   - Conexión **perezosa** (`getDatabase()`) para que el `build`/análisis de rutas no requiera BD.
-   - `drizzle.config.ts` con `dialect: postgresql`, `strict` y `verbose`.
-   - **Migraciones versionadas** en `drizzle/` + runner `scripts/migrate.mjs` (solo `drizzle-orm`,
-     usable en desarrollo y en la imagen de producción). Migración inicial `0000_init.sql` habilita
-     `pgcrypto` (para `gen_random_bytes` en tokens futuros).
-4. **Salud del sistema**:
-   - `src/lib/server/db/health.ts` → conectividad, estado de migraciones y `setupRequired`.
-   - `GET /health` (JSON, `200`/`503`) para healthchecks y balanceadores.
-   - Página raíz (`/`) con el estado del sistema y aviso de configuración inicial pendiente.
-5. **Docker**:
-   - `Dockerfile` multi-stage (deps → build → runtime) con `node:24-slim`, usuario sin privilegios
-     `node`, `pnpm prune --prod`, `VOLUME /data/photos`.
-   - `compose.yaml` con `db` (PostgreSQL 17, healthcheck, puerto publicado solo en 127.0.0.1),
-     `migrate` (servicio de un solo uso que aplica migraciones) y `app` (healthcheck, `init: true`).
-   - Volúmenes persistentes separados `postgres_data` y `lumen_photos`.
-   - `.env.example` sin secretos reales y `.dockerignore`.
-6. **Documentación de trabajo**: restaurado el `README.md` de Lumen (el scaffold lo había
-   sobrescrito) y añadido este archivo.
+- Los imports internos usan el alias **`#lib`** (SvelteKit 3 **eliminó `$lib`**). tsconfig y
+  `components.json` apuntan a `#lib`.
+- El **origen público** se fija en **build** vía `paths.origin` (desde `ORIGIN`), porque
+  `@sveltejs/adapter-node` 6 ya no lee `ORIGIN` en tiempo de ejecución. En Compose se pasa como
+  build-arg; sin definirlo, adapter-node deriva el origen del proxy (`host` + `https`).
+- Las rutas usan `resolve()` de `$app/paths` (routes tipadas); los componentes shadcn quedan
+  exentos de `svelte/no-navigation-without-resolve`.
+
+## Etapa 1 — Identidad, sesiones, roles y asignaciones
+
+### Modelo de datos (`drizzle/0001_identity.sql`)
+
+| Tabla                 | Notas                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `users`               | `role` enum, `is_active`, `disabled_at`; índice **único funcional** `lower(username)` |
+| `sessions`            | `token_hash` (SHA-256) único, `expires_at`, `revoked_at`, `user_agent`, `ip`          |
+| `services`            | Esqueleto (Etapa 2 amplía edificio/catálogos con migración aditiva)                   |
+| `service_assignments` | **único parcial** `(service_id, user_id, assignment_role) WHERE revoked_at IS NULL`   |
+| `audit_events`        | Registro de acciones críticas (roles, asignaciones, altas, contraseñas)               |
+
+### Backend (`#lib/server`)
+
+- `auth/password.ts`: Argon2id (19 MiB, 2 iteraciones) mediante `@node-rs/argon2`.
+- `auth/token.ts`: token de sesión aleatorio (32 bytes) + hash SHA-256 persistido.
+- `auth/session.ts`: `insertSession`, `findActiveSession` (join + `is_active` + vigencia), revocación.
+- `auth/cookies.ts`: cookie `lumen_session` `HttpOnly`/`SameSite=Lax`/`Secure` según HTTPS.
+- `auth/start-session.ts` y `auth/guards.ts` (`requireUser`, `requireAdmin`, `requireServiceAccess`).
+- `hooks.server.ts`: resuelve `event.locals.user` en cada petición (nunca confía en la cookie).
+- `domain/users.ts`: `createFirstAdmin` y cambios de estado de `users`/roles con **advisory lock**
+  (`pg_advisory_xact_lock`) — protege el último admin y serializa el primer arranque.
+- `domain/services.ts` / `domain/assignments.ts`: ámbito por servicio y asignaciones.
+- `domain/audit.ts`: eventos de auditoría dentro de la transacción.
+
+### Rutas
+
+- `/setup` (asistente atómico de primera cuenta), `/login`, `/logout` (POST).
+- `(app)/dashboard`, `(app)/admin/users` (crear, activar/desactivar, cambiar rol con confirmación de
+  revocaciones, restablecer contraseña), `(app)/admin/services` (crear/listar) y
+  `(app)/admin/services/[serviceId]` (asignar/revocar técnicos y supervisores).
+- `(app)/services/[serviceId]`: detalle protegido por `requireServiceAccess` (404 opaco fuera de ámbito).
+- `/` redirige según estado (setup → login → dashboard).
+
+### Pruebas
+
+- **Unitarias** (`pnpm test`): `cn` en `src/lib/**`.
+- **Integración** (`pnpm test:integration`) contra PostgreSQL real en `lumen_test` (creada y migrada
+  por el propio test), con `truncate` entre casos:
+  - AUTH-05: dos primeros arranques simultáneos → exactamente un admin.
+  - Login correcto/incorrecto (usuario case-insensitive).
+  - AUTH-04: desactivar invalida sesiones activas.
+  - Protección del último admin (desactivar y degradar).
+  - Cambio de rol con revocación de asignaciones incompatibles (y confirmación obligatoria).
+  - Restablecer contraseña revoca sesiones; usuario duplicado rechazado.
+  - AUTH-01 y ámbito por servicio: técnico/supervisor no asignado bloqueado; asignado accede;
+    administrador global; revocación quita acceso; rol de asignación incompatible rechazado;
+    no se asignan usuarios inactivos; asignación duplicada idempotente.
 
 ## Cómo ejecutar
 
 ```bash
-# 1. Configurar variables
-cp .env.example .env   # ajustar POSTGRES_PASSWORD y ORIGIN
-
-# 2. Levantar todo (construye imagen, migra y arranca)
-docker compose up -d --build
-curl http://localhost:3000/health   # {"status":"ok",...}
-
-# Reiniciar sin perder datos
-docker compose down && docker compose up -d
+cp .env.example .env          # ajustar POSTGRES_PASSWORD y ORIGIN
+docker compose up -d --build  # app + db + migraciones
+curl http://localhost:3000/health
 ```
 
 Desarrollo en el host (el contenedor `db` publica `127.0.0.1:5432`):
 
 ```bash
-docker compose up -d db     # solo PostgreSQL
+docker compose up -d db
 pnpm install
-pnpm db:migrate             # carga .env automáticamente
-pnpm dev                    # http://localhost:5173
+pnpm db:migrate               # carga .env automáticamente
+pnpm dev                      # http://localhost:5173
 ```
 
-Scripts disponibles: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `db:generate`,
-`db:migrate`, `db:studio`.
+Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integration`,
+`db:generate`, `db:migrate`, `db:studio`.
 
-> **Nota de entorno:** el puerto `3000` puede estar ocupado por otros servicios del host. El puerto
-> publicado de la app es configurable con `APP_PORT` (p. ej. `APP_PORT=3080 docker compose up -d`).
+> `pnpm test:integration` usa `TEST_DATABASE_URL` (por defecto
+> `postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`). Requiere PostgreSQL accesible;
+> si no lo está, las suites se omiten con un aviso.
+>
+> El puerto publicado de la app es configurable con `APP_PORT` (por defecto 3000).
 
 ## Pruebas realizadas y resultados
 
-| Prueba                                       | Resultado                                       |
-| -------------------------------------------- | ----------------------------------------------- |
-| `pnpm check` (svelte-check)                  | ✅ 0 errores, 0 avisos                          |
-| `pnpm lint` (Prettier + ESLint)              | ✅ Limpio                                       |
-| `pnpm test` (Vitest)                         | ✅ 2 pruebas de `cn`                            |
-| `pnpm build` (adapter-node)                  | ✅ Correcto                                     |
-| `docker compose up -d --build`               | ✅ `app` y `db` en estado `healthy`             |
-| `GET /health` con BD y migraciones           | ✅ `200 {"status":"ok","migrations":"applied"}` |
-| Instalación nueva (volúmenes frescos)        | ✅ Migra y arranca healthy                      |
-| Esquema `drizzle` eliminado (sin migrar)     | ✅ `503 {"migrations":"pending"}` y aviso       |
-| Reaplicar migraciones                        | ✅ Vuelve a `applied` (idempotente)             |
-| BD detenida                                  | ✅ `503 {"database":"down"}`                    |
-| Persistencia de `/data/photos` tras reinicio | ✅ Archivo escrito por `node` sobrevive         |
-| Persistencia de la BD tras reinicio          | ✅ Fila de migración intacta                    |
+| Prueba                             | Resultado                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `pnpm check`                       | ✅ 0 errores, 0 avisos                                                        |
+| `pnpm lint` (Prettier + ESLint)    | ✅ Limpio                                                                     |
+| `pnpm test` (unit)                 | ✅ 2/2                                                                        |
+| `pnpm test:integration`            | ✅ 15/15                                                                      |
+| `pnpm build`                       | ✅                                                                            |
+| `docker compose up -d --build`     | ✅ `app` y `db` healthy                                                       |
+| E2E setup (servidor compilado)     | ✅ Crea admin, emite sesión, `/dashboard` 200, segundo setup `409`            |
+| E2E login/CSRF/logout (contenedor) | ✅ login 303 + cookie, dashboard 200, login inválido 400, CSRF sin Origin 403 |
+| Fuera de ámbito                    | ✅ Cubierto por integración (AUTH-01) y `404` opaco                           |
 
-Las pruebas de concurrencia/permisos exigidas por `docs/06` se añadirán en las etapas que
-introducen esas operaciones (no aplican a la infraestructura vacía actual). Las pruebas con
-transacciones reales de PostgreSQL se incorporarán junto con el dominio (Etapa 1+).
+## Decisiones tomadas
 
-## Decisiones tomadas (ajustables)
-
-- **UUID** para recursos expuestos (no `bigint`); `gen_random_uuid()` está en el núcleo de PG 13+.
-- **Sesiones** con token opaco hasheado (se implementará en Etapa 1).
-- **Migraciones** con runner propio (`scripts/migrate.mjs`), sin `drizzle-kit` en producción y sin
-  `db:push` destructivo.
-- **Puerto** de app configurable (`APP_PORT`).
-- Eliminado el script `db:push` del scaffold para no favorecer sincronizaciones destructivas.
+- **UUID** y **sesiones con token opaco hasheado**.
+- **`#lib`** como alias (no `$lib`).
+- **`paths.origin` en build** para CSRF; en Compose se pasa `ORIGIN` como build-arg.
+- Migraciones con runner propio; sin `db:push`.
+- `no-navigation-without-resolve` exento solo para `#lib/components/ui/**`.
 
 ## Problemas conocidos / consideraciones
 
-- Sin PWA (manifest/service worker) todavía: se incorporará en etapas posteriores (6/8).
-- Sin autenticación: `/health` y `/` son públicas; la configuración inicial (`setupRequired`) se
-  usará en la Etapa 1.
-- El `AGENTS.md` recibió una cabecera `## Project Configuration` del CLI `sv` (esperado).
-- `postgres.js` con `onnotice` silenciado para evitar ruido de avisos en logs.
+- **Sin limitación de tasa** en login/uploads todavía (Etapa 8, endurecimiento). Mensaje de error de
+  login es neutro.
+- La UI de servicios es un **esqueleto** (nombre/descripción/participantes); el edificio, catálogos y
+  la estructura de trabajos llegan en la Etapa 2.
+- Sin PWA (manifest/service worker) ni notificaciones (Etapas 6/8).
+- `ORIGIN` ya no se valida en runtime: cambiarlo exige reconstruir la imagen.
 
-## Próximos pasos (Etapa 1)
+## Próximos pasos (Etapa 2)
 
-1. Esquema Drizzle de `users`, `sessions`, `service_assignments` + migración.
-2. Hash de contraseñas (Argon2id), login/logout con cookies seguras y rotación de sesión.
-3. Asistente de primer arranque **atómico** (sin carrera) y protección del último administrador.
-4. Helpers de autorización central (`getSessionUser`, `requireAdmin`, `requireServiceAccess`).
-5. CRUD de usuarios, activación y cambios de rol con resolución de asignaciones incompatibles.
-6. Pruebas AUTH-01…05 con PostgreSQL real.
+1. `catalogs`, `catalog_items`, `catalog_item_relations`.
+2. Ampliar `services` (edificio con `building_catalog_item_id` + snapshot) y `works`/`elements`.
+3. `evidence_targets` con XOR `work_id`/`element_id` y únicos.
+4. Nombres vinculados dinámicos y desvinculación al renombrar instancias; borrado preservador de ítems.
+5. Generación masiva desde catálogos con **preview** y excepciones; progreso derivado.
+6. Pruebas CAT-1..3 y WORK-1/2 con PostgreSQL real.

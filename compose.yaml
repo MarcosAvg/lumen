@@ -27,6 +27,8 @@ services:
     build:
       context: .
       target: runtime
+      args:
+        ORIGIN: ${ORIGIN:-http://localhost:3000}
     restart: 'no'
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
@@ -40,12 +42,13 @@ services:
     build:
       context: .
       target: runtime
+      args:
+        ORIGIN: ${ORIGIN:-http://localhost:3000}
     restart: unless-stopped
     init: true
     environment:
       # La URL interna se construye contra el host `db`, ignorando el `.env` de desarrollo.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      ORIGIN: ${ORIGIN:-http://localhost:3000}
       PHOTO_STORAGE_PATH: /data/photos
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
       IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}

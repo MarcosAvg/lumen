@@ -1,3 +1,5 @@
+import type { PgDatabase } from 'drizzle-orm/pg-core';
+import type { PostgresJsQueryResultHKT } from 'drizzle-orm/postgres-js';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { DATABASE_URL } from '$app/env/private';
@@ -25,4 +27,8 @@ export function getDatabase(): Connection {
 	return (connection ??= connect());
 }
 
-export type Database = Connection['db'];
+/**
+ * Tipo común para la conexión raíz y para transacciones: ambas son
+ * `PgDatabase`, de modo que las funciones de dominio aceptan cualquiera.
+ */
+export type Database = PgDatabase<PostgresJsQueryResultHKT, typeof schema>;

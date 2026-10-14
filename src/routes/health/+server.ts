@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { checkHealth } from '$lib/server/db/health';
+import { checkHealth } from '#lib/server/db/health';
 import type { RequestHandler } from './$types';
 
 /**
