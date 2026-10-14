@@ -19,10 +19,27 @@ export interface RateLimitResult {
 
 const buckets = new Map<string, number[]>();
 
+/** Lee un límite configurable por entorno (positivo); si no, usa el valor por defecto. */
+function envLimit(name: string, fallback: number): number {
+	const raw = process.env[name]?.trim();
+	if (!raw) return fallback;
+	const parsed = Number(raw);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 /** Valores razonables y ajustables para equipos internos pequeños. */
-export const LOGIN_RULE: RateLimitRule = { limit: 10, windowMs: 15 * 60 * 1000 };
-export const SETUP_RULE: RateLimitRule = { limit: 10, windowMs: 15 * 60 * 1000 };
-export const UPLOAD_RULE: RateLimitRule = { limit: 60, windowMs: 60 * 1000 };
+export const LOGIN_RULE: RateLimitRule = {
+	limit: envLimit('RATE_LIMIT_LOGIN_MAX', 10),
+	windowMs: envLimit('RATE_LIMIT_LOGIN_WINDOW_MS', 15 * 60 * 1000)
+};
+export const SETUP_RULE: RateLimitRule = {
+	limit: envLimit('RATE_LIMIT_SETUP_MAX', 10),
+	windowMs: envLimit('RATE_LIMIT_SETUP_WINDOW_MS', 15 * 60 * 1000)
+};
+export const UPLOAD_RULE: RateLimitRule = {
+	limit: envLimit('RATE_LIMIT_UPLOAD_MAX', 60),
+	windowMs: envLimit('RATE_LIMIT_UPLOAD_WINDOW_MS', 60 * 1000)
+};
 
 /** Registra un intento y decide si se permite. */
 export function consumeRateLimit(

@@ -267,6 +267,10 @@ mantiene **«Adicionales»**. Sin cambios de modelo (sigue siendo el grupo `addi
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 
+**Borrado de servicio**: el administrador puede eliminarlo desde la **página del servicio** (Zona de
+peligro) y desde la **lista de Servicios de administración**, con resumen de impacto y confirmación.
+Los límites de tasa (login/setup/subidas) son **configurables por entorno** (`RATE_LIMIT_*`).
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:

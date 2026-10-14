@@ -7,6 +7,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -101,6 +102,12 @@
 								variant="ghost"
 								size="sm">Ver servicio</Button
 							>
+							<DestructiveDelete
+								label="Eliminar"
+								endpoint={`/api/services/${service.id}`}
+								itemName={service.name}
+								description="Se eliminarán sus trabajos, elementos, entregas y fotos."
+							/>
 						</Card.Footer>
 					</Card.Root>
 				</li>

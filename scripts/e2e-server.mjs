@@ -60,7 +60,16 @@ run('pnpm', ['build'], { ...env, ORIGIN });
 
 const server = spawn('node', ['build/index.js'], {
 	stdio: 'inherit',
-	env: { ...env, PHOTO_STORAGE_PATH, PORT, HOST: '127.0.0.1', BODY_SIZE_LIMIT: '30M' }
+	env: {
+		...env,
+		PHOTO_STORAGE_PATH,
+		PORT,
+		HOST: '127.0.0.1',
+		BODY_SIZE_LIMIT: '30M',
+		// Los E2E inician sesión en cada spec: se relaja el límite de login.
+		RATE_LIMIT_LOGIN_MAX: '1000',
+		RATE_LIMIT_SETUP_MAX: '1000'
+	}
 });
 
 const shutdown = (signal) => {

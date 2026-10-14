@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -249,6 +250,26 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	{#if data.isAdmin}
+		<Card.Root>
+			<Card.Header><Card.Title class="text-base">Zona de peligro</Card.Title></Card.Header>
+			<Card.Content class="space-y-2">
+				<p class="text-sm text-muted-foreground">
+					Eliminar el servicio borra de forma permanente sus trabajos, elementos, evidencia,
+					entregas y asignaciones.
+				</p>
+				<DestructiveDelete
+					label="Eliminar servicio"
+					endpoint={`/api/services/${data.service.id}`}
+					itemName={data.service.name}
+					onDeleted={() => {
+						void goto(resolve('/(app)/dashboard'));
+					}}
+				/>
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	{#if data.isAdmin}
 		<Dialog.Root bind:open={workOpen}>
