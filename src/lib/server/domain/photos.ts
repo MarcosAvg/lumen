@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import { evidenceTargets, photoRequirements, photos } from '#lib/server/db/schema';
+import {
+	evidenceTargets,
+	photoRequirements,
+	photos,
+	submissionPhotos
+} from '#lib/server/db/schema';
 import { ImageError, processImage } from '#lib/server/storage/images';
 import type { Storage } from '#lib/server/storage/storage';
 import { recordAudit } from './audit';
@@ -332,6 +337,8 @@ export interface PhotoAccessContext {
 	mimeType: string;
 	processingStatus: PhotoProcessingStatus;
 	removedAt: Date | null;
+	/** La foto forma parte de alguna entrega (histórica), aunque se retirara del borrador. */
+	historicalReference: boolean;
 }
 
 /** Contexto de una foto para autorizar su descarga/miniatura. */
@@ -343,6 +350,15 @@ export async function getPhotoAccessContext(
 	if (!photo) throw new DomainError(404, 'Fotografía no encontrada.');
 
 	const target = await getTargetContext(db, photo.targetId);
+
+	// Una foto retirada del borrador sigue siendo accesible si quedó congelada en
+	// una entrega: protege la evidencia histórica (docs/02, PHOTO-04).
+	const [link] = await db
+		.select({ id: submissionPhotos.id })
+		.from(submissionPhotos)
+		.where(eq(submissionPhotos.photoId, photo.id))
+		.limit(1);
+
 	return {
 		id: photo.id,
 		targetId: photo.targetId,
@@ -351,6 +367,18 @@ export async function getPhotoAccessContext(
 		thumbnailPath: photo.thumbnailPath,
 		mimeType: photo.mimeType,
 		processingStatus: photo.processingStatus,
-		removedAt: photo.removedAt
+		removedAt: photo.removedAt,
+		historicalReference: Boolean(link)
 	};
+}
+
+/**
+ * Disponibilidad de un binario: solo las fotos `ready` de la evidencia vigente o
+ * las retiradas que forman parte de una entrega histórica.
+ */
+export function isPhotoAvailable(
+	photo: Pick<PhotoAccessContext, 'processingStatus' | 'removedAt' | 'historicalReference'>
+): boolean {
+	if (photo.processingStatus !== 'ready') return false;
+	return !photo.removedAt || photo.historicalReference;
 }

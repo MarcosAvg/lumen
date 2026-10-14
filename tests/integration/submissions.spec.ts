@@ -6,7 +6,13 @@ import sharp from 'sharp';
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '#lib/server/auth/password';
 import { DomainError } from '#lib/server/domain/errors';
-import { appendPhoto, loadEvidence, removePhoto } from '#lib/server/domain/photos';
+import {
+	appendPhoto,
+	getPhotoAccessContext,
+	isPhotoAvailable,
+	loadEvidence,
+	removePhoto
+} from '#lib/server/domain/photos';
 import { createRequirement } from '#lib/server/domain/requirements';
 import { createService } from '#lib/server/domain/services';
 import {
@@ -246,6 +252,52 @@ await describeWithDatabase('Entregas y revisiones', ({ db, client }) => {
 			.from(submissionPhotos)
 			.where(eq(submissionPhotos.submissionId, first.submissionId));
 		expect(link.photoId).toBe(photoA.photo.id);
+	});
+
+	it('PHOTO-04: una foto retirada sigue accesible si quedó en una entrega histórica', async () => {
+		const { admin, targetId } = await seed();
+		const storage = await makeStorage();
+
+		const historical = await upload(storage, targetId, admin, null);
+		const first = await submitEvidence(db, {
+			targetId,
+			expectedVersion: historical.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: first.submissionId,
+			decision: 'rejected',
+			reason: 'Repetir la foto',
+			reviewerId: admin
+		});
+
+		// Se retira la foto usada en la entrega #1.
+		const afterReject = await loadEvidence(db, targetId);
+		await removePhoto(db, {
+			targetId,
+			photoId: historical.photo.id,
+			expectedVersion: afterReject.target.version,
+			userId: admin
+		});
+
+		const context = await getPhotoAccessContext(db, historical.photo.id);
+		expect(context.removedAt).not.toBeNull();
+		expect(context.historicalReference).toBe(true);
+		expect(isPhotoAvailable(context)).toBe(true);
+
+		// Una foto retirada que nunca formó parte de una entrega no es accesible.
+		const draftOnly = await upload(storage, targetId, admin, null);
+		const before = await loadEvidence(db, targetId);
+		await removePhoto(db, {
+			targetId,
+			photoId: draftOnly.photo.id,
+			expectedVersion: before.target.version,
+			userId: admin
+		});
+		const orphanContext = await getPhotoAccessContext(db, draftOnly.photo.id);
+		expect(orphanContext.removedAt).not.toBeNull();
+		expect(orphanContext.historicalReference).toBe(false);
+		expect(isPhotoAvailable(orphanContext)).toBe(false);
 	});
 
 	it('la aprobación bloquea el objetivo sin afectar a otros elementos', async () => {

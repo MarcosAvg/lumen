@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { errorResponse } from '#lib/server/api';
 import { requirePhotoAccess } from '#lib/server/auth/guards';
+import { isPhotoAvailable } from '#lib/server/domain/photos';
 import { isUuid } from '#lib/server/params';
 import { storage } from '#lib/server/storage';
 import type { RequestHandler } from './$types';
@@ -18,7 +19,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		return errorResponse(error);
 	}
 
-	if (photo.processingStatus !== 'ready') {
+	if (!isPhotoAvailable(photo)) {
 		return new Response('No disponible', { status: 404 });
 	}
 
