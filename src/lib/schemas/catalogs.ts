@@ -57,17 +57,17 @@ export const deleteCatalogItemSchema = z.object({
 	itemId: z.uuid('Ítem inválido.')
 });
 
-export const createRelationSchema = z.object({
-	fromItemId: z.uuid('Ítem de origen inválido.'),
-	toItemId: z.uuid('Ítem de destino inválido.'),
+export const createRelationsBatchSchema = z.object({
+	fromItemIds: z
+		.array(z.uuid('Ítem de origen inválido.'))
+		.min(1, 'Elige al menos un ítem de origen.'),
+	toItemIds: z
+		.array(z.uuid('Ítem de destino inválido.'))
+		.min(1, 'Elige al menos un ítem de destino.'),
 	relationType: z
 		.string()
 		.trim()
 		.max(80, 'El tipo no puede superar 80 caracteres.')
 		.optional()
 		.default('')
-});
-
-export const deleteRelationSchema = z.object({
-	relationId: z.uuid('Relación inválida.')
 });

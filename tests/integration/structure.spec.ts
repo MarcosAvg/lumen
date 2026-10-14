@@ -5,6 +5,7 @@ import {
 	createCatalog,
 	createCatalogItem,
 	createRelation,
+	createRelationsBatch,
 	deleteCatalogItem,
 	getCatalogItemImpact,
 	renameCatalogItem
@@ -207,6 +208,67 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 		await expect(
 			createRelation(db, { fromItemId: a1.id, toItemId: a2.id, actorId: admin })
 		).rejects.toBeInstanceOf(DomainError);
+	});
+
+	it('no se repite una relación sin tipo', async () => {
+		const admin = await seedAdmin();
+		const catalogA = await createCatalog(db, { name: 'Pisos', actorId: admin });
+		const catalogB = await createCatalog(db, { name: 'UMAs', actorId: admin });
+		const a1 = await seedItem(catalogA.id, 'Piso 34', admin);
+		const b1 = await seedItem(catalogB.id, 'UMA 03', admin);
+
+		await createRelation(db, { fromItemId: a1.id, toItemId: b1.id, actorId: admin });
+		await expect(
+			createRelation(db, { fromItemId: a1.id, toItemId: b1.id, actorId: admin })
+		).rejects.toBeInstanceOf(DomainError);
+	});
+
+	it('la relación en lote crea el producto y omite las existentes', async () => {
+		const admin = await seedAdmin();
+		const pisos = await createCatalog(db, { name: 'Pisos', actorId: admin });
+		const edificios = await createCatalog(db, { name: 'Edificios', actorId: admin });
+		const pisoA = await seedItem(pisos.id, 'Piso 1', admin);
+		const pisoB = await seedItem(pisos.id, 'Piso 2', admin);
+		const pisoC = await seedItem(pisos.id, 'Piso 3', admin);
+		const edificio = await seedItem(edificios.id, 'Edificio A', admin);
+
+		const first = await createRelationsBatch(db, {
+			fromItemIds: [pisoA.id, pisoB.id, pisoC.id],
+			toItemIds: [edificio.id],
+			actorId: admin
+		});
+		expect(first).toEqual({ created: 3, skipped: 0 });
+
+		const second = await createRelationsBatch(db, {
+			fromItemIds: [pisoA.id, pisoB.id, pisoC.id],
+			toItemIds: [edificio.id],
+			actorId: admin
+		});
+		expect(second).toEqual({ created: 0, skipped: 3 });
+	});
+
+	it('la relación en lote rechaza ítems del mismo catálogo y deduplica la entrada', async () => {
+		const admin = await seedAdmin();
+		const pisos = await createCatalog(db, { name: 'Pisos', actorId: admin });
+		const edificios = await createCatalog(db, { name: 'Edificios', actorId: admin });
+		const pisoA = await seedItem(pisos.id, 'Piso 1', admin);
+		const pisoB = await seedItem(pisos.id, 'Piso 2', admin);
+		const edificio = await seedItem(edificios.id, 'Edificio A', admin);
+
+		await expect(
+			createRelationsBatch(db, {
+				fromItemIds: [pisoA.id, pisoB.id],
+				toItemIds: [pisoA.id],
+				actorId: admin
+			})
+		).rejects.toBeInstanceOf(DomainError);
+
+		const result = await createRelationsBatch(db, {
+			fromItemIds: [pisoA.id, pisoA.id, pisoB.id],
+			toItemIds: [edificio.id, edificio.id],
+			actorId: admin
+		});
+		expect(result).toEqual({ created: 2, skipped: 0 });
 	});
 
 	it('generación 34×4 crea la estructura esperada', async () => {

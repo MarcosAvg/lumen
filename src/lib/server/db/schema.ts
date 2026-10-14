@@ -139,6 +139,12 @@ export const catalogItemRelations = pgTable(
 			table.toItemId,
 			table.relationType
 		),
+		// `relationType` es nullable y en Postgres los NULL se consideran distintos,
+		// así que el índice de arriba no evita el mismo par sin tipo. Este índice
+		// parcial sí lo hace.
+		uniqueIndex('catalog_item_relations_unique_null_type')
+			.on(table.fromItemId, table.toItemId)
+			.where(sql`${table.relationType} is null`),
 		check('catalog_item_relations_not_self', sql`${table.fromItemId} <> ${table.toItemId}`)
 	]
 );

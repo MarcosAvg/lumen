@@ -198,6 +198,8 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 - Lista de catálogos con búsqueda y acciones agregar/editar.
 - Detalle de ítems, relaciones opcionales con ítems de otros catálogos, orden, usos.
+- Relaciones **por ítem**: cada ítem muestra su número de relaciones y abre un modal para verlas en ambos sentidos, añadir una y quitar. El **sentido** (origen → destino) es explícito y afecta a la generación en lote.
+- Relaciones **en lote**: varios ítems de este catálogo con un único ítem de otro catálogo, en cualquiera de los dos sentidos, con resumen previo («se crearán X; Y ya existen y se omitirán») y sin duplicar relaciones existentes.
 - Al renombrar ítem, mostrar texto breve: «Se actualizarán los nombres de los trabajos/elementos aún vinculados».
 - Al borrar ítem, diálogo de impacto: «Los trabajos y elementos vinculados conservarán su nombre actual y dejarán de estar vinculados; sus evidencias no se borrarán».
 - Al renombrar trabajo/elemento vinculado, advertir: «Este cambio lo desvinculará del catálogo».

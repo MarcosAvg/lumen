@@ -4,10 +4,8 @@ import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
 import {
 	createCatalogItem,
-	createRelation,
 	deleteCatalog,
 	deleteCatalogItem,
-	deleteRelation,
 	getCatalog,
 	getCatalogItemImpact,
 	getCatalogMeta,
@@ -23,9 +21,7 @@ import { failFrom, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
 import {
 	createCatalogItemSchema,
-	createRelationSchema,
 	deleteCatalogItemSchema,
-	deleteRelationSchema,
 	renameCatalogItemSchema,
 	updateCatalogSchema
 } from '#lib/schemas/catalogs';
@@ -144,32 +140,6 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Orden actualizado.' };
-	},
-
-	createRelation: async (event) => {
-		const admin = requireAdmin(event.locals);
-		const parsed = parseForm(createRelationSchema, await event.request.formData());
-		if (!parsed.ok) return fail(400, { message: 'Relación inválida.' });
-
-		try {
-			await createRelation(getDatabase().db, { ...parsed.data, actorId: admin.id });
-		} catch (error) {
-			return failFrom(error);
-		}
-		return { success: 'Relación creada.' };
-	},
-
-	deleteRelation: async (event) => {
-		const admin = requireAdmin(event.locals);
-		const parsed = parseForm(deleteRelationSchema, await event.request.formData());
-		if (!parsed.ok) return fail(400, { message: 'Relación inválida.' });
-
-		try {
-			await deleteRelation(getDatabase().db, parsed.data.relationId, admin.id);
-		} catch (error) {
-			return failFrom(error);
-		}
-		return { success: 'Relación eliminada.' };
 	},
 
 	deleteCatalog: async (event) => {

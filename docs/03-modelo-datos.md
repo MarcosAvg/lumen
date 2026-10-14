@@ -82,7 +82,7 @@ Restricción lógica transaccional: **siempre ≥1 admin activo** una vez termin
 
 ### `catalog_item_relations`
 
-`id`, `from_item_id`, `to_item_id`, `relation_type` opcional, `created_at`; unicidad de par + tipo, sin relaciones consigo mismo, y validación de que enlazan **catálogos distintos**. El sentido de relación debe ser explícito; no deducir automáticamente jerarquía de padres/hijos.
+`id`, `from_item_id`, `to_item_id`, `relation_type` opcional, `created_at`; unicidad de par + tipo, sin relaciones consigo mismo, y validación de que enlazan **catálogos distintos**. Como `relation_type` es nullable y en Postgres los `NULL` se consideran distintos, la unicidad del par sin tipo se garantiza con un **índice único parcial** (`... WHERE relation_type IS NULL`); la creación en lote omite los pares ya existentes. El sentido de relación debe ser explícito; no deducir automáticamente jerarquía de padres/hijos.
 
 ### Reutilización y eliminación
 

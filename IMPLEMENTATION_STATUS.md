@@ -260,6 +260,17 @@ transacción; el antiguo «Añadir elemento» del servicio se retiró.
 (`generate-structure-dialog`) con dos pasos (selección → vista previa → aplicar) apoyado en endpoints
 JSON `.../generate/preview` y `.../generate/apply`; la ruta antigua se eliminó.
 
+**Relaciones de catálogo**: se gestionan **por ítem** (botón «Relaciones (N)» que abre un modal con
+los dos sentidos, alta individual y quitado) y **en lote** (modal «Relacionar en lote» que enlaza
+varios ítems de este catálogo con un único ítem de otro catálogo, en cualquiera de los dos sentidos,
+con resumen previo). El sentido origen → destino es explícito porque la generación en lote depende de
+él. La API `POST /api/catalogs/[catalogId]/relations/batch` usa `createRelationsBatch` (validación de
+catálogos distintos, **omisión de pares existentes**, transaccional) y `DELETE
+/api/catalogs/[catalogId]/relations/[relationId]` elimina una relación. La migración
+`0007_relation_unique_null_type` añade un índice único **parcial** para `relation_type IS NULL`,
+cerrando el hueco del índice par+tipo (los `NULL` son distintos en Postgres), con deduplicación
+previa de las relaciones existentes sin tipo.
+
 **Nomenclatura de evidencia**: si el objetivo **no tiene requisitos**, el grupo de fotografías se
 muestra como **«Fotografías»** (captura, historial y carpetas del ZIP); si tiene requisitos, se
 mantiene **«Adicionales»**. Sin cambios de modelo (sigue siendo el grupo `additional`).
