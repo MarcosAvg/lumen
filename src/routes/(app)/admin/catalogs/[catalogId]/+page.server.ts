@@ -9,9 +9,12 @@ import {
 	deleteRelation,
 	getCatalog,
 	getCatalogItemImpact,
-	listAllItemOptions,
+	getCatalogMeta,
+	listCatalogsWithItems,
 	listRelationsForCatalog,
+	moveCatalogItem,
 	renameCatalogItem,
+	searchCatalogItems,
 	updateCatalog
 } from '#lib/server/domain/catalogs';
 import { failFrom, parseForm } from '#lib/server/forms';
@@ -26,18 +29,32 @@ import {
 } from '#lib/schemas/catalogs';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	requireAdmin(locals);
 	const catalogId = requireUuidParam(params.catalogId, 'Catálogo');
 	const db = getDatabase().db;
 
-	const [{ catalog, items }, relations, otherItems] = await Promise.all([
-		getCatalog(db, catalogId),
+	const q = url.searchParams.get('q') ?? '';
+	const page = Math.max(Number(url.searchParams.get('page') ?? '1') || 1, 1);
+	const PAGE_SIZE = 25;
+
+	const [catalog, itemsPage, relations, allCatalogs] = await Promise.all([
+		getCatalogMeta(db, catalogId),
+		searchCatalogItems(db, catalogId, { q, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
 		listRelationsForCatalog(db, catalogId),
-		listAllItemOptions(db, catalogId)
+		listCatalogsWithItems(db)
 	]);
 
-	return { catalog, items, relations, otherItems };
+	return {
+		catalog,
+		items: itemsPage.items,
+		total: itemsPage.total,
+		page,
+		pageSize: PAGE_SIZE,
+		q,
+		relations,
+		otherCatalogs: allCatalogs.filter((entry) => entry.id !== catalogId)
+	};
 };
 
 export const actions: Actions = {
@@ -107,6 +124,22 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Ítem eliminado. Las instancias vinculadas conservaron su nombre.' };
+	},
+
+	moveItem: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const form = await event.request.formData();
+		const itemId = form.get('itemId');
+		const direction = form.get('direction') === 'up' ? -1 : 1;
+		if (typeof itemId !== 'string' || itemId.length === 0) {
+			return fail(400, { message: 'Ítem inválido.' });
+		}
+		try {
+			await moveCatalogItem(getDatabase().db, { itemId, direction, actorId: admin.id });
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Orden actualizado.' };
 	},
 
 	createRelation: async (event) => {

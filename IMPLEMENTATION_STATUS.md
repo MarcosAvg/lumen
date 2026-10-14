@@ -227,8 +227,22 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 - **Toasts** (sonner) en acciones de cliente (p. ej. borrado), manteniendo alertas inline para
   errores de validación de formularios.
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
-  textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
+textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.
+
+## Catálogos: selectores con búsqueda y usos
+
+Se eliminó el volcado plano de catálogos en selectores:
+
+- **Combobox de ítems** (`catalog-item-picker` y variante multi con chips) con búsqueda por nombre
+  de ítem y de catálogo; sustituye los `<select>` masivos al crear trabajo/elemento, en relaciones
+  y en la generación en lote.
+- **Filtrado por propósito**: el selector de edificio usa catálogos `buildings` (con respaldo a
+  todos si no hay ninguno); trabajos/elementos excluyen los de edificios.
+- **Pantallas de catálogo**: búsqueda en la lista de catálogos; en el detalle, búsqueda y
+  paginación de ítems, columna de **usos** (trabajos/elementos/edificios) y **reordenar** ítems
+  (arriba/abajo).
+- **Relaciones guiadas**: elegir catálogo destino y luego el ítem con combobox.
 
 ## Cómo ejecutar
 
@@ -252,8 +266,8 @@ Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integ
 | `pnpm check`                                   | ✅ 0 errores, 0 avisos                                                                                                                                                                           |
 | `pnpm lint`                                    | ✅ Limpio                                                                                                                                                                                        |
 | `pnpm test` (unit)                             | ✅ 11/11                                                                                                                                                                                         |
-| `pnpm test:integration` (PostgreSQL real)      | ✅ 63/63                                                                                                                                                                                         |
-| `pnpm test:e2e` (Playwright, escritorio+móvil) | ✅ 6/6                                                                                                                                                                                           |
+| `pnpm test:integration` (PostgreSQL real)      | ✅ 66/66                                                                                                                                                                                         |
+| `pnpm test:e2e` (Playwright, escritorio+móvil) | ✅ 8/8                                                                                                                                                                                           |
 | `pnpm build`                                   | ✅                                                                                                                                                                                               |
 | Drill de restauración                          | ✅ backup BD+fotos y restauración en base/directorio separados (filas y archivos verificados)                                                                                                    |
 | E2E HTTP (servidor compilado, Etapa 4)         | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                                                                                                             |

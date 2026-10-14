@@ -5,6 +5,8 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
+	import type { CatalogItemOption } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type PlanElement = { catalogItemId: string | null; name: string; include: boolean };
@@ -19,6 +21,18 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
+
+	const pickerItems = $derived<CatalogItemOption[]>(
+		data.catalogs
+			.filter((catalog) => catalog.purpose !== 'buildings')
+			.flatMap((catalog) =>
+				catalog.items.map((item) => ({
+					id: item.id,
+					name: item.name,
+					catalogName: catalog.name
+				}))
+			)
+	);
 </script>
 
 <svelte:head>
@@ -62,43 +76,19 @@
 			<form method="POST" action="?/preview" class="grid gap-4 sm:grid-cols-2">
 				<div class="space-y-2">
 					<Label for="workItemIds">Trabajos (ítems de catálogo)</Label>
-					<select
-						id="workItemIds"
+					<CatalogItemMultiPicker
 						name="workItemIds"
-						multiple
-						size="8"
-						class="w-full rounded-lg border border-input bg-background p-2 text-sm"
-					>
-						{#each data.catalogs as catalog (catalog.id)}
-							{#if catalog.items.length > 0}
-								<optgroup label={catalog.name}>
-									{#each catalog.items as item (item.id)}
-										<option value={item.id}>{item.name}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						{/each}
-					</select>
+						items={pickerItems}
+						placeholder="Elige los trabajos…"
+					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="elementItemIds">Elementos por trabajo (opcional)</Label>
-					<select
-						id="elementItemIds"
+					<CatalogItemMultiPicker
 						name="elementItemIds"
-						multiple
-						size="8"
-						class="w-full rounded-lg border border-input bg-background p-2 text-sm"
-					>
-						{#each data.catalogs as catalog (catalog.id)}
-							{#if catalog.items.length > 0}
-								<optgroup label={catalog.name}>
-									{#each catalog.items as item (item.id)}
-										<option value={item.id}>{item.name}</option>
-									{/each}
-								</optgroup>
-							{/if}
-						{/each}
-					</select>
+						items={pickerItems}
+						placeholder="Elige los elementos…"
+					/>
 				</div>
 				<div class="sm:col-span-2">
 					<Button type="submit">Previsualizar</Button>

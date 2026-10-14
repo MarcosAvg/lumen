@@ -59,7 +59,12 @@ function countInt() {
 	return sql<number>`cast(count(*) as int)`;
 }
 
-export async function listCatalogs(db: Database): Promise<CatalogSummary[]> {
+function likePattern(raw: string): string {
+	return `%${raw.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+}
+
+export async function listCatalogs(db: Database, query?: string): Promise<CatalogSummary[]> {
+	const q = query?.trim();
 	return db
 		.select({
 			id: catalogs.id,
@@ -70,6 +75,7 @@ export async function listCatalogs(db: Database): Promise<CatalogSummary[]> {
 		})
 		.from(catalogs)
 		.leftJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
+		.where(q ? sql`${catalogs.name} ilike ${likePattern(q)} escape '\\'` : undefined)
 		.groupBy(catalogs.id)
 		.orderBy(asc(catalogs.sortOrder), asc(catalogs.name));
 }
@@ -276,6 +282,25 @@ export async function getCatalog(db: Database, catalogId: string): Promise<GetCa
 	return { catalog, items: await listCatalogItemOptions(db, catalogId) };
 }
 
+/** Metadatos del catálogo sin cargar todos sus ítems (para vistas paginadas). */
+export async function getCatalogMeta(
+	db: Database,
+	catalogId: string
+): Promise<GetCatalogResult['catalog']> {
+	const [catalog] = await db
+		.select({
+			id: catalogs.id,
+			name: catalogs.name,
+			description: catalogs.description,
+			purpose: catalogs.purpose
+		})
+		.from(catalogs)
+		.where(eq(catalogs.id, catalogId))
+		.limit(1);
+	if (!catalog) throw new DomainError(404, 'Catálogo no encontrado.');
+	return catalog;
+}
+
 export async function listCatalogItemOptions(
 	db: Database,
 	catalogId: string
@@ -285,6 +310,142 @@ export async function listCatalogItemOptions(
 		.from(catalogItems)
 		.where(eq(catalogItems.catalogId, catalogId))
 		.orderBy(asc(catalogItems.sortOrder), asc(catalogItems.name));
+}
+
+/** Recuento de usos por ítem (trabajos, elementos y edificios de servicio). */
+export async function getCatalogItemsUsage(
+	db: Database,
+	itemIds: string[]
+): Promise<Map<string, CatalogItemImpact>> {
+	const map = new Map<string, CatalogItemImpact>();
+	if (itemIds.length === 0) return map;
+	for (const id of itemIds) map.set(id, { works: 0, elements: 0, services: 0 });
+
+	const workRows = await db
+		.select({ itemId: works.catalogItemId, value: countInt() })
+		.from(works)
+		.where(inArray(works.catalogItemId, itemIds))
+		.groupBy(works.catalogItemId);
+	const elementRows = await db
+		.select({ itemId: elements.catalogItemId, value: countInt() })
+		.from(elements)
+		.where(inArray(elements.catalogItemId, itemIds))
+		.groupBy(elements.catalogItemId);
+	const serviceRows = await db
+		.select({ itemId: services.buildingCatalogItemId, value: countInt() })
+		.from(services)
+		.where(inArray(services.buildingCatalogItemId, itemIds))
+		.groupBy(services.buildingCatalogItemId);
+
+	for (const [rows, key] of [
+		[workRows, 'works'],
+		[elementRows, 'elements'],
+		[serviceRows, 'services']
+	] as const) {
+		for (const row of rows) {
+			if (!row.itemId) continue;
+			const entry = map.get(row.itemId);
+			if (entry) entry[key] = row.value;
+		}
+	}
+	return map;
+}
+
+export interface CatalogItemSearchResult {
+	id: string;
+	name: string;
+	sortOrder: number;
+	impact: CatalogItemImpact;
+}
+
+export interface CatalogItemsPage {
+	items: CatalogItemSearchResult[];
+	total: number;
+}
+
+/** Ítems de un catálogo con búsqueda, paginación y usos. */
+export async function searchCatalogItems(
+	db: Database,
+	catalogId: string,
+	options: { q?: string; limit?: number; offset?: number } = {}
+): Promise<CatalogItemsPage> {
+	const q = options.q?.trim();
+	const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+	const offset = Math.max(options.offset ?? 0, 0);
+	const condition = q
+		? and(
+				eq(catalogItems.catalogId, catalogId),
+				sql`${catalogItems.name} ilike ${likePattern(q)} escape '\\'`
+			)
+		: eq(catalogItems.catalogId, catalogId);
+
+	const items = await db
+		.select({ id: catalogItems.id, name: catalogItems.name, sortOrder: catalogItems.sortOrder })
+		.from(catalogItems)
+		.where(condition)
+		.orderBy(asc(catalogItems.sortOrder), asc(catalogItems.name))
+		.limit(limit)
+		.offset(offset);
+	const [totalRow] = await db.select({ value: countInt() }).from(catalogItems).where(condition);
+	const usage = await getCatalogItemsUsage(
+		db,
+		items.map((item) => item.id)
+	);
+
+	return {
+		items: items.map((item) => ({
+			...item,
+			impact: usage.get(item.id) ?? { works: 0, elements: 0, services: 0 }
+		})),
+		total: totalRow?.value ?? 0
+	};
+}
+
+export interface MoveCatalogItemInput {
+	itemId: string;
+	direction: -1 | 1;
+	actorId: string;
+}
+
+/** Mueve un ítem arriba/abajo dentro de su catálogo y normaliza el orden. */
+export async function moveCatalogItem(db: Database, input: MoveCatalogItemInput): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [item] = await tx
+			.select({ id: catalogItems.id, catalogId: catalogItems.catalogId })
+			.from(catalogItems)
+			.where(eq(catalogItems.id, input.itemId))
+			.limit(1);
+		if (!item) throw new DomainError(404, 'Ítem no encontrado.');
+
+		const rows = await tx
+			.select({ id: catalogItems.id })
+			.from(catalogItems)
+			.where(eq(catalogItems.catalogId, item.catalogId))
+			.orderBy(asc(catalogItems.sortOrder), asc(catalogItems.name));
+		const index = rows.findIndex((row) => row.id === input.itemId);
+		const target = index + input.direction;
+		if (target < 0 || target >= rows.length) return;
+
+		const reordered = [...rows];
+		const [moved] = reordered.splice(index, 1);
+		reordered.splice(target, 0, moved);
+
+		let order = 0;
+		for (const row of reordered) {
+			await tx
+				.update(catalogItems)
+				.set({ sortOrder: order, updatedAt: new Date() })
+				.where(eq(catalogItems.id, row.id));
+			order += 1;
+		}
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'catalog',
+			entityId: item.catalogId,
+			action: 'catalog_items.reordered'
+		});
+	});
 }
 
 export interface ItemOption {

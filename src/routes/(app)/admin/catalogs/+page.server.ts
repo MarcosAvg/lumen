@@ -6,9 +6,10 @@ import { failFrom, parseForm } from '#lib/server/forms';
 import { createCatalogSchema } from '#lib/schemas/catalogs';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals);
-	return { catalogs: await listCatalogs(getDatabase().db) };
+	const q = url.searchParams.get('q') ?? '';
+	return { catalogs: await listCatalogs(getDatabase().db, q), q };
 };
 
 export const actions: Actions = {

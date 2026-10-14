@@ -4,8 +4,10 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -17,6 +19,11 @@
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
 
+	let createOpen = $state(false);
+	$effect(() => {
+		if (action?.success) createOpen = false;
+	});
+
 	const purposeLabel = { general: 'General', buildings: 'Edificios' } as const;
 </script>
 
@@ -25,12 +32,12 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Catálogos</h1>
-		<p class="text-sm text-muted-foreground">
-			Listas reutilizables (edificios, pisos, equipos…) para nombrar trabajos y elementos.
-		</p>
-	</div>
+	<PageHeader
+		title="Catálogos"
+		description="Listas reutilizables (edificios, pisos, equipos…) para nombrar trabajos y elementos."
+	>
+		<Button onclick={() => (createOpen = true)}>Nuevo catálogo</Button>
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert><AlertDescription>{action.success}</AlertDescription></Alert>
@@ -39,10 +46,15 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Nuevo catálogo</Card.Title></Card.Header>
-		<Card.Content>
-			<form method="POST" action="?/create" class="grid gap-4 sm:grid-cols-3">
+	<Dialog.Root bind:open={createOpen}>
+		<Dialog.Content>
+			<form method="POST" action="?/create" class="space-y-4">
+				<Dialog.Header>
+					<Dialog.Title>Nuevo catálogo</Dialog.Title>
+					<Dialog.Description>
+						Los catálogos agrupan ítems reutilizables para nombrar trabajos y elementos.
+					</Dialog.Description>
+				</Dialog.Header>
 				<div class="space-y-2">
 					<Label for="name">Nombre</Label>
 					<Input id="name" name="name" required />
@@ -65,17 +77,23 @@
 						<option value="buildings">Edificios</option>
 					</select>
 				</div>
-				<div class="sm:col-span-3">
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
 					<Button type="submit">Crear catálogo</Button>
-				</div>
+				</Dialog.Footer>
 			</form>
-		</Card.Content>
-	</Card.Root>
+		</Dialog.Content>
+	</Dialog.Root>
+
+	<form method="GET" class="flex gap-2">
+		<Input name="q" value={data.q} placeholder="Buscar catálogo…" class="max-w-xs" />
+		<Button type="submit" variant="outline">Buscar</Button>
+	</form>
 
 	{#if data.catalogs.length === 0}
 		<Card.Root>
 			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				Aún no hay catálogos.
+				{data.q ? 'Sin catálogos que coincidan.' : 'Aún no hay catálogos.'}
 			</Card.Content>
 		</Card.Root>
 	{:else}
