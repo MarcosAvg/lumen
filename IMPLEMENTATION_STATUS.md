@@ -55,6 +55,13 @@ obligatorio o ≥1 total, congela grupos/orden/IDs), `reviewSubmission` (una sol
 entrega**. Antes, `content`/`thumbnail` devolvían `404` al mirar solo `removedAt`, rompiendo el
 criterio «foto histórica visible y descargable».
 
+### Corrección del rechazo (regresión de Etapa 4)
+
+El formulario de rechazo no enviaba `decision`, pero la acción validaba con `reviewSchema` (que la
+exige), así que **fallaba en silencio** y la entrega quedaba `in_review`. Se añadió `rejectSchema`
+(solo valida el motivo) y la decisión se fija en servidor; se añadió cobertura unitaria y E2E del
+rechazo.
+
 ## Etapa 5 — Cambios estructurales y destrucción explícita
 
 ### Dominio (`#lib/server/domain/structure.ts`)
@@ -225,9 +232,9 @@ Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integ
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `pnpm check`                                   | ✅ 0 errores, 0 avisos                                                                                                                                                                           |
 | `pnpm lint`                                    | ✅ Limpio                                                                                                                                                                                        |
-| `pnpm test` (unit)                             | ✅ 8/8                                                                                                                                                                                           |
+| `pnpm test` (unit)                             | ✅ 11/11                                                                                                                                                                                         |
 | `pnpm test:integration` (PostgreSQL real)      | ✅ 63/63                                                                                                                                                                                         |
-| `pnpm test:e2e` (Playwright, escritorio+móvil) | ✅ 4/4                                                                                                                                                                                           |
+| `pnpm test:e2e` (Playwright, escritorio+móvil) | ✅ 6/6                                                                                                                                                                                           |
 | `pnpm build`                                   | ✅                                                                                                                                                                                               |
 | Drill de restauración                          | ✅ backup BD+fotos y restauración en base/directorio separados (filas y archivos verificados)                                                                                                    |
 | E2E HTTP (servidor compilado, Etapa 4)         | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                                                                                                             |

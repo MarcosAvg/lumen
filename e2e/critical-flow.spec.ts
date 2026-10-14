@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Flujo crítico de la aplicación, en escritorio y móvil: primer arranque o
- * acceso, creación de servicio/trabajo, captura, envío, revisión y búsqueda.
+ * acceso, creación de servicio/trabajo, captura, envío, revisión (aprobar y
+ * rechazar) y búsqueda.
  */
 const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
 
@@ -33,49 +34,51 @@ async function ensureAdmin(page: Page) {
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
 }
 
-test('flujo crítico: captura, envío, revisión y búsqueda', async ({ page }, testInfo) => {
-	test.setTimeout(60_000);
-	const unique = `${testInfo.project.name}-${Date.now()}`;
+/** Crea servicio → trabajo directo → sube una foto → envía. Deja la entrega en revisión. */
+async function createPendingSubmission(page: Page, unique: string) {
 	const serviceName = `Servicio ${unique}`;
 	const workName = `Trabajo ${unique}`;
+
+	await page.goto('/admin/services');
+	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
+	await page.getByRole('button', { name: 'Crear servicio' }).click();
+	await expect(page.getByText('Servicio creado.')).toBeVisible();
+
+	const serviceLink = page
+		.getByRole('listitem')
+		.filter({ hasText: serviceName })
+		.getByRole('link', { name: 'Ver servicio' });
+	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
+	await page.locator('#work-mode').selectOption('direct');
+	await page.locator('#work-name').fill(workName);
+	await page.getByRole('button', { name: 'Crear trabajo' }).click();
+	await expect(page.getByText('Trabajo creado.')).toBeVisible();
+
+	const workLink = page
+		.getByRole('listitem')
+		.filter({ hasText: workName })
+		.getByRole('link', { name: 'Abrir' });
+	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
+	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
+	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
+	await expect(page.locator('img[alt^="Foto 1 de"]').first()).toBeVisible();
+	await page.getByRole('button', { name: 'Enviar evidencia' }).click();
+	await page.getByRole('button', { name: 'Confirmar envío' }).click();
+	await expect(page.getByText('En revisión').first()).toBeVisible();
+
+	return workName;
+}
+
+test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }, testInfo) => {
+	test.setTimeout(60_000);
+	const unique = `${testInfo.project.name}-aprobar-${Date.now()}`;
 
 	await test.step('acceso', async () => {
 		await ensureAdmin(page);
 	});
 
-	await test.step('crear servicio', async () => {
-		await page.goto('/admin/services');
-		await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
-		await page.getByRole('button', { name: 'Crear servicio' }).click();
-		await expect(page.getByText('Servicio creado.')).toBeVisible();
-	});
-
-	await test.step('abrir servicio y crear trabajo', async () => {
-		const serviceLink = page
-			.getByRole('listitem')
-			.filter({ hasText: serviceName })
-			.getByRole('link', { name: 'Ver servicio' });
-		await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
-		await expect(page.getByRole('heading', { name: serviceName }).first()).toBeVisible();
-		await page.locator('#work-mode').selectOption('direct');
-		await page.locator('#work-name').fill(workName);
-		await page.getByRole('button', { name: 'Crear trabajo' }).click();
-		await expect(page.getByText('Trabajo creado.')).toBeVisible();
-	});
-
-	await test.step('capturar y enviar evidencia', async () => {
-		const workLink = page
-			.getByRole('listitem')
-			.filter({ hasText: workName })
-			.getByRole('link', { name: 'Abrir' });
-		await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
-		await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
-		await page.locator('input[type="file"]').last().setInputFiles(photoFile());
-		await expect(page.locator('img[alt^="Foto 1 de"]').first()).toBeVisible();
-		await page.getByRole('button', { name: 'Enviar evidencia' }).click();
-		await page.getByRole('button', { name: 'Confirmar envío' }).click();
-		await expect(page.getByText('En revisión').first()).toBeVisible();
-	});
+	const workName = await test.step('crear entrega pendiente', () =>
+		createPendingSubmission(page, unique));
 
 	await test.step('revisar y aprobar', async () => {
 		await page.goto('/reviews');
@@ -95,5 +98,38 @@ test('flujo crítico: captura, envío, revisión y búsqueda', async ({ page }, 
 		await search.press('Enter');
 		await expect(page.getByRole('heading', { name: 'Buscar' })).toBeVisible();
 		await expect(page.getByText(workName, { exact: false }).first()).toBeVisible();
+	});
+});
+
+test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testInfo) => {
+	test.setTimeout(60_000);
+	const unique = `${testInfo.project.name}-rechazar-${Date.now()}`;
+	const reason = 'Falta la foto de después';
+
+	await ensureAdmin(page);
+	const workName = await createPendingSubmission(page, unique);
+
+	await test.step('rechazar con motivo', async () => {
+		await page.goto('/reviews');
+		const reviewLink = page
+			.getByRole('listitem')
+			.filter({ hasText: workName })
+			.getByRole('link', { name: 'Revisar' });
+		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
+		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
+
+		await page.getByLabel('Motivo del rechazo (obligatorio)').fill(reason);
+		await page.getByRole('button', { name: 'Confirmar rechazo' }).click();
+
+		await expect(
+			page.getByText('Entrega rechazada. Los técnicos pueden corregir y reenviar.')
+		).toBeVisible();
+		await expect(page.getByText(/Rechazada por/)).toBeVisible();
+		await expect(page.getByText(new RegExp(`Motivo: ${reason}`))).toBeVisible();
+	});
+
+	await test.step('el rechazo desbloquea la corrección', async () => {
+		await page.goto('/reviews');
+		await expect(page.getByRole('listitem').filter({ hasText: workName })).toHaveCount(0);
 	});
 });

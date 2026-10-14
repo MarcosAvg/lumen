@@ -8,7 +8,7 @@ import {
 } from '#lib/server/domain/submissions';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
-import { reviewSchema } from '#lib/schemas/submissions';
+import { rejectSchema } from '#lib/schemas/submissions';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -48,7 +48,7 @@ export const actions: Actions = {
 
 	reject: async (event) => {
 		const submissionId = requireUuidParam(event.params.submissionId, 'Entrega');
-		const parsed = parseForm(reviewSchema, await event.request.formData());
+		const parsed = parseForm(rejectSchema, await event.request.formData());
 		if (!parsed.ok) return fail(400, { rejectErrors: parsed.errors });
 
 		await requireReview(event.locals, submissionId);
