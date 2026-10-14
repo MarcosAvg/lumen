@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { orHttp } from '#lib/server/http';
 import {
 	assignUser,
 	listAssignableUsers,
@@ -18,7 +19,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const serviceId = requireUuidParam(params.serviceId, 'Servicio');
 	const db = getDatabase().db;
 
-	const { service } = await getServiceForUser(db, admin, serviceId);
+	const { service } = await orHttp(getServiceForUser(db, admin, serviceId));
 	const [assignments, assignable] = await Promise.all([
 		listServiceAssignments(db, serviceId),
 		listAssignableUsers(db)

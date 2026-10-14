@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireReview, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { orHttp } from '#lib/server/http';
 import {
 	getSubmissionContext,
 	getSubmissionDetail,
@@ -16,9 +17,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const user = requireUser(locals);
 	const db = getDatabase().db;
 
-	const detail = await getSubmissionDetail(db, submissionId);
+	const detail = await orHttp(getSubmissionDetail(db, submissionId));
 	const { access } = await requireServiceAccess(locals, detail.context.serviceId);
-	const context = await getSubmissionContext(db, submissionId);
+	const context = await orHttp(getSubmissionContext(db, submissionId));
 
 	const pending = context.status === 'in_review';
 	const canReview = pending && (user.role === 'admin' || access === 'supervisor');
@@ -29,10 +30,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 export const actions: Actions = {
 	approve: async (event) => {
 		const submissionId = requireUuidParam(event.params.submissionId, 'Entrega');
-		await requireReview(event.locals, submissionId);
-		const reviewer = requireUser(event.locals);
 
 		try {
+			await requireReview(event.locals, submissionId);
+			const reviewer = requireUser(event.locals);
 			await reviewSubmission(getDatabase().db, {
 				submissionId,
 				decision: 'approved',
@@ -51,10 +52,9 @@ export const actions: Actions = {
 		const parsed = parseForm(rejectSchema, await event.request.formData());
 		if (!parsed.ok) return fail(400, { rejectErrors: parsed.errors });
 
-		await requireReview(event.locals, submissionId);
-		const reviewer = requireUser(event.locals);
-
 		try {
+			await requireReview(event.locals, submissionId);
+			const reviewer = requireUser(event.locals);
 			await reviewSubmission(getDatabase().db, {
 				submissionId,
 				decision: 'rejected',

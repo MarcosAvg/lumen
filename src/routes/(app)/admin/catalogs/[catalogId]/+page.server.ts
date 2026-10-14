@@ -1,6 +1,7 @@
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { orHttp } from '#lib/server/http';
 import {
 	createCatalogItem,
 	createRelation,
@@ -40,7 +41,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const PAGE_SIZE = 25;
 
 	const [catalog, itemsPage, relations, allCatalogs, fromItems] = await Promise.all([
-		getCatalogMeta(db, catalogId),
+		orHttp(getCatalogMeta(db, catalogId)),
 		searchCatalogItems(db, catalogId, { q, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
 		listRelationsForCatalog(db, catalogId),
 		listCatalogsWithItems(db),
@@ -115,7 +116,7 @@ export const actions: Actions = {
 		const db = getDatabase().db;
 
 		if (form.get('confirm') !== 'true') {
-			const { items } = await getCatalog(db, catalogId);
+			const { items } = await orHttp(getCatalog(db, catalogId));
 			const item = items.find((row) => row.id === parsed.data.itemId);
 			const impact = await getCatalogItemImpact(db, parsed.data.itemId);
 			return { pendingDelete: { itemId: parsed.data.itemId, name: item?.name ?? '', impact } };
@@ -178,7 +179,7 @@ export const actions: Actions = {
 		const db = getDatabase().db;
 
 		if (form.get('confirm') !== 'true') {
-			const { catalog, items } = await getCatalog(db, catalogId);
+			const { catalog, items } = await orHttp(getCatalog(db, catalogId));
 			return { pendingCatalogDelete: { catalogId, name: catalog.name, itemCount: items.length } };
 		}
 
@@ -187,6 +188,7 @@ export const actions: Actions = {
 		} catch (error) {
 			return failFrom(error);
 		}
-		return { success: 'Catálogo eliminado; los nombres de sus ítems se conservaron.' };
+		// Evita reejecutar el `load` sobre un catálogo ya eliminado.
+		throw redirect(303, '/admin/catalogs');
 	}
 };

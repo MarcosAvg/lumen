@@ -271,6 +271,12 @@ por delante de `now`) que hacía intermitente la prueba de limpieza.
 peligro) y desde la **lista de Servicios de administración**, con resumen de impacto y confirmación.
 Los límites de tasa (login/setup/subidas) son **configurables por entorno** (`RATE_LIMIT_*`).
 
+**Errores HTTP**: un `DomainError` (p. ej. 404) que escapaba de un `load` o una acción se mostraba
+como **500**. `#lib/server/http.ts` (`toHttpError`/`orHttp`) traduce los errores de dominio a
+`HttpError` con su estado; se aplica en guardas y en los `load` de servicios/trabajos/elementos/
+entregas y administración. Además, **eliminar un catálogo redirige** a la lista (evita reejecutar el
+`load` sobre el catálogo borrado). Enlaces antiguos y recursos fuera de ámbito devuelven 404.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:

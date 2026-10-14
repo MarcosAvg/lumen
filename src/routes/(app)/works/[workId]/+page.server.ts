@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { orHttp } from '#lib/server/http';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
@@ -24,12 +25,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const user = requireUser(locals);
 	const db = getDatabase().db;
 
-	const work = await getWorkDetail(db, workId);
+	const work = await orHttp(getWorkDetail(db, workId));
 	// Verifica el ámbito del servicio al que pertenece el trabajo.
 	await requireServiceAccess(locals, work.serviceId);
 
 	if (work.mode === 'direct') {
-		const target = await getTargetForWork(db, workId);
+		const target = await orHttp(getTargetForWork(db, workId));
 		const [evidence, history, rejection] = await Promise.all([
 			loadEvidence(db, target.id),
 			getHistory(db, target.id),
