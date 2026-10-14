@@ -18,33 +18,63 @@
 		success?: string;
 		message?: string;
 		workErrors?: Record<string, string>;
-		elementErrors?: Record<string, string>;
 	};
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let workOpen = $state(false);
-	let elementOpen = $state(false);
 	let workSource = $state<'catalog' | 'custom'>('catalog');
-	let elementSource = $state<'catalog' | 'custom'>('catalog');
+	let workMode = $state<'direct' | 'divided'>('direct');
+	interface WorkElementRow {
+		source: 'catalog' | 'custom';
+		name: string;
+		catalogItemId: string;
+	}
+	let workElements = $state<WorkElementRow[]>([]);
 	let sourceSeeded = false;
 	$effect(() => {
 		// Origen por defecto: catálogo si hay alguno, si no nombre propio.
 		if (!sourceSeeded) {
-			const fallback = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
-			workSource = fallback;
-			elementSource = fallback;
+			workSource = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
 			sourceSeeded = true;
 		}
 		if (action?.success) {
 			workOpen = false;
-			elementOpen = false;
-			const fallback = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
-			workSource = fallback;
-			elementSource = fallback;
+			workSource = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
+			workMode = 'direct';
+			workElements = [];
+		}
+		// El trabajo dividido necesita al menos una fila de elemento.
+		if (workMode === 'divided' && workElements.length === 0) {
+			workElements = [newElementRow()];
 		}
 	});
+
+	function newElementRow(): WorkElementRow {
+		return { source: 'custom', name: '', catalogItemId: '' };
+	}
+
+	function addElementRow() {
+		workElements = [...workElements, newElementRow()];
+	}
+
+	function removeElementRow(index: number) {
+		workElements = workElements.filter((_, position) => position !== index);
+	}
+
+	// Solo filas con un origen definido se envían al servidor.
+	const elementsJson = $derived(
+		JSON.stringify(
+			workElements
+				.map((row) =>
+					row.source === 'catalog'
+						? { catalogItemId: row.catalogItemId, name: '' }
+						: { catalogItemId: '', name: row.name.trim() }
+				)
+				.filter((row) => row.catalogItemId.length > 0 || row.name.length > 0)
+		)
+	);
 
 	const accessLabel = {
 		admin: 'Administrador',
@@ -59,8 +89,6 @@
 		rejected: 'Rechazado',
 		approved: 'Aprobado'
 	} as const;
-
-	const dividedWorks = $derived(data.works.filter((work) => work.mode === 'divided'));
 
 	// Catálogos ofrecidos en los pickers: generales (no de edificios).
 	const catalogsForPicker = $derived<CatalogGroup[]>(
@@ -171,11 +199,6 @@
 			{#if data.isAdmin}
 				<div class="flex flex-wrap gap-2">
 					<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
-					{#if dividedWorks.length > 0}
-						<Button variant="outline" size="sm" onclick={() => (elementOpen = true)}
-							>Añadir elemento</Button
-						>
-					{/if}
 					<Button
 						href={resolve('/(app)/admin/services/[serviceId]/generate', {
 							serviceId: data.service.id
@@ -274,6 +297,7 @@
 						<select
 							id="work-mode"
 							name="mode"
+							bind:value={workMode}
 							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
 						>
 							<option value="direct">Directo</option>
@@ -309,66 +333,64 @@
 							</div>
 						{/if}
 					</div>
+					{#if workMode === 'divided'}
+						<div class="space-y-3 rounded-lg border p-3">
+							<div class="flex items-center justify-between">
+								<Label>Elementos</Label>
+								<Button type="button" variant="outline" size="sm" onclick={addElementRow}>
+									Añadir elemento
+								</Button>
+							</div>
+							{#each workElements as row, index (index)}
+								<div class="space-y-2 rounded-md border border-input p-2">
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<div class="flex gap-1">
+											<Button
+												type="button"
+												size="sm"
+												variant={row.source === 'catalog' ? 'default' : 'outline'}
+												onclick={() => (workElements[index].source = 'catalog')}
+											>
+												Desde catálogo
+											</Button>
+											<Button
+												type="button"
+												size="sm"
+												variant={row.source === 'custom' ? 'default' : 'outline'}
+												onclick={() => (workElements[index].source = 'custom')}
+											>
+												Nombre propio
+											</Button>
+										</div>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											aria-label={`Quitar elemento ${index + 1}`}
+											onclick={() => removeElementRow(index)}>Quitar</Button
+										>
+									</div>
+									{#if row.source === 'catalog'}
+										<CatalogItemPicker
+											catalogs={catalogsForPicker}
+											bind:value={workElements[index].catalogItemId}
+											itemPlaceholder="Elige ítem…"
+										/>
+									{:else}
+										<Input
+											bind:value={workElements[index].name}
+											placeholder="Nombre del elemento"
+											aria-label={`Nombre del elemento ${index + 1}`}
+										/>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+					<input type="hidden" name="elements" value={elementsJson} />
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit">Crear trabajo</Button>
-					</Dialog.Footer>
-				</form>
-			</Dialog.Content>
-		</Dialog.Root>
-
-		<Dialog.Root bind:open={elementOpen}>
-			<Dialog.Content>
-				<form method="POST" action="?/createElement" class="space-y-4">
-					<Dialog.Header>
-						<Dialog.Title>Añadir elemento</Dialog.Title>
-						<Dialog.Description>Los elementos pertenecen a un trabajo dividido.</Dialog.Description>
-					</Dialog.Header>
-					<div class="space-y-1">
-						<Label for="el-work">Trabajo dividido</Label>
-						<select
-							id="el-work"
-							name="workId"
-							required
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						>
-							{#each dividedWorks as work (work.id)}
-								<option value={work.id}>{work.name}</option>
-							{/each}
-						</select>
-					</div>
-					<div class="space-y-2">
-						<p class="text-xs text-muted-foreground">
-							Elige un ítem del catálogo o escribe un nombre propio.
-						</p>
-						<Tabs.Root bind:value={elementSource}>
-							<Tabs.List class="grid w-full grid-cols-2">
-								<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
-								<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
-							</Tabs.List>
-						</Tabs.Root>
-						{#if elementSource === 'catalog'}
-							<div class="space-y-1 pt-2">
-								<Label for="el-catalog">Ítem del catálogo</Label>
-								<CatalogItemPicker
-									name="catalogItemId"
-									catalogs={catalogsForPicker}
-									itemPlaceholder="Elige ítem…"
-								/>
-							</div>
-						{:else}
-							<div class="space-y-1 pt-2">
-								<Label for="el-name">Nombre propio</Label>
-								<Input id="el-name" name="name" required />
-								{#if action?.elementErrors?.name}
-									<p class="text-sm text-destructive">{action.elementErrors.name}</p>
-								{/if}
-							</div>
-						{/if}
-					</div>
-					<Dialog.Footer>
-						<Dialog.Close>Cancelar</Dialog.Close>
-						<Button type="submit">Añadir elemento</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>

@@ -53,19 +53,26 @@ async function resolveNameSource(
 	return { catalogItemId: null, customName: custom };
 }
 
+export interface CreateWorkElementInput {
+	catalogItemId?: string | null;
+	name?: string | null;
+}
+
 export interface CreateWorkInput {
 	serviceId: string;
 	mode: WorkMode;
 	description?: string | null;
 	catalogItemId?: string | null;
 	name?: string | null;
+	/** Elementos a crear junto al trabajo (solo si `mode === 'divided'`). */
+	elements?: CreateWorkElementInput[];
 	actorId: string;
 }
 
 export async function createWork(
 	db: Database,
 	input: CreateWorkInput
-): Promise<{ id: string; targetId: string | null }> {
+): Promise<{ id: string; targetId: string | null; elementIds: string[] }> {
 	return db.transaction(async (tx) => {
 		const [service] = await tx
 			.select({ id: services.id })
@@ -73,6 +80,11 @@ export async function createWork(
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+
+		const elementInputs = input.elements ?? [];
+		if (input.mode !== 'divided' && elementInputs.length > 0) {
+			throw new DomainError(400, 'Un trabajo directo no puede tener elementos.');
+		}
 
 		const name = await resolveNameSource(tx, input);
 		const [next] = await tx
@@ -102,16 +114,35 @@ export async function createWork(
 			targetId = target.id;
 		}
 
+		// Elementos creados junto al trabajo dividido, cada uno con su objetivo.
+		const elementIds: string[] = [];
+		let elementSort = 0;
+		for (const element of elementInputs) {
+			const elementName = await resolveNameSource(tx, element);
+			const [createdElement] = await tx
+				.insert(elements)
+				.values({
+					workId: created.id,
+					catalogItemId: elementName.catalogItemId,
+					customName: elementName.customName,
+					sortOrder: elementSort
+				})
+				.returning({ id: elements.id });
+			await tx.insert(evidenceTargets).values({ elementId: createdElement.id });
+			elementIds.push(createdElement.id);
+			elementSort += 1;
+		}
+
 		await recordAudit(tx, {
 			actorUserId: input.actorId,
 			serviceId: input.serviceId,
 			entityType: 'work',
 			entityId: created.id,
 			action: 'work.created',
-			metadata: { mode: input.mode }
+			metadata: { mode: input.mode, elements: elementIds.length }
 		});
 
-		return { id: created.id, targetId };
+		return { id: created.id, targetId, elementIds };
 	});
 }
 

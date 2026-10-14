@@ -22,8 +22,28 @@ export const createWorkSchema = z.object({
 		.trim()
 		.max(2000, 'La descripción no puede superar 2000 caracteres.')
 		.optional()
-		.default('')
+		.default(''),
+	/** Elementos del trabajo dividido, serializados como JSON (ver `createWorkElementSchema`). */
+	elements: z.string().optional().default('[]')
 });
+
+/** Elemento definido en el modal de creación del trabajo dividido. */
+export const createWorkElementSchema = z
+	.object({
+		name: z
+			.string()
+			.trim()
+			.max(120, 'El nombre no puede superar 120 caracteres.')
+			.optional()
+			.default(''),
+		catalogItemId: z
+			.union([z.uuid('Ítem inválido.'), z.literal('')])
+			.optional()
+			.default('')
+	})
+	.refine((data) => Boolean(data.catalogItemId) !== data.name.length > 0, {
+		message: 'Cada elemento debe tener un ítem de catálogo o un nombre propio (exactamente uno).'
+	});
 
 export const createElementSchema = z.object({
 	workId: z.uuid('Trabajo inválido.'),

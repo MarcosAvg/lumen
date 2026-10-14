@@ -13,7 +13,7 @@
 		itemPlaceholder = 'Elige ítem…',
 		disabled = false
 	}: {
-		name: string;
+		name?: string;
 		catalogs: CatalogGroup[];
 		value?: string;
 		itemPlaceholder?: string;
@@ -45,7 +45,9 @@
 	});
 </script>
 
-<input type="hidden" {name} {value} />
+{#if name}
+	<input type="hidden" {name} {value} />
+{/if}
 <div class="space-y-2">
 	<select
 		class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"

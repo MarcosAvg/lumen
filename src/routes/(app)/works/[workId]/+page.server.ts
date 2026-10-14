@@ -1,11 +1,13 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getWorkForConversion } from '#lib/server/domain/structure';
 import { isEditableStatus, getTargetForWork } from '#lib/server/domain/targets';
 import {
+	createElement,
 	getWorkDetail,
 	listElementsDetailed,
 	updateElement,
@@ -13,7 +15,7 @@ import {
 } from '#lib/server/domain/works';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
-import { updateElementSchema, updateWorkSchema } from '#lib/schemas/works';
+import { createElementSchema, updateElementSchema, updateWorkSchema } from '#lib/schemas/works';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -40,13 +42,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			history,
 			rejection,
 			conversion,
+			catalogs: [],
 			editable: isEditableStatus(target.status),
 			isAdmin: user.role === 'admin'
 		};
 	}
 
 	const elements = await listElementsDetailed(db, workId);
-	const conversion = user.role === 'admin' ? await getWorkForConversion(db, workId) : null;
+	const [conversion, catalogs] = await Promise.all([
+		user.role === 'admin' ? getWorkForConversion(db, workId) : Promise.resolve(null),
+		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
+	]);
 	return {
 		work,
 		elements,
@@ -54,6 +60,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		history: [],
 		rejection: null,
 		conversion,
+		catalogs,
 		editable: false,
 		isAdmin: user.role === 'admin'
 	};
@@ -75,6 +82,25 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Trabajo actualizado.' };
+	},
+
+	createElement: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(createElementSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { elementErrors: parsed.errors });
+
+		try {
+			await createElement(getDatabase().db, {
+				workId: parsed.data.workId,
+				name: parsed.data.name,
+				catalogItemId: parsed.data.catalogItemId || null,
+				description: parsed.data.description,
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Elemento añadido.' };
 	},
 
 	updateElement: async (event) => {

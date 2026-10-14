@@ -251,6 +251,11 @@ Se eliminó el volcado plano de catálogos en selectores:
 «Desde catálogo» (catálogo → ítem) y «Nombre propio» (input), evitando ambigüedad y garantizando que
 se envía exactamente un origen; el modo inicial es catálogo si el servicio tiene catálogos.
 
+**Elementos**: se pueden crear **al crear el trabajo dividido** (sección «Elementos» con filas
+catálogo/nombre) y **dentro del propio trabajo** (botón «Añadir elemento»). `createWork` acepta
+`elements` y los crea con sus objetivos en una transacción; el antiguo «Añadir elemento» del
+servicio se retiró. Renombrar y eliminar siguen en el trabajo.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:
