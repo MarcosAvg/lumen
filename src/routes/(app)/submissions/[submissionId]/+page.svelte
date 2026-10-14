@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Label } from '#lib/components/ui/label';
+	import { Textarea } from '#lib/components/ui/textarea';
+	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -14,6 +17,9 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
+
+	let showApprove = $state(false);
+	let showReject = $state(false);
 
 	function formatDate(value: Date | string): string {
 		return new Date(value).toLocaleString();
@@ -40,6 +46,15 @@
 </svelte:head>
 
 <div class="space-y-6">
+	<AppBreadcrumbs
+		items={[
+			{
+				label: data.detail.context.serviceName,
+				href: `/services/${data.detail.context.serviceId}`
+			},
+			{ label: `Entrega #${data.detail.submission.sequenceNo}` }
+		]}
+	/>
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<div>
 			<h1 class="text-2xl font-semibold tracking-tight">
@@ -130,27 +145,57 @@
 	{#if data.canReview}
 		<Card.Root>
 			<Card.Header><Card.Title class="text-base">Decisión</Card.Title></Card.Header>
-			<Card.Content class="space-y-4">
-				<form method="POST" action="?/approve">
-					<Button type="submit">Confirmar aprobación</Button>
-				</form>
+			<Card.Content class="flex flex-wrap gap-3">
+				<Button onclick={() => (showApprove = true)}>Aprobar entrega</Button>
+				<Button variant="destructive" onclick={() => (showReject = true)}>Rechazar entrega</Button>
 
-				<div class="border-t pt-4">
-					<form method="POST" action="?/reject" class="space-y-2">
-						<Label for="reason">Motivo del rechazo (obligatorio)</Label>
-						<textarea
-							id="reason"
-							name="reason"
-							rows="3"
-							required
-							class="w-full rounded-lg border border-input bg-background p-2 text-sm"
-							placeholder="Describe qué deben corregir los técnicos."></textarea>
-						{#if action?.rejectErrors?.reason}
-							<p class="text-sm text-destructive">{action.rejectErrors.reason}</p>
-						{/if}
-						<Button type="submit" variant="destructive">Confirmar rechazo</Button>
-					</form>
-				</div>
+				<AlertDialog.Root bind:open={showApprove}>
+					<AlertDialog.Content>
+						<AlertDialog.Header>
+							<AlertDialog.Title>Confirmar aprobación</AlertDialog.Title>
+							<AlertDialog.Description>
+								¿Confirmas que esta entrega cumple con lo solicitado? Una vez aprobada, la evidencia
+								quedará bloqueada para todos los técnicos.
+							</AlertDialog.Description>
+						</AlertDialog.Header>
+						<AlertDialog.Footer>
+							<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+							<form method="POST" action="?/approve">
+								<Button type="submit">Confirmar aprobación</Button>
+							</form>
+						</AlertDialog.Footer>
+					</AlertDialog.Content>
+				</AlertDialog.Root>
+
+				<AlertDialog.Root bind:open={showReject}>
+					<AlertDialog.Content>
+						<form method="POST" action="?/reject" class="space-y-4">
+							<AlertDialog.Header>
+								<AlertDialog.Title>Confirmar rechazo</AlertDialog.Title>
+								<AlertDialog.Description>
+									Describe qué deben corregir los técnicos.
+								</AlertDialog.Description>
+							</AlertDialog.Header>
+							<div class="space-y-1">
+								<Label for="reason">Motivo del rechazo (obligatorio)</Label>
+								<Textarea
+									id="reason"
+									name="reason"
+									rows={3}
+									required
+									placeholder="Describe qué deben corregir los técnicos."
+								/>
+								{#if action?.rejectErrors?.reason}
+									<p class="text-sm text-destructive">{action.rejectErrors.reason}</p>
+								{/if}
+							</div>
+							<AlertDialog.Footer>
+								<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+								<Button type="submit" variant="destructive">Confirmar rechazo</Button>
+							</AlertDialog.Footer>
+						</form>
+					</AlertDialog.Content>
+				</AlertDialog.Root>
 			</Card.Content>
 		</Card.Root>
 	{/if}

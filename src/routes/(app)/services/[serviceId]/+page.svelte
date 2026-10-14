@@ -4,9 +4,11 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
+	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -18,6 +20,15 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
+
+	let workOpen = $state(false);
+	let elementOpen = $state(false);
+	$effect(() => {
+		if (action?.success) {
+			workOpen = false;
+			elementOpen = false;
+		}
+	});
 
 	const accessLabel = {
 		admin: 'Administrador',
@@ -42,7 +53,10 @@
 
 <div class="space-y-6">
 	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">{data.service.name}</h1>
+		<AppBreadcrumbs
+			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
+		/>
+		<h1 class="mt-2 text-2xl font-semibold tracking-tight">{data.service.name}</h1>
 		{#if data.service.description}
 			<p class="text-sm text-muted-foreground">{data.service.description}</p>
 		{/if}
@@ -116,16 +130,24 @@
 	{/if}
 
 	<Card.Root>
-		<Card.Header class="flex items-center justify-between">
+		<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 			<Card.Title class="text-base">Trabajos</Card.Title>
 			{#if data.isAdmin}
-				<Button
-					href={resolve('/(app)/admin/services/[serviceId]/generate', {
-						serviceId: data.service.id
-					})}
-					variant="outline"
-					size="sm">Generar en lote</Button
-				>
+				<div class="flex flex-wrap gap-2">
+					<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
+					{#if dividedWorks.length > 0}
+						<Button variant="outline" size="sm" onclick={() => (elementOpen = true)}
+							>Añadir elemento</Button
+						>
+					{/if}
+					<Button
+						href={resolve('/(app)/admin/services/[serviceId]/generate', {
+							serviceId: data.service.id
+						})}
+						variant="outline"
+						size="sm">Generar en lote</Button
+					>
+				</div>
 			{/if}
 		</Card.Header>
 		<Card.Content class="space-y-4">
@@ -178,10 +200,39 @@
 					{/each}
 				</ul>
 			{/if}
+		</Card.Content>
+	</Card.Root>
 
-			{#if data.isAdmin}
-				<form method="POST" action="?/createWork" class="grid gap-3 border-t pt-4 sm:grid-cols-4">
+	<Card.Root>
+		<Card.Header><Card.Title class="text-base">Participantes</Card.Title></Card.Header>
+		<Card.Content>
+			{#if data.participants.length === 0}
+				<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
+			{:else}
+				<ul class="divide-y">
+					{#each data.participants as participant (participant.userId + participant.assignmentRole)}
+						<li class="flex items-center justify-between gap-3 py-2 text-sm">
+							<span>{participant.displayName}</span>
+							<Badge variant="secondary">{participantLabel[participant.assignmentRole]}</Badge>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	{#if data.isAdmin}
+		<Dialog.Root bind:open={workOpen}>
+			<Dialog.Content>
+				<form method="POST" action="?/createWork" class="space-y-4">
 					<input type="hidden" name="serviceId" value={data.service.id} />
+					<Dialog.Header>
+						<Dialog.Title>Nuevo trabajo</Dialog.Title>
+						<Dialog.Description>
+							Los trabajos directos tienen su propia evidencia; los divididos se componen de
+							elementos.
+						</Dialog.Description>
+					</Dialog.Header>
 					<div class="space-y-1">
 						<Label for="work-mode">Modo</Label>
 						<select
@@ -215,23 +266,25 @@
 					<div class="space-y-1">
 						<Label for="work-name">Nombre propio</Label>
 						<Input id="work-name" name="name" placeholder="Solo si no eliges catálogo" />
+						{#if action?.workErrors?.name}
+							<p class="text-sm text-destructive">{action.workErrors.name}</p>
+						{/if}
 					</div>
-					<div class="flex items-end">
-						<Button type="submit" size="sm">Crear trabajo</Button>
-					</div>
+					<Dialog.Footer>
+						<Dialog.Close>Cancelar</Dialog.Close>
+						<Button type="submit">Crear trabajo</Button>
+					</Dialog.Footer>
 				</form>
-				{#if action?.workErrors?.name}
-					<p class="text-sm text-destructive">{action.workErrors.name}</p>
-				{/if}
-			{/if}
-		</Card.Content>
-	</Card.Root>
+			</Dialog.Content>
+		</Dialog.Root>
 
-	{#if data.isAdmin && dividedWorks.length > 0}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Añadir elemento</Card.Title></Card.Header>
-			<Card.Content>
-				<form method="POST" action="?/createElement" class="grid gap-3 sm:grid-cols-4">
+		<Dialog.Root bind:open={elementOpen}>
+			<Dialog.Content>
+				<form method="POST" action="?/createElement" class="space-y-4">
+					<Dialog.Header>
+						<Dialog.Title>Añadir elemento</Dialog.Title>
+						<Dialog.Description>Los elementos pertenecen a un trabajo dividido.</Dialog.Description>
+					</Dialog.Header>
 					<div class="space-y-1">
 						<Label for="el-work">Trabajo dividido</Label>
 						<select
@@ -267,30 +320,16 @@
 					<div class="space-y-1">
 						<Label for="el-name">Nombre propio</Label>
 						<Input id="el-name" name="name" />
+						{#if action?.elementErrors?.name}
+							<p class="text-sm text-destructive">{action.elementErrors.name}</p>
+						{/if}
 					</div>
-					<div class="flex items-end">
-						<Button type="submit" size="sm">Añadir elemento</Button>
-					</div>
+					<Dialog.Footer>
+						<Dialog.Close>Cancelar</Dialog.Close>
+						<Button type="submit">Añadir elemento</Button>
+					</Dialog.Footer>
 				</form>
-			</Card.Content>
-		</Card.Root>
+			</Dialog.Content>
+		</Dialog.Root>
 	{/if}
-
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Participantes</Card.Title></Card.Header>
-		<Card.Content>
-			{#if data.participants.length === 0}
-				<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
-			{:else}
-				<ul class="divide-y">
-					{#each data.participants as participant (participant.userId + participant.assignmentRole)}
-						<li class="flex items-center justify-between gap-3 py-2 text-sm">
-							<span>{participant.displayName}</span>
-							<Badge variant="secondary">{participantLabel[participant.assignmentRole]}</Badge>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</Card.Content>
-	</Card.Root>
 </div>

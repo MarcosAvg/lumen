@@ -9,6 +9,7 @@
 	import ConvertWorkMode from '#lib/components/convert-work-mode.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
+	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string };
@@ -32,14 +33,17 @@
 <div class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<p class="text-sm text-muted-foreground">
-				<a
-					class="underline"
-					href={resolve('/(app)/services/[serviceId]', { serviceId: data.work.serviceId })}
-					>{data.work.serviceName}</a
-				>
-			</p>
-			<h1 class="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+			<AppBreadcrumbs
+				items={[
+					{ label: 'Inicio', href: resolve('/(app)/dashboard') },
+					{
+						label: data.work.serviceName,
+						href: resolve('/(app)/services/[serviceId]', { serviceId: data.work.serviceId })
+					},
+					{ label: data.work.name }
+				]}
+			/>
+			<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
 				{data.work.name}
 				<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
 			</h1>

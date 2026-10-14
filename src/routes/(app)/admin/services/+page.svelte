@@ -3,8 +3,10 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -15,6 +17,11 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
+
+	let createOpen = $state(false);
+	$effect(() => {
+		if (action?.success) createOpen = false;
+	});
 </script>
 
 <svelte:head>
@@ -22,34 +29,29 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-wrap items-start justify-between gap-3">
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">Servicios</h1>
-			<p class="text-sm text-muted-foreground">
-				Administra los servicios, sus participantes y su estructura de trabajos y elementos.
-			</p>
-		</div>
-		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-		<Button href="/api/admin/exports/services.csv" variant="outline" size="sm">Exportar CSV</Button>
-	</div>
+	<PageHeader
+		title="Servicios"
+		description="Administra los servicios, sus participantes y su estructura de trabajos y elementos."
+	>
+		<Button onclick={() => (createOpen = true)}>Nuevo servicio</Button>
+	</PageHeader>
 
 	{#if action?.success}
-		<Alert>
-			<AlertDescription>{action.success}</AlertDescription>
-		</Alert>
+		<Alert><AlertDescription>{action.success}</AlertDescription></Alert>
 	{/if}
 	{#if action?.message}
-		<Alert variant="destructive">
-			<AlertDescription>{action.message}</AlertDescription>
-		</Alert>
+		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-base">Nuevo servicio</Card.Title>
-		</Card.Header>
-		<Card.Content>
+	<Dialog.Root bind:open={createOpen}>
+		<Dialog.Content>
 			<form method="POST" action="?/create" class="space-y-4">
+				<Dialog.Header>
+					<Dialog.Title>Nuevo servicio</Dialog.Title>
+					<Dialog.Description>
+						Podrás añadir trabajos, elementos y participantes después.
+					</Dialog.Description>
+				</Dialog.Header>
 				<div class="space-y-2">
 					<Label for="name">Nombre</Label>
 					<Input id="name" name="name" required />
@@ -61,22 +63,25 @@
 					<Label for="description">Descripción (opcional)</Label>
 					<Input id="description" name="description" />
 				</div>
-				<Button type="submit">Crear servicio</Button>
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
+					<Button type="submit">Crear servicio</Button>
+				</Dialog.Footer>
 			</form>
-		</Card.Content>
-	</Card.Root>
+		</Dialog.Content>
+	</Dialog.Root>
 
 	{#if data.services.length === 0}
 		<Card.Root>
 			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				Aún no hay servicios.
+				Aún no hay servicios. Crea el primero con «Nuevo servicio».
 			</Card.Content>
 		</Card.Root>
 	{:else}
-		<ul class="space-y-3">
+		<ul class="grid gap-3 sm:grid-cols-2">
 			{#each data.services as service (service.id)}
 				<li>
-					<Card.Root>
+					<Card.Root class="h-full">
 						<Card.Header>
 							<Card.Title class="text-base">{service.name}</Card.Title>
 							{#if service.description}
@@ -89,7 +94,7 @@
 								variant="outline"
 								size="sm"
 							>
-								Asignaciones y participantes
+								Asignaciones
 							</Button>
 							<Button
 								href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}

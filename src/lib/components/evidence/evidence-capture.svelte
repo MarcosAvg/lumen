@@ -6,6 +6,8 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
+	import * as Tabs from '#lib/components/ui/tabs';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import type { TargetStatus } from '#lib/types';
 
 	interface Req {
@@ -81,7 +83,7 @@
 	let newRequirement = $state('');
 	let newRequired = $state(true);
 	let busy = $state(false);
-	let tab = $state<'current' | 'history'>('current');
+	let tab = $state('current');
 	let showSubmit = $state(false);
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
@@ -354,24 +356,12 @@
 		{/if}
 	</header>
 
-	<nav class="flex gap-1 border-b" aria-label="Secciones de evidencia">
-		<button
-			type="button"
-			class="px-3 py-2 text-sm {tab === 'current'
-				? 'border-b-2 border-foreground font-medium'
-				: 'text-muted-foreground'}"
-			aria-current={tab === 'current' ? 'page' : undefined}
-			onclick={() => (tab = 'current')}>Evidencia actual</button
-		>
-		<button
-			type="button"
-			class="px-3 py-2 text-sm {tab === 'history'
-				? 'border-b-2 border-foreground font-medium'
-				: 'text-muted-foreground'}"
-			aria-current={tab === 'history' ? 'page' : undefined}
-			onclick={() => (tab = 'history')}>Historial ({history.length})</button
-		>
-	</nav>
+	<Tabs.Root bind:value={tab}>
+		<Tabs.List>
+			<Tabs.Trigger value="current">Evidencia actual</Tabs.Trigger>
+			<Tabs.Trigger value="history">Historial ({history.length})</Tabs.Trigger>
+		</Tabs.List>
+	</Tabs.Root>
 
 	{#if conflict}
 		<Alert variant="destructive">
@@ -661,27 +651,26 @@
 		{/if}
 	{/if}
 
-	{#if showSubmit}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<Card.Root class="w-full max-w-md">
-				<Card.Header>
-					<Card.Title>¿Enviar esta evidencia a revisión?</Card.Title>
-				</Card.Header>
-				<Card.Content class="space-y-2 text-sm">
-					<p>Se enviarán <strong>{photos.length} fotografía(s)</strong>.</p>
-					<p>La edición quedará bloqueada para todos los técnicos hasta que sea revisada.</p>
-				</Card.Content>
-				<Card.Footer class="flex justify-end gap-2">
-					<Button variant="outline" onclick={() => (showSubmit = false)} disabled={submitting}>
-						Cancelar
-					</Button>
-					<Button onclick={submitEvidence} disabled={submitting}>
-						{submitting ? 'Enviando…' : 'Confirmar envío'}
-					</Button>
-				</Card.Footer>
-			</Card.Root>
-		</div>
-	{/if}
+	<AlertDialog.Root bind:open={showSubmit}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>¿Enviar esta evidencia a revisión?</AlertDialog.Title>
+				<AlertDialog.Description>
+					Se enviarán {photos.length} fotografía(s). La edición quedará bloqueada para todos los técnicos
+					hasta que sea revisada.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			{#if submitError}
+				<p class="text-sm text-destructive">{submitError}</p>
+			{/if}
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel disabled={submitting}>Cancelar</AlertDialog.Cancel>
+				<Button disabled={submitting} onclick={submitEvidence}>
+					{submitting ? 'Enviando…' : 'Confirmar envío'}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
 	{#if pendingRemove}
 		<Alert variant="destructive">

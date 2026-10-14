@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { Alert, AlertDescription } from '#lib/components/ui/alert';
+	import { toast } from 'svelte-sonner';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import { Button } from '#lib/components/ui/button';
 
 	/**
-	 * Borrado destructivo con resumen de impacto y confirmación explícita.
-	 * Consulta `GET endpoint` para el impacto y ejecuta `DELETE endpoint`.
+	 * Borrado destructivo con diálogo: consulta el impacto y exige confirmación
+	 * explícita. `GET endpoint` devuelve el impacto y `DELETE endpoint` ejecuta.
 	 */
 	type Impact = {
 		works: number;
@@ -31,13 +32,17 @@
 		onDeleted?: () => void;
 	} = $props();
 
-	let phase = $state<'idle' | 'loading' | 'confirm' | 'working'>('idle');
+	let open = $state(false);
+	let loading = $state(false);
+	let working = $state(false);
 	let impact = $state<Impact | null>(null);
 	let error = $state<string | null>(null);
 
 	async function ask() {
-		phase = 'loading';
+		loading = true;
 		error = null;
+		impact = null;
+		open = true;
 		try {
 			const response = await fetch(endpoint, { method: 'GET' });
 			const body = (await response.json().catch(() => ({}))) as {
@@ -48,20 +53,22 @@
 				throw new Error(body.message ?? 'No se pudo calcular el impacto.');
 			}
 			impact = body.impact;
-			phase = 'confirm';
 		} catch (cause) {
 			error = (cause as Error).message;
-			phase = 'idle';
+		} finally {
+			loading = false;
 		}
 	}
 
 	async function confirm() {
-		phase = 'working';
+		working = true;
 		error = null;
 		try {
 			const response = await fetch(endpoint, { method: 'DELETE' });
 			const body = (await response.json().catch(() => ({}))) as { message?: string };
 			if (!response.ok) throw new Error(body.message ?? 'No se pudo eliminar.');
+			open = false;
+			toast.success(`«${itemName}» eliminado.`);
 			if (onDeleted) {
 				onDeleted();
 			} else {
@@ -69,38 +76,30 @@
 			}
 		} catch (cause) {
 			error = (cause as Error).message;
-			phase = 'confirm';
+		} finally {
+			working = false;
 		}
-	}
-
-	function cancel() {
-		phase = 'idle';
-		impact = null;
-		error = null;
 	}
 </script>
 
-{#if phase === 'idle' || phase === 'loading'}
-	<Button
-		type="button"
-		variant="destructive"
-		size="sm"
-		disabled={phase === 'loading'}
-		onclick={ask}
-	>
-		{phase === 'loading' ? 'Calculando…' : label}
-	</Button>
-	{#if error}
-		<p class="mt-1 text-xs text-destructive">{error}</p>
-	{/if}
-{:else}
-	<div class="mt-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-		<p class="font-medium">¿Eliminar «{itemName}»?</p>
-		{#if description}
-			<p class="text-muted-foreground">{description}</p>
-		{/if}
-		{#if impact}
-			<p class="mt-1 text-muted-foreground">
+<Button type="button" variant="destructive" size="sm" onclick={ask}>{label}</Button>
+
+<AlertDialog.Root bind:open>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>¿Eliminar «{itemName}»?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Esta acción es permanente y borrará la evidencia, entregas y fotos del ámbito.
+				{#if description}
+					{description}
+				{/if}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+
+		{#if loading}
+			<p class="text-sm text-muted-foreground">Calculando impacto…</p>
+		{:else if impact}
+			<p class="text-sm text-muted-foreground">
 				Se perderán de forma permanente:
 				{#if impact.works > 0}{impact.works} trabajo(s),
 				{/if}
@@ -111,28 +110,16 @@
 					Se eliminarán {impact.notifications} notificación(es) vinculada(s).{/if}
 			</p>
 		{/if}
-		<div class="mt-2 flex gap-2">
-			<Button
-				type="button"
-				variant="destructive"
-				size="sm"
-				disabled={phase === 'working'}
-				onclick={confirm}
-			>
-				{phase === 'working' ? 'Eliminando…' : 'Confirmar eliminación'}
-			</Button>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				disabled={phase === 'working'}
-				onclick={cancel}
-			>
-				Cancelar
-			</Button>
-		</div>
+
 		{#if error}
-			<Alert variant="destructive" class="mt-2"><AlertDescription>{error}</AlertDescription></Alert>
+			<p class="text-sm text-destructive">{error}</p>
 		{/if}
-	</div>
-{/if}
+
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel disabled={working}>Cancelar</AlertDialog.Cancel>
+			<Button variant="destructive" disabled={working || loading || !impact} onclick={confirm}>
+				{working ? 'Eliminando…' : 'Confirmar eliminación'}
+			</Button>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

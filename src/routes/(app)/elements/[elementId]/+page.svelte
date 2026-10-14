@@ -1,9 +1,23 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const crumbs = $derived([
+		{ label: 'Inicio', href: resolve('/(app)/dashboard') },
+		{
+			label: data.element.serviceName,
+			href: resolve('/(app)/services/[serviceId]', { serviceId: data.element.serviceId })
+		},
+		{
+			label: data.element.workName,
+			href: resolve('/(app)/works/[workId]', { workId: data.element.workId })
+		},
+		{ label: data.element.name }
+	]);
 </script>
 
 <svelte:head>
@@ -12,18 +26,8 @@
 
 <div class="space-y-6">
 	<div>
-		<p class="text-sm text-muted-foreground">
-			<a
-				class="underline"
-				href={resolve('/(app)/services/[serviceId]', { serviceId: data.element.serviceId })}
-				>{data.element.serviceName}</a
-			>
-			·
-			<a class="underline" href={resolve('/(app)/works/[workId]', { workId: data.element.workId })}
-				>{data.element.workName}</a
-			>
-		</p>
-		<h1 class="text-2xl font-semibold tracking-tight">{data.element.name}</h1>
+		<AppBreadcrumbs items={crumbs} />
+		<h1 class="mt-2 text-2xl font-semibold tracking-tight">{data.element.name}</h1>
 		{#if data.element.description}
 			<p class="text-sm text-muted-foreground">{data.element.description}</p>
 		{/if}

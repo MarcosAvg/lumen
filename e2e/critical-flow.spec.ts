@@ -40,6 +40,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 	const workName = `Trabajo ${unique}`;
 
 	await page.goto('/admin/services');
+	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -49,6 +50,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
+	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.locator('#work-mode').selectOption('direct');
 	await page.locator('#work-name').fill(workName);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
@@ -88,6 +90,7 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 			.getByRole('link', { name: 'Revisar' });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
+		await page.getByRole('button', { name: 'Aprobar entrega' }).click();
 		await page.getByRole('button', { name: 'Confirmar aprobación' }).click();
 		await expect(page.getByText('Aprobada').first()).toBeVisible();
 	});
@@ -118,6 +121,7 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Rechazar entrega' }).click();
 		await page.getByLabel('Motivo del rechazo (obligatorio)').fill(reason);
 		await page.getByRole('button', { name: 'Confirmar rechazo' }).click();
 

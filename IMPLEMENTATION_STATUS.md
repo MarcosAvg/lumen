@@ -211,6 +211,25 @@ eliminado y los archivos limpiados.
 - `docs/deployment.md`: HTTPS/proxy, `ADDRESS_HEADER`/`XFF_DEPTH`, migraciones, VAPID,
   backups/restauración, mantenimiento, seguridad y GHCR.
 
+## Rediseño de UI/UX (post-etapa 8)
+
+Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni permisos:
+
+- **Sidebar de navegación** (shadcn) colapsable en escritorio y `Sheet` en móvil, con secciones
+  **General** y **Administración** (según rol), estado activo por prefijo de ruta, cabecera con
+  buscador, campana y `DropdownMenu` de usuario (Ajustes, Cerrar sesión).
+- **Jerarquía/contexto**: `Breadcrumb` en servicio, trabajo, elemento y entrega; componente
+  `PageHeader` reutilizable.
+- **Modales reales** (`AlertDialog`/`Dialog`): confirmación de **envío**, **aprobación**, **rechazo
+  con motivo** y **borrado destructivo** (con resumen de impacto); formularios de **nuevo servicio**,
+  **nuevo trabajo** y **añadir elemento** en diálogos.
+- **Tabs** de componente para «Evidencia actual | Historial».
+- **Toasts** (sonner) en acciones de cliente (p. ej. borrado), manteniendo alertas inline para
+  errores de validación de formularios.
+- Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
+  textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
+- E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:
