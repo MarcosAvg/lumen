@@ -7,6 +7,7 @@
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
 	import type { PageProps } from './$types';
@@ -41,6 +42,40 @@
 		displayName: string;
 		role: Role;
 	}
+
+	type EnhanceSubmit = NonNullable<Parameters<typeof enhance>[1]>;
+
+	// Identifica el modal que envió la última acción para no mezclar sus avisos.
+	let activeForm = $state<'create' | 'edit' | null>(null);
+
+	let createOpen = $state(false);
+	let createName = $state('');
+	let createUsername = $state('');
+	let createPassword = $state('');
+	let createRole = $state<Role>('technician');
+	let createPending = $state(false);
+
+	function openCreate() {
+		createName = '';
+		createUsername = '';
+		createPassword = '';
+		createRole = 'technician';
+		createPending = false;
+		activeForm = null;
+		createOpen = true;
+	}
+
+	// Envío progresivo: mantiene los valores ante fallos y solo cierra al confirmar éxito.
+	const submitCreate: EnhanceSubmit = () => {
+		createPending = true;
+		activeForm = 'create';
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			createPending = false;
+			if (result.type === 'success') createOpen = false;
+		};
+	};
+
 	let editOpen = $state(false);
 	let editUser = $state<EditTarget | null>(null);
 	let editRole = $state<Role>('technician');
@@ -54,13 +89,15 @@
 		editName = user.displayName;
 		editUsername = user.username;
 		editPending = false;
+		activeForm = null;
 		editOpen = true;
 	}
 
 	// Envío progresivo desde el modal: mantiene los valores ante fallos y solo
 	// cierra al confirmarse el éxito. Evita que un aviso previo cierre el modal.
-	const submitEdit: NonNullable<Parameters<typeof enhance>[1]> = () => {
+	const submitEdit: EnhanceSubmit = () => {
 		editPending = true;
+		activeForm = 'edit';
 		return async ({ result, update }) => {
 			await update({ reset: false });
 			editPending = false;
@@ -83,10 +120,9 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Usuarios</h1>
-		<p class="text-sm text-muted-foreground">Crea cuentas, cambia roles y controla el acceso.</p>
-	</div>
+	<PageHeader title="Usuarios" description="Crea cuentas, cambia roles y controla el acceso.">
+		<Button onclick={openCreate}>Nuevo usuario</Button>
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert>
@@ -94,28 +130,42 @@
 		</Alert>
 	{/if}
 
-	{#if action?.message}
+	{#if action?.message && activeForm === null}
 		<Alert variant="destructive">
 			<AlertDescription>{action.message}</AlertDescription>
 		</Alert>
 	{/if}
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title class="text-base">Nuevo usuario</Card.Title>
-		</Card.Header>
-		<Card.Content>
-			<form method="POST" action="?/create" class="grid gap-4 sm:grid-cols-2">
+	<Dialog.Root bind:open={createOpen}>
+		<Dialog.Content>
+			<form method="POST" action="?/create" class="space-y-4" use:enhance={submitCreate}>
+				<Dialog.Header>
+					<Dialog.Title>Nuevo usuario</Dialog.Title>
+					<Dialog.Description>
+						Indica el nombre visible, el usuario de acceso y su contraseña.
+					</Dialog.Description>
+				</Dialog.Header>
+
+				{#if activeForm === 'create' && action?.message}
+					<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
+				{/if}
+
 				<div class="space-y-2">
 					<Label for="new-displayName">Nombre visible</Label>
-					<Input id="new-displayName" name="displayName" required />
+					<Input id="new-displayName" name="displayName" bind:value={createName} required />
 					{#if action?.createErrors?.displayName}
 						<p class="text-sm text-destructive">{action.createErrors.displayName}</p>
 					{/if}
 				</div>
 				<div class="space-y-2">
 					<Label for="new-username">Usuario</Label>
-					<Input id="new-username" name="username" autocomplete="off" required />
+					<Input
+						id="new-username"
+						name="username"
+						bind:value={createUsername}
+						autocomplete="off"
+						required
+					/>
 					{#if action?.createErrors?.username}
 						<p class="text-sm text-destructive">{action.createErrors.username}</p>
 					{/if}
@@ -126,6 +176,7 @@
 						id="new-password"
 						name="password"
 						type="password"
+						bind:value={createPassword}
 						autocomplete="new-password"
 						required
 					/>
@@ -138,6 +189,7 @@
 					<select
 						id="new-role"
 						name="role"
+						bind:value={createRole}
 						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
 						required
 					>
@@ -146,12 +198,14 @@
 						<option value="admin">Administrador</option>
 					</select>
 				</div>
-				<div class="sm:col-span-2">
-					<Button type="submit">Crear usuario</Button>
-				</div>
+
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
+					<Button type="submit" disabled={createPending}>Crear usuario</Button>
+				</Dialog.Footer>
 			</form>
-		</Card.Content>
-	</Card.Root>
+		</Dialog.Content>
+	</Dialog.Root>
 
 	<ul class="space-y-3">
 		{#each data.users as user (user.id)}
@@ -207,7 +261,7 @@
 				</Dialog.Description>
 			</Dialog.Header>
 
-			{#if action?.message}
+			{#if activeForm === 'edit' && action?.message}
 				<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 			{/if}
 

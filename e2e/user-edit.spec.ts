@@ -29,10 +29,12 @@ test('el administrador edita datos, rol y contraseña en el modal', async ({ pag
 	await page.goto('/admin/users');
 
 	// Crear usuario.
-	await page.locator('#new-displayName').fill(displayName);
-	await page.locator('#new-username').fill(username);
-	await page.locator('#new-password').fill('contrasena-segura');
-	await page.getByRole('button', { name: 'Crear usuario' }).click();
+	await page.getByRole('button', { name: 'Nuevo usuario' }).click();
+	const createDialog = page.getByRole('dialog');
+	await createDialog.locator('#new-displayName').fill(displayName);
+	await createDialog.locator('#new-username').fill(username);
+	await createDialog.locator('#new-password').fill('contrasena-segura');
+	await createDialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
 	// Editar datos (nombre y usuario).
