@@ -14,6 +14,7 @@ import {
 	works
 } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
+import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 import { toCsv } from '#lib/server/exports/csv';
 import { NameRegistry, sanitizeSegment } from '#lib/server/exports/names';
 import { DomainError } from './errors';
@@ -103,11 +104,19 @@ async function loadSubmissionPhotos(
 	return bySubmission;
 }
 
+/** Etiqueta de carpeta para el grupo sin requisito según haya o no grupos de requisito. */
+function additionalFolderLabel(rows: SubmissionPhotoRow[]): string {
+	return rows.some((row) => row.requirementName !== null)
+		? ADDITIONAL_GROUP_LABEL
+		: NO_REQUIREMENT_GROUP_LABEL;
+}
+
 /** Construye las rutas de un ZIP a partir de las fotos de una entrega. */
 function photosToFiles(
 	parent: string,
 	rows: SubmissionPhotoRow[],
-	submissionKey: string
+	submissionKey: string,
+	additionalLabel: string
 ): ArchiveFile[] {
 	const files: ArchiveFile[] = [];
 	const registries = new Map<string, NameRegistry>();
@@ -119,7 +128,7 @@ function photosToFiles(
 		if (row.groupOrder !== currentGroup) {
 			currentGroup = row.groupOrder;
 			const registry = getRegistry(registries, parent);
-			const name = row.requirementName ?? 'Adicionales';
+			const name = row.requirementName ?? additionalLabel;
 			folder = registry.unique(name, `${submissionKey}-${row.groupOrder}`);
 			indexInGroup = 0;
 		}
@@ -162,7 +171,12 @@ export async function getSubmissionArchive(
 		sequenceNo: submission.sequenceNo,
 		serviceId: context.serviceId,
 		fileName: `entrega-${submission.sequenceNo}.zip`,
-		files: photosToFiles(`entrega-${submission.sequenceNo}`, rows, submission.id)
+		files: photosToFiles(
+			`entrega-${submission.sequenceNo}`,
+			rows,
+			submission.id,
+			additionalFolderLabel(rows)
+		)
 	};
 }
 
@@ -339,12 +353,9 @@ export async function getServiceArchive(db: Database, serviceId: string): Promis
 		if (!isApproved || !unit.targetId) continue;
 		const submission = approved.get(unit.targetId);
 		if (!submission) continue;
+		const rows = photosBySubmission.get(submission.submissionId) ?? [];
 		files.push(
-			...photosToFiles(
-				parent,
-				photosBySubmission.get(submission.submissionId) ?? [],
-				submission.submissionId
-			)
+			...photosToFiles(parent, rows, submission.submissionId, additionalFolderLabel(rows))
 		);
 	}
 

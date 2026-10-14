@@ -8,6 +8,7 @@
 	import { Textarea } from '#lib/components/ui/textarea';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import type { PageProps } from './$types';
+	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 
 	type ActionData = {
 		success?: string;
@@ -25,6 +26,10 @@
 		return new Date(value).toLocaleString();
 	}
 
+	const hasRequirementGroups = $derived(
+		data.detail.photos.some((photo) => photo.requirementNameSnapshot !== null)
+	);
+
 	const groups = $derived(
 		[...new Set(data.detail.photos.map((photo) => photo.groupSortOrder))]
 			.sort((a, b) => a - b)
@@ -34,7 +39,9 @@
 					.sort((a, b) => a.photoSortOrder - b.photoSortOrder);
 				return {
 					order,
-					name: photos[0]?.requirementNameSnapshot ?? 'Adicionales',
+					name:
+						photos[0]?.requirementNameSnapshot ??
+						(hasRequirementGroups ? ADDITIONAL_GROUP_LABEL : NO_REQUIREMENT_GROUP_LABEL),
 					photos
 				};
 			})

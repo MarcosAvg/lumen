@@ -62,7 +62,8 @@ export async function cleanupOrphans(options) {
 		let orphansRemoved = 0;
 		for (const sub of ['objects', 'thumbnails']) {
 			for (const file of await listFiles(root, path.join(root, sub))) {
-				if (now - file.mtimeMs < minAgeMs) continue;
+				// `mtimeMs` puede superar ligeramente a `now`; se acota a >= 0.
+				if (Math.max(0, now - file.mtimeMs) < minAgeMs) continue;
 				if (!referenced.has(file.rel)) {
 					await unlink(file.abs);
 					orphansRemoved += 1;
@@ -72,7 +73,7 @@ export async function cleanupOrphans(options) {
 
 		let stagingRemoved = 0;
 		for (const file of await listFiles(root, path.join(root, 'staging'))) {
-			if (now - file.mtimeMs < stagingMaxAgeMs) continue;
+			if (Math.max(0, now - file.mtimeMs) < stagingMaxAgeMs) continue;
 			await unlink(file.abs);
 			stagingRemoved += 1;
 		}

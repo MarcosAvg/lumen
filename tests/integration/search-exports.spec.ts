@@ -143,6 +143,28 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		]);
 	});
 
+	it('EXP-01b: una entrega sin requisitos usa la carpeta «Fotografías»', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const work = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Trabajo',
+			actorId: admin
+		});
+		const targetId = work.targetId as string;
+		const photo = await upload(storage, targetId, admin, null);
+		const submission = await submitEvidence(db, {
+			targetId,
+			expectedVersion: photo.version,
+			userId: admin
+		});
+
+		const archive = await getSubmissionArchive(db, submission.submissionId);
+		expect(archive.files.map((file) => file.path)).toEqual(['entrega-1/Fotografías/01.jpg']);
+	});
+
 	it('EXP-02: el ZIP de servicio incluye solo aprobados y resume los omitidos', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
@@ -181,7 +203,7 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 
 		const archive = await getServiceArchive(db, service.id);
 		expect(archive.files).toHaveLength(1);
-		expect(archive.files[0].path).toBe('Servicio/Aprobado/Adicionales/01.jpg');
+		expect(archive.files[0].path).toBe('Servicio/Aprobado/Fotografías/01.jpg');
 		expect(archive.resumen).toContain('Aprobado');
 		expect(archive.resumen).toContain('Pendiente');
 		expect(archive.resumen).toContain('Omitido: En revisión');

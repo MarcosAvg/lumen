@@ -260,6 +260,13 @@ transacción; el antiguo «Añadir elemento» del servicio se retiró.
 (`generate-structure-dialog`) con dos pasos (selección → vista previa → aplicar) apoyado en endpoints
 JSON `.../generate/preview` y `.../generate/apply`; la ruta antigua se eliminó.
 
+**Nomenclatura de evidencia**: si el objetivo **no tiene requisitos**, el grupo de fotografías se
+muestra como **«Fotografías»** (captura, historial y carpetas del ZIP); si tiene requisitos, se
+mantiene **«Adicionales»**. Sin cambios de modelo (sigue siendo el grupo `additional`).
+
+**Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
+por delante de `now`) que hacía intermitente la prueba de limpieza.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:

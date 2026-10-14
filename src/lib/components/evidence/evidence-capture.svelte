@@ -9,6 +9,7 @@
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import type { TargetStatus } from '#lib/types';
+	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 
 	interface Req {
 		id: string;
@@ -518,7 +519,9 @@
 
 		<Card.Root>
 			<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-				<Card.Title class="text-base">Adicionales</Card.Title>
+				<Card.Title class="text-base">
+					{requirements.length === 0 ? NO_REQUIREMENT_GROUP_LABEL : ADDITIONAL_GROUP_LABEL}
+				</Card.Title>
 				<div class="flex items-center gap-2">
 					<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
 					<Button

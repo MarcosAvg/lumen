@@ -65,6 +65,8 @@ async function createPendingSubmission(page: Page, unique: string) {
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
 	await expect(page.locator('img[alt^="Foto 1 de"]').first()).toBeVisible();
+	// Sin requisitos, el grupo se muestra como «Fotografías», no «Adicionales».
+	await expect(page.getByText('Fotografías').first()).toBeVisible();
 	await page.getByRole('button', { name: 'Enviar evidencia' }).click();
 	await page.getByRole('button', { name: 'Confirmar envío' }).click();
 	await expect(page.getByText('En revisión').first()).toBeVisible();
