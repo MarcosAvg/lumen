@@ -35,12 +35,13 @@ test('el administrador edita el nombre y el usuario de una cuenta', async ({ pag
 	await page.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
-	// Editar nombre y usuario en el formulario en línea de la fila.
+	// Editar nombre y usuario en el diálogo.
 	const row = page.getByRole('listitem').filter({ hasText: displayName });
-	await row.getByText('Editar nombre y usuario').click();
-	await row.getByLabel('Nombre visible').fill(newName);
-	await row.getByLabel('Usuario').fill(`${username}x`);
-	await row.getByRole('button', { name: 'Guardar' }).click();
+	await row.getByRole('button', { name: 'Editar' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.locator('#edit-displayName').fill(newName);
+	await dialog.locator('#edit-username').fill(`${username}x`);
+	await dialog.getByRole('button', { name: 'Guardar' }).click();
 
 	await expect(page.getByText('Usuario actualizado.')).toBeVisible();
 	await expect(page.getByText(newName)).toBeVisible();

@@ -3,6 +3,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
@@ -32,6 +33,26 @@
 			? action.details
 			: null
 	);
+
+	interface EditTarget {
+		id: string;
+		username: string;
+		displayName: string;
+	}
+	let editOpen = $state(false);
+	let editUser = $state<EditTarget | null>(null);
+
+	function openEdit(user: EditTarget) {
+		editUser = user;
+		editOpen = true;
+	}
+
+	$effect(() => {
+		if (action?.success === 'Usuario actualizado.') {
+			editOpen = false;
+			editUser = null;
+		}
+	});
 
 	const roleLabel: Record<Role, string> = {
 		admin: 'Administrador',
@@ -180,6 +201,8 @@
 								</form>
 							{/if}
 
+							<Button variant="outline" size="sm" onclick={() => openEdit(user)}>Editar</Button>
+
 							<DestructiveDelete
 								label="Eliminar"
 								endpoint={`/api/users/${user.id}`}
@@ -213,40 +236,52 @@
 								<Button type="submit" variant="outline" size="sm">Restablecer</Button>
 							</form>
 						</details>
-						<details class="mt-2 w-full border-t pt-3">
-							<summary class="cursor-pointer text-sm text-muted-foreground">
-								Editar nombre y usuario
-							</summary>
-							<form method="POST" action="?/updateProfile" class="mt-2 grid gap-2 sm:grid-cols-3">
-								<input type="hidden" name="userId" value={user.id} />
-								<div class="space-y-1">
-									<Label for="name-{user.id}">Nombre visible</Label>
-									<Input id="name-{user.id}" name="displayName" value={user.displayName} required />
-									{#if action?.profileErrors?.displayName}
-										<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
-									{/if}
-								</div>
-								<div class="space-y-1">
-									<Label for="username-{user.id}">Usuario</Label>
-									<Input
-										id="username-{user.id}"
-										name="username"
-										value={user.username}
-										autocomplete="off"
-										required
-									/>
-									{#if action?.profileErrors?.username}
-										<p class="text-sm text-destructive">{action.profileErrors.username}</p>
-									{/if}
-								</div>
-								<div class="flex items-end">
-									<Button type="submit" variant="outline" size="sm">Guardar</Button>
-								</div>
-							</form>
-						</details>
 					</Card.Footer>
 				</Card.Root>
 			</li>
 		{/each}
 	</ul>
+
+	<Dialog.Root bind:open={editOpen}>
+		<Dialog.Content>
+			<form method="POST" action="?/updateProfile" class="space-y-4">
+				<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+				<Dialog.Header>
+					<Dialog.Title>Editar usuario</Dialog.Title>
+					<Dialog.Description>
+						El nuevo nombre se usa desde este momento; el historial conserva la firma original.
+					</Dialog.Description>
+				</Dialog.Header>
+				<div class="space-y-2">
+					<Label for="edit-displayName">Nombre visible</Label>
+					<Input
+						id="edit-displayName"
+						name="displayName"
+						value={editUser?.displayName ?? ''}
+						required
+					/>
+					{#if action?.profileErrors?.displayName}
+						<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
+					{/if}
+				</div>
+				<div class="space-y-2">
+					<Label for="edit-username">Usuario</Label>
+					<Input
+						id="edit-username"
+						name="username"
+						value={editUser?.username ?? ''}
+						autocomplete="off"
+						required
+					/>
+					{#if action?.profileErrors?.username}
+						<p class="text-sm text-destructive">{action.profileErrors.username}</p>
+					{/if}
+				</div>
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
+					<Button type="submit">Guardar</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>

@@ -285,9 +285,9 @@ congelados (`submitted_by_name`, `reviewer_name`, `photo_uploaded_by_name`, `upl
 `admin/users` (`/api/users/[userId]`). `docs/01` actualizado.
 
 **Edición de usuarios**: `updateUserProfile` permite cambiar **nombre visible y nombre de usuario**
-(formulario en línea en `admin/users`), normalizando el usuario y rechazando duplicados (`409`). La
-firma histórica queda **congelada** (el renombrado no reescribe el pasado). El helper de integración
-cierra su cliente de Postgres para no agotar el pool.
+en un **modal** de edición en `admin/users` (botón «Editar»), normalizando el usuario y rechazando
+duplicados (`409`). La firma histórica queda **congelada** (el renombrado no reescribe el pasado). El
+helper de integración cierra su cliente de Postgres para no agotar el pool.
 
 ## Cómo ejecutar
 
