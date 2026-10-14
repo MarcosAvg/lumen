@@ -11,6 +11,7 @@ import {
 	getCatalogItemImpact,
 	getCatalogMeta,
 	listCatalogsWithItems,
+	listCatalogItemOptions,
 	listRelationsForCatalog,
 	moveCatalogItem,
 	renameCatalogItem,
@@ -38,11 +39,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const page = Math.max(Number(url.searchParams.get('page') ?? '1') || 1, 1);
 	const PAGE_SIZE = 25;
 
-	const [catalog, itemsPage, relations, allCatalogs] = await Promise.all([
+	const [catalog, itemsPage, relations, allCatalogs, fromItems] = await Promise.all([
 		getCatalogMeta(db, catalogId),
 		searchCatalogItems(db, catalogId, { q, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
 		listRelationsForCatalog(db, catalogId),
-		listCatalogsWithItems(db)
+		listCatalogsWithItems(db),
+		listCatalogItemOptions(db, catalogId)
 	]);
 
 	return {
@@ -53,6 +55,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		pageSize: PAGE_SIZE,
 		q,
 		relations,
+		fromItems,
 		otherCatalogs: allCatalogs.filter((entry) => entry.id !== catalogId)
 	};
 };

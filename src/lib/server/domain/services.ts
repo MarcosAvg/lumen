@@ -14,6 +14,7 @@ export interface ServiceSummary {
 	name: string;
 	description: string | null;
 	buildingName: string | null;
+	buildingCatalogItemId: string | null;
 }
 
 export interface CreateServiceInput {
@@ -107,7 +108,8 @@ const serviceColumns = {
 	id: services.id,
 	name: services.name,
 	description: services.description,
-	buildingName: visibleBuildingName
+	buildingName: visibleBuildingName,
+	buildingCatalogItemId: services.buildingCatalogItemId
 };
 
 /** Administrador: todos los servicios. Resto: solo los servicios asignados activamente. */
@@ -132,8 +134,8 @@ export async function listServicesForUser(
 		.orderBy(asc(services.createdAt));
 
 	return rows.map(
-		({ id, name, description, buildingName }) =>
-			({ id, name, description, buildingName }) satisfies ServiceSummary
+		({ id, name, description, buildingName, buildingCatalogItemId }) =>
+			({ id, name, description, buildingName, buildingCatalogItemId }) satisfies ServiceSummary
 	);
 }
 

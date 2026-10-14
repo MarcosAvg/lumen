@@ -1,68 +1,60 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
-	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
-	import * as Command from '#lib/components/ui/command';
-	import * as Popover from '#lib/components/ui/popover';
-	import { Button } from '#lib/components/ui/button';
-	import { cn } from '#lib/utils';
-	import type { CatalogItemOption } from './types';
+	import CatalogItemCombobox from './catalog-item-combobox.svelte';
+	import type { CatalogGroup } from './types';
 
+	/**
+	 * Selección en dos pasos: primero el catálogo y después uno de sus ítems
+	 * (con búsqueda). Emite un `input` oculto con el id seleccionado.
+	 */
 	let {
 		name,
-		items,
+		catalogs,
 		value = $bindable(''),
-		placeholder = 'Selecciona un ítem…',
+		itemPlaceholder = 'Elige ítem…',
 		disabled = false
 	}: {
 		name: string;
-		items: CatalogItemOption[];
+		catalogs: CatalogGroup[];
 		value?: string;
-		placeholder?: string;
+		itemPlaceholder?: string;
 		disabled?: boolean;
 	} = $props();
 
-	let open = $state(false);
-	const selected = $derived(items.find((item) => item.id === value) ?? null);
+	let catalogId = $state('');
+
+	// Mantén el catálogo del valor actual; si no, el primero disponible.
+	$effect(() => {
+		if (catalogs.length === 0) return;
+		const owner = catalogs.find((catalog) => catalog.items.some((item) => item.id === value));
+		if (owner) {
+			if (catalogId !== owner.id) catalogId = owner.id;
+			return;
+		}
+		if (!catalogs.some((catalog) => catalog.id === catalogId)) {
+			catalogId = catalogs[0].id;
+		}
+	});
+
+	const currentItems = $derived(catalogs.find((catalog) => catalog.id === catalogId)?.items ?? []);
+
+	// Si el valor no pertenece al catálogo elegido, se limpia.
+	$effect(() => {
+		if (value && !currentItems.some((item) => item.id === value)) {
+			value = '';
+		}
+	});
 </script>
 
 <input type="hidden" {name} {value} />
-<Popover.Root bind:open>
-	<Popover.Trigger>
-		{#snippet child({ props })}
-			<Button
-				{...props}
-				variant="outline"
-				class="w-full justify-between font-normal"
-				{disabled}
-				aria-label={selected ? `Ítem seleccionado: ${selected.name}` : placeholder}
-			>
-				<span class="truncate">{selected ? selected.name : placeholder}</span>
-				<ChevronsUpDown class="size-4 shrink-0 opacity-50" aria-hidden="true" />
-			</Button>
-		{/snippet}
-	</Popover.Trigger>
-	<Popover.Content class="w-72 p-0" align="start">
-		<Command.Root>
-			<Command.Input placeholder="Buscar por nombre o catálogo…" />
-			<Command.List>
-				<Command.Empty>Sin resultados.</Command.Empty>
-				{#each items as item (item.id)}
-					<Command.Item
-						value={`${item.name} ${item.catalogName}`}
-						onSelect={() => {
-							value = item.id === value ? '' : item.id;
-							open = false;
-						}}
-					>
-						<Check
-							class={cn('mr-2 size-4', value === item.id ? 'opacity-100' : 'opacity-0')}
-							aria-hidden="true"
-						/>
-						<span class="flex-1 truncate">{item.name}</span>
-						<span class="text-xs text-muted-foreground">{item.catalogName}</span>
-					</Command.Item>
-				{/each}
-			</Command.List>
-		</Command.Root>
-	</Popover.Content>
-</Popover.Root>
+<div class="space-y-2">
+	<select
+		class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+		aria-label="Catálogo"
+		bind:value={catalogId}
+	>
+		{#each catalogs as catalog (catalog.id)}
+			<option value={catalog.id}>{catalog.name}</option>
+		{/each}
+	</select>
+	<CatalogItemCombobox items={currentItems} bind:value {disabled} placeholder={itemPlaceholder} />
+</div>

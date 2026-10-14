@@ -1,33 +1,46 @@
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
-	import ChevronsUpDown from '@lucide/svelte/icons/chevrons-up-down';
 	import X from '@lucide/svelte/icons/x';
-	import * as Command from '#lib/components/ui/command';
-	import * as Popover from '#lib/components/ui/popover';
 	import { Badge } from '#lib/components/ui/badge';
-	import { Button } from '#lib/components/ui/button';
-	import { cn } from '#lib/utils';
-	import type { CatalogItemOption } from './types';
+	import CatalogItemMultiCombobox from './catalog-item-multi-combobox.svelte';
+	import type { CatalogGroup } from './types';
 
+	/**
+	 * Selección múltiple en dos pasos (catálogo → ítems). Los ítems elegidos se
+	 * **acumulan entre catálogos** como chips y se emite un `input` por id.
+	 */
 	let {
 		name,
-		items,
+		catalogs,
 		value = $bindable<string[]>([]),
-		placeholder = 'Selecciona ítems…',
+		itemPlaceholder = 'Añadir ítems…',
 		disabled = false
 	}: {
 		name: string;
-		items: CatalogItemOption[];
+		catalogs: CatalogGroup[];
 		value?: string[];
-		placeholder?: string;
+		itemPlaceholder?: string;
 		disabled?: boolean;
 	} = $props();
 
-	let open = $state(false);
-	const selectedItems = $derived(items.filter((item) => value.includes(item.id)));
+	let catalogId = $state('');
 
-	function toggle(id: string) {
-		value = value.includes(id) ? value.filter((entry) => entry !== id) : [...value, id];
+	$effect(() => {
+		if (catalogs.length === 0) return;
+		if (!catalogs.some((catalog) => catalog.id === catalogId)) {
+			catalogId = catalogs[0].id;
+		}
+	});
+
+	const currentItems = $derived(catalogs.find((catalog) => catalog.id === catalogId)?.items ?? []);
+	const nameById = $derived(
+		new Map(
+			catalogs.flatMap((catalog) => catalog.items.map((item) => [item.id, item.name] as const))
+		)
+	);
+	const selected = $derived(value.map((id) => ({ id, name: nameById.get(id) ?? id })));
+
+	function remove(id: string) {
+		value = value.filter((entry) => entry !== id);
 	}
 </script>
 
@@ -36,16 +49,16 @@
 {/each}
 
 <div class="space-y-2">
-	{#if selectedItems.length > 0}
+	{#if selected.length > 0}
 		<div class="flex flex-wrap gap-1">
-			{#each selectedItems as item (item.id)}
+			{#each selected as item (item.id)}
 				<Badge variant="secondary" class="gap-1">
 					{item.name}
 					<button
 						type="button"
 						class="rounded-full hover:bg-muted"
 						aria-label={`Quitar ${item.name}`}
-						onclick={() => toggle(item.id)}
+						onclick={() => remove(item.id)}
 					>
 						<X class="size-3" aria-hidden="true" />
 					</button>
@@ -53,37 +66,19 @@
 			{/each}
 		</div>
 	{/if}
-	<Popover.Root bind:open>
-		<Popover.Trigger>
-			{#snippet child({ props })}
-				<Button {...props} variant="outline" class="w-full justify-between font-normal" {disabled}>
-					<span class="truncate">
-						{selectedItems.length > 0 ? `${selectedItems.length} seleccionado(s)` : placeholder}
-					</span>
-					<ChevronsUpDown class="size-4 shrink-0 opacity-50" aria-hidden="true" />
-				</Button>
-			{/snippet}
-		</Popover.Trigger>
-		<Popover.Content class="w-72 p-0" align="start">
-			<Command.Root>
-				<Command.Input placeholder="Buscar por nombre o catálogo…" />
-				<Command.List>
-					<Command.Empty>Sin resultados.</Command.Empty>
-					{#each items as item (item.id)}
-						<Command.Item
-							value={`${item.name} ${item.catalogName}`}
-							onSelect={() => toggle(item.id)}
-						>
-							<Check
-								class={cn('mr-2 size-4', value.includes(item.id) ? 'opacity-100' : 'opacity-0')}
-								aria-hidden="true"
-							/>
-							<span class="flex-1 truncate">{item.name}</span>
-							<span class="text-xs text-muted-foreground">{item.catalogName}</span>
-						</Command.Item>
-					{/each}
-				</Command.List>
-			</Command.Root>
-		</Popover.Content>
-	</Popover.Root>
+	<select
+		class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+		aria-label="Catálogo"
+		bind:value={catalogId}
+	>
+		{#each catalogs as catalog (catalog.id)}
+			<option value={catalog.id}>{catalog.name}</option>
+		{/each}
+	</select>
+	<CatalogItemMultiCombobox
+		items={currentItems}
+		bind:values={value}
+		{disabled}
+		placeholder={itemPlaceholder}
+	/>
 </div>

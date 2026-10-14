@@ -6,8 +6,9 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import CatalogItemCombobox from '#lib/components/catalog/catalog-item-combobox.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
-	import type { CatalogItemOption } from '#lib/components/catalog/types';
+	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type Impact = { works: number; elements: number; services: number };
@@ -24,23 +25,16 @@
 
 	const totalPages = $derived(Math.max(Math.ceil(data.total / data.pageSize), 1));
 
-	let relationCatalogId = $state('');
 	let fromItemId = $state('');
 	let toItemId = $state('');
 
-	$effect(() => {
-		if (!relationCatalogId && data.otherCatalogs.length > 0) {
-			relationCatalogId = data.otherCatalogs[0].id;
-		}
-	});
-
-	const fromItems = $derived<CatalogItemOption[]>(
-		data.items.map((item) => ({ id: item.id, name: item.name, catalogName: data.catalog.name }))
-	);
-	const toItems = $derived<CatalogItemOption[]>(
-		(data.otherCatalogs.find((entry) => entry.id === relationCatalogId)?.items ?? []).map(
-			(item) => ({ id: item.id, name: item.name, catalogName: '' })
-		)
+	const fromItems = $derived(data.fromItems.map((item) => ({ id: item.id, name: item.name })));
+	const otherCatalogs = $derived<CatalogGroup[]>(
+		data.otherCatalogs.map((catalog) => ({
+			id: catalog.id,
+			name: catalog.name,
+			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+		}))
 	);
 
 	function pageHref(page: number): string {
@@ -229,42 +223,30 @@
 					No hay otros catálogos para relacionar. Crea otro catálogo primero.
 				</p>
 			{:else}
-				<form method="POST" action="?/createRelation" class="grid gap-3 sm:grid-cols-4">
+				<form method="POST" action="?/createRelation" class="grid gap-3 sm:grid-cols-3">
 					<div class="space-y-1">
 						<Label for="rel-from">Ítem de este catálogo</Label>
-						<CatalogItemPicker
-							name="fromItemId"
+						<CatalogItemCombobox
+							id="rel-from"
 							items={fromItems}
 							bind:value={fromItemId}
 							placeholder="Elige ítem…"
 						/>
 					</div>
 					<div class="space-y-1">
-						<Label for="rel-catalog">Catálogo destino</Label>
-						<select
-							id="rel-catalog"
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-							bind:value={relationCatalogId}
-						>
-							{#each data.otherCatalogs as catalog (catalog.id)}
-								<option value={catalog.id}>{catalog.name}</option>
-							{/each}
-						</select>
-					</div>
-					<div class="space-y-1">
-						<Label for="rel-to">Ítem destino</Label>
+						<Label for="rel-to">Ítem destino (otro catálogo)</Label>
 						<CatalogItemPicker
 							name="toItemId"
-							items={toItems}
+							catalogs={otherCatalogs}
 							bind:value={toItemId}
-							placeholder="Elige ítem…"
+							itemPlaceholder="Elige ítem…"
 						/>
 					</div>
 					<div class="flex items-end">
 						<Button
 							type="submit"
 							size="sm"
-							disabled={data.items.length === 0 || !fromItemId || !toItemId}>Relacionar</Button
+							disabled={data.fromItems.length === 0 || !fromItemId || !toItemId}>Relacionar</Button
 						>
 					</div>
 				</form>

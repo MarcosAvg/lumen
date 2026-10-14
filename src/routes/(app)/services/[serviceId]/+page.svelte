@@ -10,7 +10,7 @@
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
-	import type { CatalogItemOption } from '#lib/components/catalog/types';
+	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -48,22 +48,34 @@
 
 	const dividedWorks = $derived(data.works.filter((work) => work.mode === 'divided'));
 
-	// Ítems ofrecidos en los pickers: catálogos generales (no de edificios).
-	const pickerItems = $derived<CatalogItemOption[]>(
+	// Catálogos ofrecidos en los pickers: generales (no de edificios).
+	const catalogsForPicker = $derived<CatalogGroup[]>(
 		data.catalogs
 			.filter((catalog) => catalog.purpose !== 'buildings')
-			.flatMap((catalog) =>
-				catalog.items.map((item) => ({
-					id: item.id,
-					name: item.name,
-					catalogName: catalog.name
-				}))
-			)
+			.map((catalog) => ({
+				id: catalog.id,
+				name: catalog.name,
+				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+			}))
 	);
 	// Edificios: solo catálogos marcados como tales (si no hay ninguno, todos).
-	const buildingCatalogs = $derived.by(() => {
+	const buildingCatalogs = $derived.by<CatalogGroup[]>(() => {
 		const buildings = data.catalogs.filter((catalog) => catalog.purpose === 'buildings');
-		return buildings.length > 0 ? buildings : data.catalogs;
+		const source = buildings.length > 0 ? buildings : data.catalogs;
+		return source.map((catalog) => ({
+			id: catalog.id,
+			name: catalog.name,
+			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+		}));
+	});
+
+	let buildingItemId = $state('');
+	let buildingSeeded = false;
+	$effect(() => {
+		if (!buildingSeeded) {
+			buildingItemId = data.service.buildingCatalogItemId ?? '';
+			buildingSeeded = true;
+		}
 	});
 </script>
 
@@ -124,22 +136,12 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="svc-building">Edificio</Label>
-						<select
-							id="svc-building"
+						<CatalogItemPicker
 							name="buildingItemId"
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						>
-							<option value="">Sin edificio</option>
-							{#each buildingCatalogs as catalog (catalog.id)}
-								{#if catalog.items.length > 0}
-									<optgroup label={catalog.name}>
-										{#each catalog.items as item (item.id)}
-											<option value={item.id}>{item.name}</option>
-										{/each}
-									</optgroup>
-								{/if}
-							{/each}
-						</select>
+							catalogs={buildingCatalogs}
+							bind:value={buildingItemId}
+							itemPlaceholder="Sin edificio"
+						/>
 					</div>
 					<div class="sm:col-span-3">
 						<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>
@@ -268,8 +270,8 @@
 						<Label for="work-catalog">Desde catálogo (opcional)</Label>
 						<CatalogItemPicker
 							name="catalogItemId"
-							items={pickerItems}
-							placeholder="— Nombre propio —"
+							catalogs={catalogsForPicker}
+							itemPlaceholder="— Nombre propio —"
 						/>
 					</div>
 					<div class="space-y-1">
@@ -311,8 +313,8 @@
 						<Label for="el-catalog">Desde catálogo (opcional)</Label>
 						<CatalogItemPicker
 							name="catalogItemId"
-							items={pickerItems}
-							placeholder="— Nombre propio —"
+							catalogs={catalogsForPicker}
+							itemPlaceholder="— Nombre propio —"
 						/>
 					</div>
 					<div class="space-y-1">

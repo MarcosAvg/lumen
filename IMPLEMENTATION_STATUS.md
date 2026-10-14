@@ -230,19 +230,22 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.
 
-## Catálogos: selectores con búsqueda y usos
+## Catálogos: selección en dos pasos y usos
 
 Se eliminó el volcado plano de catálogos en selectores:
 
-- **Combobox de ítems** (`catalog-item-picker` y variante multi con chips) con búsqueda por nombre
-  de ítem y de catálogo; sustituye los `<select>` masivos al crear trabajo/elemento, en relaciones
-  y en la generación en lote.
+- **Selección en dos pasos** (`catalog-item-picker` y su variante multi con chips): primero se elige
+  el **catálogo** y después un ítem de ese catálogo con **búsqueda**. Sustituye a los `<select>`
+  masivos al crear trabajo/elemento, en el **edificio** del servicio, en las relaciones y en la
+  generación en lote. Un combobox interno (`catalog-item-combobox`/`-multi-combobox`) reutiliza la
+  búsqueda de ítems.
 - **Filtrado por propósito**: el selector de edificio usa catálogos `buildings` (con respaldo a
-  todos si no hay ninguno); trabajos/elementos excluyen los de edificios.
-- **Pantallas de catálogo**: búsqueda en la lista de catálogos; en el detalle, búsqueda y
-  paginación de ítems, columna de **usos** (trabajos/elementos/edificios) y **reordenar** ítems
-  (arriba/abajo).
-- **Relaciones guiadas**: elegir catálogo destino y luego el ítem con combobox.
+  todos si no hay ninguno marcado); trabajos/elementos excluyen los de edificios.
+- **Acumulación** en generación en lote: los ítems elegidos se conservan como chips al cambiar de
+  catálogo (se pueden componer desde varios).
+- **Pantallas de catálogo**: búsqueda en la lista; en el detalle, búsqueda y paginación de ítems,
+  columna de **usos** (trabajos/elementos/edificios) y **reordenar** ítems (arriba/abajo).
+- `ServiceSummary` expone `buildingCatalogItemId` para preseleccionar el edificio actual.
 
 ## Cómo ejecutar
 

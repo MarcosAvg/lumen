@@ -18,7 +18,7 @@ async function ensureAdmin(page: Page) {
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
 }
 
-test('catálogo: búsqueda de ítems y selección con combobox', async ({ page }, testInfo) => {
+test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }, testInfo) => {
 	test.setTimeout(60_000);
 	const unique = `${testInfo.project.name}-cat-${Date.now()}`;
 	const catalogName = `Catálogo ${unique}`;
@@ -63,12 +63,15 @@ test('catálogo: búsqueda de ítems y selección con combobox', async ({ page }
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
-	await page.getByRole('button', { name: '— Nombre propio —' }).click();
-	await page.getByPlaceholder('Buscar por nombre o catálogo…').fill(itemName);
+	const dialog = page.getByRole('dialog');
+	// Paso 1: catálogo. Paso 2: ítem del catálogo (con búsqueda).
+	await dialog.getByLabel('Catálogo').selectOption({ label: catalogName });
+	await dialog.getByRole('button', { name: '— Nombre propio —' }).click();
+	await page.getByPlaceholder('Buscar ítem…').fill(itemName);
 	const option = page.locator('[data-slot="command-item"]').filter({ hasText: itemName });
 	await expect(option).toBeVisible();
 	await option.click();
-	await page.getByRole('button', { name: 'Crear trabajo' }).click();
+	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 	await expect(page.getByRole('listitem').filter({ hasText: itemName }).first()).toBeVisible();

@@ -6,7 +6,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
-	import type { CatalogItemOption } from '#lib/components/catalog/types';
+	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type PlanElement = { catalogItemId: string | null; name: string; include: boolean };
@@ -22,16 +22,14 @@
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
 
-	const pickerItems = $derived<CatalogItemOption[]>(
+	const pickerItems = $derived<CatalogGroup[]>(
 		data.catalogs
 			.filter((catalog) => catalog.purpose !== 'buildings')
-			.flatMap((catalog) =>
-				catalog.items.map((item) => ({
-					id: item.id,
-					name: item.name,
-					catalogName: catalog.name
-				}))
-			)
+			.map((catalog) => ({
+				id: catalog.id,
+				name: catalog.name,
+				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+			}))
 	);
 </script>
 
@@ -78,16 +76,16 @@
 					<Label for="workItemIds">Trabajos (ítems de catálogo)</Label>
 					<CatalogItemMultiPicker
 						name="workItemIds"
-						items={pickerItems}
-						placeholder="Elige los trabajos…"
+						catalogs={pickerItems}
+						itemPlaceholder="Añadir trabajos…"
 					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="elementItemIds">Elementos por trabajo (opcional)</Label>
 					<CatalogItemMultiPicker
 						name="elementItemIds"
-						items={pickerItems}
-						placeholder="Elige los elementos…"
+						catalogs={pickerItems}
+						itemPlaceholder="Añadir elementos…"
 					/>
 				</div>
 				<div class="sm:col-span-2">
