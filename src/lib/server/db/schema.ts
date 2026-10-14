@@ -34,6 +34,12 @@ export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings']
 
 export const workMode = pgEnum('work_mode', ['direct', 'divided']);
 
+export const photoProcessingStatus = pgEnum('photo_processing_status', [
+	'processing',
+	'ready',
+	'failed'
+]);
+
 export const targetStatus = pgEnum('target_status', [
 	'pending',
 	'in_progress',
@@ -248,6 +254,57 @@ export const evidenceTargets = pgTable(
 	]
 );
 
+export const photoRequirements = pgTable(
+	'photo_requirements',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		targetId: uuid('target_id')
+			.notNull()
+			.references(() => evidenceTargets.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		isRequired: boolean('is_required').notNull().default(true),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('photo_requirements_target_sort_idx').on(table.targetId, table.sortOrder)]
+);
+
+export const photos = pgTable(
+	'photos',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		targetId: uuid('target_id')
+			.notNull()
+			.references(() => evidenceTargets.id, { onDelete: 'cascade' }),
+		// `NULL` representa el grupo virtual «Adicionales».
+		requirementId: uuid('requirement_id').references(() => photoRequirements.id, {
+			onDelete: 'set null'
+		}),
+		sortOrder: integer('sort_order').notNull().default(0),
+		storagePath: text('storage_path').notNull(),
+		thumbnailPath: text('thumbnail_path').notNull(),
+		mimeType: text('mime_type').notNull(),
+		sizeBytes: integer('size_bytes').notNull(),
+		width: integer('width'),
+		height: integer('height'),
+		checksum: text('checksum'),
+		processingStatus: photoProcessingStatus('processing_status').notNull().default('processing'),
+		uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+		uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
+		removedBy: uuid('removed_by').references(() => users.id, { onDelete: 'set null' }),
+		removedAt: timestamp('removed_at', { withTimezone: true })
+	},
+	(table) => [
+		index('photos_target_group_sort_idx').on(
+			table.targetId,
+			table.removedAt,
+			table.requirementId,
+			table.sortOrder
+		)
+	]
+);
+
 export const auditEvents = pgTable(
 	'audit_events',
 	{
@@ -272,3 +329,5 @@ export type CatalogItem = typeof catalogItems.$inferSelect;
 export type Work = typeof works.$inferSelect;
 export type Element = typeof elements.$inferSelect;
 export type EvidenceTarget = typeof evidenceTargets.$inferSelect;
+export type PhotoRequirement = typeof photoRequirements.$inferSelect;
+export type Photo = typeof photos.$inferSelect;

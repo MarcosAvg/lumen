@@ -50,6 +50,8 @@ services:
       # La URL interna se construye contra el host `db`, ignorando el `.env` de desarrollo.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       PHOTO_STORAGE_PATH: /data/photos
+      # adapter-node limita el body a 512K por defecto; las subidas necesitan más.
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-30M}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
       IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}
       IMAGE_THUMB_DIMENSION: ${IMAGE_THUMB_DIMENSION:-400}

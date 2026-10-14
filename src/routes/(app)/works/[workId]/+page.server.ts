@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { loadEvidence } from '#lib/server/domain/photos';
+import { isEditableStatus, getTargetForWork } from '#lib/server/domain/targets';
 import {
 	getWorkDetail,
 	listElementsDetailed,
@@ -21,8 +23,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// Verifica el ámbito del servicio al que pertenece el trabajo.
 	await requireServiceAccess(locals, work.serviceId);
 
-	const elements = work.mode === 'divided' ? await listElementsDetailed(db, workId) : [];
-	return { work, elements, isAdmin: user.role === 'admin' };
+	if (work.mode === 'direct') {
+		const target = await getTargetForWork(db, workId);
+		const evidence = await loadEvidence(db, target.id);
+		return {
+			work,
+			elements: [],
+			evidence,
+			editable: isEditableStatus(target.status),
+			isAdmin: user.role === 'admin'
+		};
+	}
+
+	const elements = await listElementsDetailed(db, workId);
+	return { work, elements, evidence: null, editable: false, isAdmin: user.role === 'admin' };
 };
 
 export const actions: Actions = {

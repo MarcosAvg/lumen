@@ -6,6 +6,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string };
@@ -95,6 +96,11 @@
 										{element.name}
 										<Badge variant="secondary">{statusLabel[element.status]}</Badge>
 									</span>
+									<Button
+										href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+										variant="outline"
+										size="sm">Abrir evidencia</Button
+									>
 								</div>
 								{#if data.isAdmin}
 									<form
@@ -118,11 +124,16 @@
 				{/if}
 			</Card.Content>
 		</Card.Root>
-	{:else}
-		<Card.Root>
-			<Card.Content class="py-6 text-center text-sm text-muted-foreground">
-				La captura de evidencia de este trabajo llegará en la siguiente etapa.
-			</Card.Content>
-		</Card.Root>
+	{:else if data.evidence}
+		<EvidenceCapture
+			targetId={data.evidence.target.id}
+			label={data.work.name}
+			status={data.evidence.target.status}
+			editable={data.editable}
+			version={data.evidence.target.version}
+			requirements={data.evidence.requirements}
+			photos={data.evidence.photos}
+			isAdmin={data.isAdmin}
+		/>
 	{/if}
 </div>
