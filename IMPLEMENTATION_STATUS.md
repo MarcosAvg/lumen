@@ -284,10 +284,14 @@ congelados (`submitted_by_name`, `reviewer_name`, `photo_uploaded_by_name`, `upl
 `deleteUser` protege al último administrador activo. Borrado con **impacto y confirmación** en
 `admin/users` (`/api/users/[userId]`). `docs/01` actualizado.
 
-**Edición de usuarios**: `updateUserProfile` permite cambiar **nombre visible y nombre de usuario**
-en un **modal** de edición en `admin/users` (botón «Editar»), normalizando el usuario y rechazando
-duplicados (`409`). La firma histórica queda **congelada** (el renombrado no reescribe el pasado). El
-helper de integración cierra su cliente de Postgres para no agotar el pool.
+**Edición de usuarios**: el **modal** de edición en `admin/users` (botón «Editar») reúne tres
+secciones con su propio botón: **Datos** (`updateUserProfile` cambia nombre visible y nombre de
+usuario, normaliza y rechaza duplicados con `409`), **Rol** (`changeRole`, mostrando las asignaciones
+incompatibles a revocar y confirmación dentro del propio modal) y **Contraseña** (`resetPassword`,
+que además cierra sus sesiones). El envío usa **enhance** progresivo: ante un fallo el modal
+permanece abierto con el error visible y solo se cierra cuando la acción confirma éxito. La firma
+histórica queda **congelada** (el renombrado no reescribe el pasado). El helper de integración cierra
+su cliente de Postgres para no agotar el pool.
 
 ## Cómo ejecutar
 

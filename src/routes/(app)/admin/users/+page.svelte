@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -38,21 +39,37 @@
 		id: string;
 		username: string;
 		displayName: string;
+		role: Role;
 	}
 	let editOpen = $state(false);
 	let editUser = $state<EditTarget | null>(null);
+	let editRole = $state<Role>('technician');
+	let editName = $state('');
+	let editUsername = $state('');
+	let editPending = $state(false);
 
 	function openEdit(user: EditTarget) {
 		editUser = user;
+		editRole = user.role;
+		editName = user.displayName;
+		editUsername = user.username;
+		editPending = false;
 		editOpen = true;
 	}
 
-	$effect(() => {
-		if (action?.success === 'Usuario actualizado.') {
-			editOpen = false;
-			editUser = null;
-		}
-	});
+	// Envío progresivo desde el modal: mantiene los valores ante fallos y solo
+	// cierra al confirmarse el éxito. Evita que un aviso previo cierre el modal.
+	const submitEdit: NonNullable<Parameters<typeof enhance>[1]> = () => {
+		editPending = true;
+		return async ({ result, update }) => {
+			await update({ reset: false });
+			editPending = false;
+			if (result.type === 'success') {
+				editOpen = false;
+				editUser = null;
+			}
+		};
+	};
 
 	const roleLabel: Record<Role, string> = {
 		admin: 'Administrador',
@@ -80,27 +97,6 @@
 	{#if action?.message}
 		<Alert variant="destructive">
 			<AlertDescription>{action.message}</AlertDescription>
-		</Alert>
-	{/if}
-
-	{#if conflict}
-		<Alert variant="destructive">
-			<AlertDescription>
-				<p class="mb-2">Al cambiar el rol se revocarán estas asignaciones incompatibles:</p>
-				<ul class="mb-3 list-inside list-disc">
-					{#each conflict.assignments as assignment (assignment.id)}
-						<li>{assignment.serviceName} · {assignment.assignmentRole}</li>
-					{/each}
-				</ul>
-				<form method="POST" action="?/changeRole">
-					<input type="hidden" name="userId" value={conflict.userId} />
-					<input type="hidden" name="role" value={conflict.role} />
-					<input type="hidden" name="confirmRevoke" value="true" />
-					<Button type="submit" variant="destructive" size="sm">
-						Confirmar y revocar asignaciones
-					</Button>
-				</form>
-			</AlertDescription>
 		</Alert>
 	{/if}
 
@@ -174,21 +170,6 @@
 						</div>
 
 						<div class="flex flex-wrap items-center gap-2">
-							<form method="POST" action="?/changeRole" class="flex items-center gap-2">
-								<input type="hidden" name="userId" value={user.id} />
-								<select
-									name="role"
-									aria-label="Rol de {user.displayName}"
-									class="h-8 rounded-lg border border-input bg-background px-2 text-sm"
-									value={user.role}
-								>
-									<option value="technician">Técnico</option>
-									<option value="supervisor">Supervisor</option>
-									<option value="admin">Administrador</option>
-								</select>
-								<Button type="submit" variant="outline" size="sm">Cambiar rol</Button>
-							</form>
-
 							{#if user.isActive}
 								<form method="POST" action="?/deactivate">
 									<input type="hidden" name="userId" value={user.id} />
@@ -211,77 +192,130 @@
 							/>
 						</div>
 					</Card.Content>
-
-					<Card.Footer>
-						<details class="w-full">
-							<summary class="cursor-pointer text-sm text-muted-foreground">
-								Restablecer contraseña
-							</summary>
-							<form
-								method="POST"
-								action="?/resetPassword"
-								class="mt-2 flex flex-wrap items-end gap-2"
-							>
-								<input type="hidden" name="userId" value={user.id} />
-								<div class="space-y-1">
-									<Label for="pw-{user.id}">Nueva contraseña</Label>
-									<Input
-										id="pw-{user.id}"
-										name="password"
-										type="password"
-										autocomplete="new-password"
-										required
-									/>
-								</div>
-								<Button type="submit" variant="outline" size="sm">Restablecer</Button>
-							</form>
-						</details>
-					</Card.Footer>
 				</Card.Root>
 			</li>
 		{/each}
 	</ul>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content>
-			<form method="POST" action="?/updateProfile" class="space-y-4">
-				<input type="hidden" name="userId" value={editUser?.id ?? ''} />
-				<Dialog.Header>
-					<Dialog.Title>Editar usuario</Dialog.Title>
-					<Dialog.Description>
-						El nuevo nombre se usa desde este momento; el historial conserva la firma original.
-					</Dialog.Description>
-				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="edit-displayName">Nombre visible</Label>
-					<Input
-						id="edit-displayName"
-						name="displayName"
-						value={editUser?.displayName ?? ''}
-						required
-					/>
-					{#if action?.profileErrors?.displayName}
-						<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
+		<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+			<Dialog.Header>
+				<Dialog.Title>Editar usuario</Dialog.Title>
+				<Dialog.Description>
+					{editUser?.displayName ?? ''} — el nuevo nombre se usa desde este momento; el historial conserva
+					la firma original.
+				</Dialog.Description>
+			</Dialog.Header>
+
+			{#if action?.message}
+				<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
+			{/if}
+
+			<div class="space-y-5">
+				<form method="POST" action="?/updateProfile" class="space-y-3" use:enhance={submitEdit}>
+					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+					<h3 class="text-sm font-medium">Datos</h3>
+					<div class="space-y-2">
+						<Label for="edit-displayName">Nombre visible</Label>
+						<Input id="edit-displayName" name="displayName" bind:value={editName} required />
+						{#if action?.profileErrors?.displayName}
+							<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
+						{/if}
+					</div>
+					<div class="space-y-2">
+						<Label for="edit-username">Usuario</Label>
+						<Input
+							id="edit-username"
+							name="username"
+							bind:value={editUsername}
+							autocomplete="off"
+							required
+						/>
+						{#if action?.profileErrors?.username}
+							<p class="text-sm text-destructive">{action.profileErrors.username}</p>
+						{/if}
+					</div>
+					<Button type="submit" size="sm" disabled={editPending}>Guardar datos</Button>
+				</form>
+
+				<form
+					method="POST"
+					action="?/changeRole"
+					class="space-y-3 border-t pt-4"
+					use:enhance={submitEdit}
+				>
+					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+					<h3 class="text-sm font-medium">Rol</h3>
+					<div class="space-y-2">
+						<Label for="edit-role">Rol global</Label>
+						<select
+							id="edit-role"
+							name="role"
+							bind:value={editRole}
+							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+						>
+							<option value="technician">Técnico</option>
+							<option value="supervisor">Supervisor</option>
+							<option value="admin">Administrador</option>
+						</select>
+					</div>
+					<Button type="submit" variant="outline" size="sm" disabled={editPending}
+						>Cambiar rol</Button
+					>
+
+					{#if conflict}
+						<Alert variant="destructive">
+							<AlertDescription>
+								<p class="mb-2">Al cambiar el rol se revocarán estas asignaciones incompatibles:</p>
+								<ul class="list-inside list-disc">
+									{#each conflict.assignments as assignment (assignment.id)}
+										<li>{assignment.serviceName} · {assignment.assignmentRole}</li>
+									{/each}
+								</ul>
+							</AlertDescription>
+						</Alert>
+						<Button
+							type="submit"
+							name="confirmRevoke"
+							value="true"
+							variant="destructive"
+							size="sm"
+							disabled={editPending}>Confirmar y revocar asignaciones</Button
+						>
 					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="edit-username">Usuario</Label>
-					<Input
-						id="edit-username"
-						name="username"
-						value={editUser?.username ?? ''}
-						autocomplete="off"
-						required
-					/>
-					{#if action?.profileErrors?.username}
-						<p class="text-sm text-destructive">{action.profileErrors.username}</p>
-					{/if}
-				</div>
-				<Dialog.Footer>
-					<Dialog.Close>Cancelar</Dialog.Close>
-					<Button type="submit">Guardar</Button>
-				</Dialog.Footer>
-			</form>
+				</form>
+
+				<form
+					method="POST"
+					action="?/resetPassword"
+					class="space-y-3 border-t pt-4"
+					use:enhance={submitEdit}
+				>
+					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+					<h3 class="text-sm font-medium">Contraseña</h3>
+					<div class="space-y-2">
+						<Label for="edit-password">Nueva contraseña</Label>
+						<Input
+							id="edit-password"
+							name="password"
+							type="password"
+							autocomplete="new-password"
+							required
+						/>
+						{#if action?.resetErrors?.password}
+							<p class="text-sm text-destructive">{action.resetErrors.password}</p>
+						{/if}
+					</div>
+					<p class="text-xs text-muted-foreground">Al restablecerla se cierran sus sesiones.</p>
+					<Button type="submit" variant="outline" size="sm" disabled={editPending}>
+						Restablecer contraseña
+					</Button>
+				</form>
+			</div>
+
+			<Dialog.Footer>
+				<Dialog.Close>Cancelar</Dialog.Close>
+			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Root>
 </div>
