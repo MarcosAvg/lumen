@@ -31,12 +31,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	if (work.mode === 'direct') {
 		const target = await orHttp(getTargetForWork(db, workId));
-		const [evidence, history, rejection] = await Promise.all([
+		const [evidence, history, rejection, conversion] = await Promise.all([
 			loadEvidence(db, target.id),
 			getHistory(db, target.id),
-			getLatestRejection(db, target.id)
+			getLatestRejection(db, target.id),
+			user.role === 'admin' ? getWorkForConversion(db, workId) : Promise.resolve(null)
 		]);
-		const conversion = user.role === 'admin' ? await getWorkForConversion(db, workId) : null;
+		// Solo se usan para el selector de requisitos (trabajo directo).
+		const catalogs = user.role === 'admin' ? await listCatalogsWithItems(db) : [];
 		return {
 			work,
 			elements: [],
@@ -44,7 +46,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			history,
 			rejection,
 			conversion,
-			catalogs: [],
+			catalogs,
 			editable: isEditableStatus(target.status),
 			isAdmin: user.role === 'admin'
 		};

@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
+	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -18,6 +19,16 @@
 		},
 		{ label: data.element.name }
 	]);
+
+	const requirementCatalogs = $derived<CatalogGroup[]>(
+		data.catalogs
+			.filter((catalog) => catalog.purpose === 'requirements')
+			.map((catalog) => ({
+				id: catalog.id,
+				name: catalog.name,
+				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+			}))
+	);
 </script>
 
 <svelte:head>
@@ -44,5 +55,6 @@
 		history={data.history}
 		rejection={data.rejection}
 		isAdmin={data.isAdmin}
+		{requirementCatalogs}
 	/>
 </div>

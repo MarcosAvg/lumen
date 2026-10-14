@@ -1,6 +1,7 @@
 import { requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
+import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getTargetForElement, isEditableStatus } from '#lib/server/domain/targets';
@@ -17,10 +18,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	await requireServiceAccess(locals, element.serviceId);
 
 	const target = await orHttp(getTargetForElement(db, elementId));
-	const [evidence, history, rejection] = await Promise.all([
+	const [evidence, history, rejection, catalogs] = await Promise.all([
 		loadEvidence(db, target.id),
 		getHistory(db, target.id),
-		getLatestRejection(db, target.id)
+		getLatestRejection(db, target.id),
+		// Solo se usan para el selector de requisitos.
+		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
 	]);
 
 	return {
@@ -28,6 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		evidence,
 		history,
 		rejection,
+		catalogs,
 		editable: isEditableStatus(target.status),
 		isAdmin: user.role === 'admin'
 	};

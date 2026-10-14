@@ -4,6 +4,7 @@ import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { deleteRequirement, updateRequirement } from '#lib/server/domain/requirements';
 import { isUuid } from '#lib/server/params';
+import { updateRequirementBodySchema } from '#lib/schemas/requirements';
 import type { RequestHandler } from './$types';
 
 /** Renombra/cambia obligatoriedad de un requisito. */
@@ -13,18 +14,16 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	}
 	const admin = requireAdmin(locals);
 
-	const body = (await request.json().catch(() => ({}))) as { name?: unknown; isRequired?: unknown };
-	const name = typeof body.name === 'string' ? body.name.trim() : '';
-	if (!name || name.length > 120) {
-		return json({ message: 'El nombre del requisito es obligatorio (máx. 120).' }, { status: 400 });
+	const parsed = updateRequirementBodySchema.safeParse(await request.json().catch(() => ({})));
+	if (!parsed.success) {
+		return json({ message: 'Datos del requisito inválidos.' }, { status: 400 });
 	}
-	const isRequired = body.isRequired === undefined ? true : Boolean(body.isRequired);
 
 	try {
 		await updateRequirement(getDatabase().db, {
 			requirementId: params.requirementId,
-			name,
-			isRequired,
+			name: parsed.data.name,
+			isRequired: parsed.data.isRequired,
 			actorId: admin.id
 		});
 		return json({ ok: true });

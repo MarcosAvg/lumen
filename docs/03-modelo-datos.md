@@ -127,11 +127,13 @@ Estado permitido: `pending`, `in_progress`, `in_review`, `rejected`, `approved`.
 
 ### `photo_requirements`
 
-`id`, `target_id`, `name`, `is_required` (default true), `sort_order`, `created_at`, `updated_at`.
+`id`, `target_id`, `catalog_item_id` (FK anulable a `catalog_items`), `custom_name` (texto), `is_required` (default true), `sort_order`, `created_at`, `updated_at`.
 
-- Requisitos son por **target**, no por servicio/trabajo dividido como una plantilla global mutable.
+- El nombre visible es `COALESCE(catalog_items.name, photo_requirements.custom_name)`, con **origen XOR**: o un ítem de un catálogo de propósito `requirements` (nombre **dinámico**) o un nombre propio.
+- Renombrar el requisito a mano lo **desvincula** (guarda `custom_name`); renombrar el ítem del catálogo actualiza los requisitos aún ligados. Borrar el ítem/catálogo copia el último nombre a `custom_name` y desvincula.
+- Requisitos son por **target**, no por servicio/trabajo dividido como una plantilla global mutable; el catálogo de requisitos es una lista de nombres reutilizables, no la estructura del requisito.
 - La condición «nunca se envió» equivale a `NOT EXISTS (SELECT 1 FROM evidence_submissions WHERE target_id=...)`, no a `latest_status <> in_review`.
-- Después de primer envío: bloquear mutaciones del requisito incluso si se rechazó.
+- Después de primer envío: bloquear mutaciones del requisito incluso si se rechazó. Las entregas ya guardan `requirement_name_snapshot`, así que el historial no cambia.
 - El grupo **Adicionales** es representado por `requirement_id NULL`, **no** una fila obligatoria ni un requisito borrable.
 - Al borrar requisito antes de primer envío: actualizar fotos vigentes a `requirement_id NULL`, preservar autoría y orden, resolver conflictos de posición en adicionales, incrementar `evidence_targets.version` y borrar requisito, todo atómico.
 

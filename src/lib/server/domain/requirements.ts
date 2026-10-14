@@ -1,6 +1,8 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
+	catalogItems,
+	catalogs,
 	evidenceSubmissions,
 	evidenceTargets,
 	photoRequirements,
@@ -15,6 +17,48 @@ export interface RequirementRow {
 	name: string;
 	isRequired: boolean;
 	sortOrder: number;
+	catalogItemId: string | null;
+}
+
+/** Nombre visible del requisito: catálogo (dinámico) o propio. */
+const visibleRequirementName = sql<string>`coalesce(${catalogItems.name}, ${photoRequirements.customName})`;
+
+/**
+ * Resuelve el origen del nombre de un requisito: o un ítem de un catálogo de
+ * propósito `requirements`, o un nombre propio. Exactamente uno.
+ */
+async function resolveNameSource(
+	db: Database,
+	source: { catalogItemId?: string | null; name?: string | null }
+): Promise<{ catalogItemId: string | null; customName: string | null }> {
+	const hasCatalog = Boolean(source.catalogItemId);
+	const custom = source.name?.trim() ?? '';
+	const hasCustom = custom.length > 0;
+
+	if (hasCatalog === hasCustom) {
+		throw new DomainError(
+			400,
+			'Debes indicar un ítem de catálogo de requisitos o un nombre (exactamente uno).'
+		);
+	}
+
+	if (hasCatalog) {
+		const [item] = await db
+			.select({ id: catalogItems.id })
+			.from(catalogItems)
+			.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
+			.where(
+				and(
+					eq(catalogItems.id, source.catalogItemId as string),
+					eq(catalogs.purpose, 'requirements')
+				)
+			)
+			.limit(1);
+		if (!item) throw new DomainError(404, 'Ítem de catálogo de requisitos no encontrado.');
+		return { catalogItemId: item.id, customName: null };
+	}
+
+	return { catalogItemId: null, customName: custom };
 }
 
 /**
@@ -54,18 +98,21 @@ export async function listRequirements(db: Database, targetId: string): Promise<
 	return db
 		.select({
 			id: photoRequirements.id,
-			name: photoRequirements.name,
+			name: visibleRequirementName,
 			isRequired: photoRequirements.isRequired,
-			sortOrder: photoRequirements.sortOrder
+			sortOrder: photoRequirements.sortOrder,
+			catalogItemId: photoRequirements.catalogItemId
 		})
 		.from(photoRequirements)
+		.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
 		.where(eq(photoRequirements.targetId, targetId))
 		.orderBy(asc(photoRequirements.sortOrder), asc(photoRequirements.createdAt));
 }
 
 export interface CreateRequirementInput {
 	targetId: string;
-	name: string;
+	catalogItemId?: string | null;
+	name?: string | null;
 	isRequired: boolean;
 	actorId: string;
 }
@@ -76,6 +123,7 @@ export async function createRequirement(
 ): Promise<{ id: string }> {
 	return db.transaction(async (tx) => {
 		await assertRequirementsEditable(tx, input.targetId);
+		const source = await resolveNameSource(tx, input);
 
 		const [next] = await tx
 			.select({ value: sql<number>`coalesce(max(${photoRequirements.sortOrder}), -1) + 1` })
@@ -86,7 +134,8 @@ export async function createRequirement(
 			.insert(photoRequirements)
 			.values({
 				targetId: input.targetId,
-				name: input.name,
+				catalogItemId: source.catalogItemId,
+				customName: source.customName,
 				isRequired: input.isRequired,
 				sortOrder: next?.value ?? 0
 			})
@@ -98,10 +147,111 @@ export async function createRequirement(
 			entityType: 'photo_requirement',
 			entityId: created.id,
 			action: 'requirement.created',
-			metadata: { targetId: input.targetId, name: input.name }
+			metadata: {
+				targetId: input.targetId,
+				catalogItemId: source.catalogItemId,
+				name: source.customName
+			}
 		});
 
 		return { id: created.id };
+	});
+}
+
+export interface CreateRequirementsBatchInput {
+	targetId: string;
+	catalogItemIds: string[];
+	isRequired: boolean;
+	actorId: string;
+}
+
+export interface CreateRequirementsBatchResult {
+	created: number;
+	skipped: number;
+	requirements: RequirementRow[];
+}
+
+/**
+ * Añade varios requisitos desde un catálogo de requisitos en una transacción,
+ * omitiendo los que ya existen por nombre (sin distinguir mayúsculas).
+ */
+export async function createRequirementsBatch(
+	db: Database,
+	input: CreateRequirementsBatchInput
+): Promise<CreateRequirementsBatchResult> {
+	const catalogItemIds = [...new Set(input.catalogItemIds)];
+	if (catalogItemIds.length === 0) {
+		throw new DomainError(400, 'Elige al menos un ítem de requisito.');
+	}
+
+	return db.transaction(async (tx) => {
+		await assertRequirementsEditable(tx, input.targetId);
+
+		const items = await tx
+			.select({ id: catalogItems.id, name: catalogItems.name })
+			.from(catalogItems)
+			.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
+			.where(and(inArray(catalogItems.id, catalogItemIds), eq(catalogs.purpose, 'requirements')));
+		if (items.length !== catalogItemIds.length) {
+			throw new DomainError(
+				404,
+				'Algún ítem no existe o no pertenece a un catálogo de requisitos.'
+			);
+		}
+		const nameById = new Map(items.map((item) => [item.id, item.name]));
+
+		const existing = await tx
+			.select({ name: visibleRequirementName })
+			.from(photoRequirements)
+			.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
+			.where(eq(photoRequirements.targetId, input.targetId));
+		const taken = new Set(existing.map((row) => row.name.trim().toLowerCase()));
+
+		const [base] = await tx
+			.select({ value: sql<number>`coalesce(max(${photoRequirements.sortOrder}), -1) + 1` })
+			.from(photoRequirements)
+			.where(eq(photoRequirements.targetId, input.targetId));
+		let order = base?.value ?? 0;
+
+		let created = 0;
+		const createdRows: RequirementRow[] = [];
+		for (const itemId of catalogItemIds) {
+			const key = (nameById.get(itemId) ?? '').trim().toLowerCase();
+			if (taken.has(key)) continue;
+			taken.add(key);
+			const [inserted] = await tx
+				.insert(photoRequirements)
+				.values({
+					targetId: input.targetId,
+					catalogItemId: itemId,
+					customName: null,
+					isRequired: input.isRequired,
+					sortOrder: order
+				})
+				.returning({ id: photoRequirements.id, sortOrder: photoRequirements.sortOrder });
+			createdRows.push({
+				id: inserted.id,
+				name: nameById.get(itemId) ?? '',
+				isRequired: input.isRequired,
+				sortOrder: inserted.sortOrder,
+				catalogItemId: itemId
+			});
+			order += 1;
+			created += 1;
+		}
+
+		if (created > 0) {
+			await bumpVersion(tx, input.targetId);
+			await recordAudit(tx, {
+				actorUserId: input.actorId,
+				entityType: 'photo_requirement',
+				entityId: input.targetId,
+				action: 'requirements.batch_created',
+				metadata: { created, skipped: catalogItemIds.length - created }
+			});
+		}
+
+		return { created, skipped: catalogItemIds.length - created, requirements: createdRows };
 	});
 }
 
@@ -118,17 +268,33 @@ export async function updateRequirement(
 ): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [requirement] = await tx
-			.select({ id: photoRequirements.id, targetId: photoRequirements.targetId })
+			.select({
+				id: photoRequirements.id,
+				targetId: photoRequirements.targetId,
+				catalogItemId: photoRequirements.catalogItemId,
+				catalogName: catalogItems.name
+			})
 			.from(photoRequirements)
+			.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
 			.where(eq(photoRequirements.id, input.requirementId))
 			.limit(1);
 		if (!requirement) throw new DomainError(404, 'Requisito no encontrado.');
 
 		await assertRequirementsEditable(tx, requirement.targetId);
 
+		const newName = input.name.trim();
+		if (!newName) throw new DomainError(400, 'El nombre del requisito es obligatorio.');
+		// Si el requisito está ligado y el nombre no cambia, conserva el vínculo.
+		const keepsLink = Boolean(requirement.catalogItemId) && requirement.catalogName === newName;
+
 		await tx
 			.update(photoRequirements)
-			.set({ name: input.name, isRequired: input.isRequired, updatedAt: new Date() })
+			.set({
+				catalogItemId: keepsLink ? requirement.catalogItemId : null,
+				customName: keepsLink ? null : newName,
+				isRequired: input.isRequired,
+				updatedAt: new Date()
+			})
 			.where(eq(photoRequirements.id, input.requirementId));
 
 		await bumpVersion(tx, requirement.targetId);
@@ -136,7 +302,8 @@ export async function updateRequirement(
 			actorUserId: input.actorId,
 			entityType: 'photo_requirement',
 			entityId: input.requirementId,
-			action: 'requirement.updated'
+			action: 'requirement.updated',
+			metadata: { unlinked: Boolean(requirement.catalogItemId) && !keepsLink }
 		});
 	});
 }

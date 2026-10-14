@@ -7,6 +7,7 @@ import {
 	catalogItems,
 	catalogs,
 	elements,
+	photoRequirements,
 	services,
 	works
 } from '#lib/server/db/schema';
@@ -43,9 +44,10 @@ export interface CatalogItemImpact {
 	works: number;
 	elements: number;
 	services: number;
+	requirements: number;
 }
 
-const VALID_PURPOSES: CatalogPurpose[] = ['general', 'buildings'];
+const VALID_PURPOSES: CatalogPurpose[] = ['general', 'buildings', 'requirements'];
 
 function normalizePurpose(purpose: string | null | undefined): CatalogPurpose | null {
 	if (!purpose) return null;
@@ -160,6 +162,10 @@ async function detachCatalogItem(tx: Database, itemId: string, itemName: string)
 		.set({ buildingNameSnapshot: itemName, buildingCatalogItemId: null, updatedAt: new Date() })
 		.where(eq(services.buildingCatalogItemId, itemId));
 	await tx
+		.update(photoRequirements)
+		.set({ customName: itemName, catalogItemId: null, updatedAt: new Date() })
+		.where(eq(photoRequirements.catalogItemId, itemId));
+	await tx
 		.delete(catalogItemRelations)
 		.where(
 			or(eq(catalogItemRelations.fromItemId, itemId), eq(catalogItemRelations.toItemId, itemId))
@@ -182,11 +188,16 @@ export async function getCatalogItemImpact(
 		.select({ value: countInt() })
 		.from(services)
 		.where(eq(services.buildingCatalogItemId, itemId));
+	const [requirementsCount] = await db
+		.select({ value: countInt() })
+		.from(photoRequirements)
+		.where(eq(photoRequirements.catalogItemId, itemId));
 
 	return {
 		works: worksCount?.value ?? 0,
 		elements: elementsCount?.value ?? 0,
-		services: servicesCount?.value ?? 0
+		services: servicesCount?.value ?? 0,
+		requirements: requirementsCount?.value ?? 0
 	};
 }
 
@@ -319,7 +330,7 @@ export async function getCatalogItemsUsage(
 ): Promise<Map<string, CatalogItemImpact>> {
 	const map = new Map<string, CatalogItemImpact>();
 	if (itemIds.length === 0) return map;
-	for (const id of itemIds) map.set(id, { works: 0, elements: 0, services: 0 });
+	for (const id of itemIds) map.set(id, { works: 0, elements: 0, services: 0, requirements: 0 });
 
 	const workRows = await db
 		.select({ itemId: works.catalogItemId, value: countInt() })
@@ -336,11 +347,17 @@ export async function getCatalogItemsUsage(
 		.from(services)
 		.where(inArray(services.buildingCatalogItemId, itemIds))
 		.groupBy(services.buildingCatalogItemId);
+	const requirementRows = await db
+		.select({ itemId: photoRequirements.catalogItemId, value: countInt() })
+		.from(photoRequirements)
+		.where(inArray(photoRequirements.catalogItemId, itemIds))
+		.groupBy(photoRequirements.catalogItemId);
 
 	for (const [rows, key] of [
 		[workRows, 'works'],
 		[elementRows, 'elements'],
-		[serviceRows, 'services']
+		[serviceRows, 'services'],
+		[requirementRows, 'requirements']
 	] as const) {
 		for (const row of rows) {
 			if (!row.itemId) continue;
@@ -395,7 +412,7 @@ export async function searchCatalogItems(
 	return {
 		items: items.map((item) => ({
 			...item,
-			impact: usage.get(item.id) ?? { works: 0, elements: 0, services: 0 }
+			impact: usage.get(item.id) ?? { works: 0, elements: 0, services: 0, requirements: 0 }
 		})),
 		total: totalRow?.value ?? 0
 	};

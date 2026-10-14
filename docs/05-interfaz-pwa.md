@@ -196,7 +196,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 ## 11. Administración de catálogos
 
-- Lista de catálogos con búsqueda y acciones agregar/editar.
+- Lista de catálogos con búsqueda, **pestañas por tipo** (Todos / Generales / Edificios / Requisitos) y acciones agregar/editar. Al crear o editar, se elige el **tipo**.
 - Detalle de ítems, relaciones opcionales con ítems de otros catálogos, orden, usos.
 - Relaciones **por ítem**: cada ítem muestra su número de relaciones y abre un modal para verlas en ambos sentidos, añadir una y quitar. El **sentido** (origen → destino) es explícito y afecta a la generación en lote.
 - Relaciones **en lote**: varios ítems de este catálogo con un único ítem de otro catálogo, en cualquiera de los dos sentidos, con resumen previo («se crearán X; Y ya existen y se omitirán») y sin duplicar relaciones existentes.
@@ -210,7 +210,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Selector de modo directo/dividido al crear trabajo, con explicación visible de dónde vivirán fotos y aprobaciones.
 - Crear trabajos/elementos manualmente o **en lote** desde catálogo. Vista previa antes de aplicar lote: árboles/fila, cantidad final, duplicados contextuales, opciones de excepción por instancia.
 - Editar/eliminar trabajos y elementos en cualquier estado, con advertencia de eliminación **destructiva** de todas las fotos e historial del ámbito.
-- Administrar requisitos en cada target mientras no exista primer envío; opción de copiar plantilla a elementos recién creados sin enlazarles requisitos posteriormente.
+- Administrar requisitos en cada target mientras no exista primer envío; se pueden **añadir varios desde un catálogo de requisitos** (omitiendo duplicados) o escribir requisitos libres; renombrarlos a mano los desvincula. Opción de copiar plantilla a elementos recién creados sin enlazarles requisitos posteriormente.
 - Cambiar modo abre asistente de reasignación de fotos y requisitos, **solo si nunca hubo envío**; no crear destino/suprimir fotos automáticamente. Permitir cancelar sin cambios.
 - Acciones de borrado de servicio/trabajo/elemento requieren nombre del recurso, resumen de dependencias afectadas y confirmación explícita (puede requerirse escribir el nombre para recursos con historial).
 

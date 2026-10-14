@@ -5,6 +5,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
+	import * as Tabs from '#lib/components/ui/tabs';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -24,7 +25,34 @@
 		if (action?.success) createOpen = false;
 	});
 
-	const purposeLabel = { general: 'General', buildings: 'Edificios' } as const;
+	const purposeLabel = {
+		general: 'General',
+		buildings: 'Edificios',
+		requirements: 'Requisitos'
+	} as const;
+
+	type FilterTab = 'all' | 'general' | 'buildings' | 'requirements';
+	let tab = $state<FilterTab>('all');
+
+	const counts = $derived.by(() => {
+		const result = { all: data.catalogs.length, general: 0, buildings: 0, requirements: 0 };
+		for (const catalog of data.catalogs) {
+			if (catalog.purpose === 'buildings') result.buildings += 1;
+			else if (catalog.purpose === 'requirements') result.requirements += 1;
+			else result.general += 1;
+		}
+		return result;
+	});
+
+	const visibleCatalogs = $derived(
+		tab === 'all'
+			? data.catalogs
+			: data.catalogs.filter((catalog) =>
+					tab === 'general'
+						? catalog.purpose === null || catalog.purpose === 'general'
+						: catalog.purpose === tab
+				)
+	);
 </script>
 
 <svelte:head>
@@ -75,6 +103,7 @@
 					>
 						<option value="">General</option>
 						<option value="buildings">Edificios</option>
+						<option value="requirements">Requisitos</option>
 					</select>
 				</div>
 				<Dialog.Footer>
@@ -90,15 +119,28 @@
 		<Button type="submit" variant="outline">Buscar</Button>
 	</form>
 
-	{#if data.catalogs.length === 0}
+	<Tabs.Root bind:value={tab}>
+		<Tabs.List>
+			<Tabs.Trigger value="all">Todos ({counts.all})</Tabs.Trigger>
+			<Tabs.Trigger value="general">Generales ({counts.general})</Tabs.Trigger>
+			<Tabs.Trigger value="buildings">Edificios ({counts.buildings})</Tabs.Trigger>
+			<Tabs.Trigger value="requirements">Requisitos ({counts.requirements})</Tabs.Trigger>
+		</Tabs.List>
+	</Tabs.Root>
+
+	{#if visibleCatalogs.length === 0}
 		<Card.Root>
 			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				{data.q ? 'Sin catálogos que coincidan.' : 'Aún no hay catálogos.'}
+				{data.q
+					? 'Sin catálogos que coincidan.'
+					: tab === 'all'
+						? 'Aún no hay catálogos.'
+						: 'No hay catálogos de este tipo.'}
 			</Card.Content>
 		</Card.Root>
 	{:else}
 		<ul class="space-y-3">
-			{#each data.catalogs as catalog (catalog.id)}
+			{#each visibleCatalogs as catalog (catalog.id)}
 				<li>
 					<Card.Root>
 						<Card.Header>

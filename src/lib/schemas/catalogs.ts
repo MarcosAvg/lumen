@@ -14,7 +14,7 @@ export const catalogDescriptionSchema = z
 	.default('');
 
 export const catalogPurposeSchema = z
-	.union([z.enum(['general', 'buildings']), z.literal('')])
+	.union([z.enum(['general', 'buildings', 'requirements']), z.literal('')])
 	.optional()
 	.default('');
 

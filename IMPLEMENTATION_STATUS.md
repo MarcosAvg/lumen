@@ -275,6 +275,19 @@ previa de las relaciones existentes sin tipo.
 muestra como **«Fotografías»** (captura, historial y carpetas del ZIP); si tiene requisitos, se
 mantiene **«Adicionales»**. Sin cambios de modelo (sigue siendo el grupo `additional`).
 
+**Catálogos de requisitos y tipos**: el `purpose` de catálogo admite ahora **`requirements`**
+(además de `general` y `buildings`), y la lista de catálogos se organiza en **pestañas por tipo** con
+contadores. Los selectores respetan el tipo: trabajos/elementos usan `general`, el edificio del
+servicio usa `buildings` (con respaldo a no-requisitos) y los requisitos usan `requirements`.
+
+Los requisitos pueden **ligarse a un ítem** de un catálogo de requisitos con nombre **dinámico**:
+`photo_requirements` pasa a `catalog_item_id` + `custom_name` con XOR (migración
+`0008_requirement_catalog_link`), el nombre visible es `coalesce(catalog_items.name, custom_name)`,
+renombrar a mano desvincula y borrar el ítem/catálogo copia el nombre y desvincula. Se pueden añadir
+**varios requisitos a la vez** desde el catálogo (`POST /api/targets/[targetId]/requirements/batch`,
+omite duplicados por nombre y es transaccional) o escribir requisitos libres. Las entregas conservan
+`requirement_name_snapshot`, así que el historial no cambia.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

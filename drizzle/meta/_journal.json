@@ -57,6 +57,13 @@
       "when": 1792008490907,
       "tag": "0007_relation_unique_null_type",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792010805184,
+      "tag": "0008_requirement_catalog_link",
+      "breakpoints": true
     }
   ]
 }

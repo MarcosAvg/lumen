@@ -62,10 +62,10 @@
 		approved: 'Aprobado'
 	} as const;
 
-	// Catálogos ofrecidos en los pickers: generales (no de edificios).
+	// Catálogos ofrecidos en los pickers: generales (ni edificios ni requisitos).
 	const catalogsForPicker = $derived<CatalogGroup[]>(
 		data.catalogs
-			.filter((catalog) => catalog.purpose !== 'buildings')
+			.filter((catalog) => catalog.purpose !== 'buildings' && catalog.purpose !== 'requirements')
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
@@ -75,7 +75,11 @@
 	// Edificios: solo catálogos marcados como tales (si no hay ninguno, todos).
 	const buildingCatalogs = $derived.by<CatalogGroup[]>(() => {
 		const buildings = data.catalogs.filter((catalog) => catalog.purpose === 'buildings');
-		const source = buildings.length > 0 ? buildings : data.catalogs;
+		// Respaldo: cualquier catálogo que no sea de requisitos.
+		const source =
+			buildings.length > 0
+				? buildings
+				: data.catalogs.filter((catalog) => catalog.purpose !== 'requirements');
 		return source.map((catalog) => ({
 			id: catalog.id,
 			name: catalog.name,

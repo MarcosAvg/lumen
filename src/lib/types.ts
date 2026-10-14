@@ -10,7 +10,7 @@ export type Role = 'admin' | 'supervisor' | 'technician';
 
 export type AssignmentRole = 'technician' | 'supervisor';
 
-export type CatalogPurpose = 'general' | 'buildings';
+export type CatalogPurpose = 'general' | 'buildings' | 'requirements';
 
 export type WorkMode = 'direct' | 'divided';
 

@@ -31,7 +31,7 @@ export const userRole = pgEnum('user_role', ['admin', 'supervisor', 'technician'
 
 export const assignmentRole = pgEnum('assignment_role', ['technician', 'supervisor']);
 
-export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings']);
+export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings', 'requirements']);
 
 export const workMode = pgEnum('work_mode', ['direct', 'divided']);
 
@@ -275,13 +275,24 @@ export const photoRequirements = pgTable(
 		targetId: uuid('target_id')
 			.notNull()
 			.references(() => evidenceTargets.id, { onDelete: 'cascade' }),
-		name: text('name').notNull(),
+		// Nombre vinculado al catálogo (dinámico) o propio (`custom_name`), nunca ambos.
+		catalogItemId: uuid('catalog_item_id').references(() => catalogItems.id, {
+			onDelete: 'set null'
+		}),
+		customName: text('custom_name'),
 		isRequired: boolean('is_required').notNull().default(true),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
-	(table) => [index('photo_requirements_target_sort_idx').on(table.targetId, table.sortOrder)]
+	(table) => [
+		index('photo_requirements_target_sort_idx').on(table.targetId, table.sortOrder),
+		index('photo_requirements_catalog_item_idx').on(table.catalogItemId),
+		check(
+			'photo_requirements_name_source_check',
+			sql`(${table.catalogItemId} is null) <> (${table.customName} is null)`
+		)
+	]
 );
 
 export const photos = pgTable(

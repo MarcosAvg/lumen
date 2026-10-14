@@ -66,6 +66,8 @@ Un usuario debe estar **activo** y disponer de sesión válida para cualquier op
 ### Estructura
 
 - Catálogos con identificador, nombre y descripción opcional; ítems con identificador, nombre, orden y posible metadato simple no imprescindible.
+- Cada catálogo tiene un **tipo**: `general` (nombres de trabajos/elementos), `buildings` (edificios de servicio) o `requirements` (requisitos fotográficos). Los selectores ofrecen solo el tipo que corresponde.
+- Los **catálogos de requisitos** son listas reutilizables de nombres (p. ej. `Antes`, `Después`, `Detalle`). El requisito sigue siendo por *target*: puede **ligarse** a un ítem (nombre dinámico) o guardar su propio nombre; renombrarlo a mano lo desvincula.
 - Relación opcional entre ítems de distintos catálogos, p. ej. `Edificio A ↔ Piso 34` o `Piso 34 ↔ UMA 03`. Una relación expresa asociación, **no impone jerarquía universal ni propiedad física**.
 - Los catálogos no son exclusivos de un servicio ni dependen de marcas/productos.
 - El administrador puede crear obras manuales o usar catálogos para generar múltiples trabajos y/o elementos con una **vista previa** de resultados, excepciones y posibles duplicados en contexto.

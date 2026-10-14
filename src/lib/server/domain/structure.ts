@@ -403,10 +403,11 @@ export async function getWorkForConversion(
 		? await db
 				.select({
 					id: photoRequirements.id,
-					name: photoRequirements.name,
+					name: sql<string>`coalesce(${catalogItems.name}, ${photoRequirements.customName})`,
 					targetId: photoRequirements.targetId
 				})
 				.from(photoRequirements)
+				.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
 				.where(inArray(photoRequirements.targetId, targetIds))
 				.orderBy(asc(photoRequirements.sortOrder), asc(photoRequirements.createdAt))
 		: [];

@@ -8,6 +8,8 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
+	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
+	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { TargetStatus } from '#lib/types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 
@@ -15,6 +17,7 @@
 		id: string;
 		name: string;
 		isRequired: boolean;
+		catalogItemId: string | null;
 	}
 	interface Photo {
 		id: string;
@@ -58,6 +61,7 @@
 		history: HistoryEntry[];
 		rejection: Rejection | null;
 		isAdmin: boolean;
+		requirementCatalogs?: CatalogGroup[];
 	}
 
 	let {
@@ -70,7 +74,8 @@
 		photos: initialPhotos,
 		history,
 		rejection,
-		isAdmin
+		isAdmin,
+		requirementCatalogs = []
 	}: Props = $props();
 
 	let version = $state(untrack(() => initialVersion));
@@ -83,6 +88,8 @@
 	let adminError = $state<string | null>(null);
 	let newRequirement = $state('');
 	let newRequired = $state(true);
+	let catalogRequirementIds = $state<string[]>([]);
+	let catalogRequired = $state(true);
 	let busy = $state(false);
 	let tab = $state('current');
 	let showSubmit = $state(false);
@@ -279,12 +286,46 @@
 		busy = false;
 		if (response.ok) {
 			const body = (await response.json()) as { id: string };
-			requirements = [...requirements, { id: body.id, name, isRequired: newRequired }];
+			requirements = [
+				...requirements,
+				{ id: body.id, name, isRequired: newRequired, catalogItemId: null }
+			];
 			newRequirement = '';
 		} else {
 			adminError =
 				((await response.json().catch(() => ({}))) as { message?: string }).message ??
 				'No se pudo crear el requisito.';
+		}
+	}
+
+	async function addCatalogRequirements() {
+		adminError = null;
+		if (catalogRequirementIds.length === 0) return;
+		busy = true;
+		const response = await fetch(`/api/targets/${targetId}/requirements/batch`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				catalogItemIds: catalogRequirementIds,
+				isRequired: catalogRequired
+			})
+		});
+		busy = false;
+		if (response.ok) {
+			const body = (await response.json()) as {
+				created: number;
+				skipped: number;
+				requirements: Req[];
+			};
+			requirements = [...requirements, ...body.requirements];
+			catalogRequirementIds = [];
+			if (body.skipped > 0) {
+				adminError = `Se añadieron ${body.created} y se omitieron ${body.skipped} por duplicado.`;
+			}
+		} else {
+			adminError =
+				((await response.json().catch(() => ({}))) as { message?: string }).message ??
+				'No se pudieron añadir los requisitos.';
 		}
 	}
 
@@ -299,7 +340,7 @@
 		});
 		if (response.ok) {
 			requirements = requirements.map((item) =>
-				item.id === requirement.id ? { ...item, name: trimmed } : item
+				item.id === requirement.id ? { ...item, name: trimmed, catalogItemId: null } : item
 			);
 		} else {
 			adminError = 'No se pudo renombrar.';
@@ -591,6 +632,35 @@
 						</label>
 						<Button type="submit" size="sm" disabled={busy}>Añadir requisito</Button>
 					</form>
+
+					{#if requirementCatalogs.length > 0}
+						<div class="space-y-2 border-t pt-3">
+							<p class="text-sm font-medium">Añadir desde catálogo de requisitos</p>
+							<CatalogItemMultiPicker
+								catalogs={requirementCatalogs}
+								bind:value={catalogRequirementIds}
+								itemPlaceholder="Elegir requisitos…"
+								disabled={busy}
+							/>
+							<div class="flex flex-wrap items-center gap-2">
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" bind:checked={catalogRequired} /> Obligatorio
+								</label>
+								<Button
+									type="button"
+									size="sm"
+									disabled={busy || catalogRequirementIds.length === 0}
+									onclick={addCatalogRequirements}
+								>
+									Añadir seleccionados
+								</Button>
+							</div>
+						</div>
+					{:else}
+						<p class="border-t pt-3 text-sm text-muted-foreground">
+							No hay catálogos de requisitos. Créalos en «Catálogos» con el tipo «Requisitos».
+						</p>
+					{/if}
 				</Card.Content>
 			</Card.Root>
 		{/if}

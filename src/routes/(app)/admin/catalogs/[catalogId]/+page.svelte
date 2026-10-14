@@ -14,7 +14,7 @@
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
-	type Impact = { works: number; elements: number; services: number };
+	type Impact = { works: number; elements: number; services: number; requirements: number };
 	type ActionData = {
 		success?: string;
 		message?: string;
@@ -134,8 +134,9 @@
 			<AlertDescription>
 				<p class="mb-2">
 					Eliminar «{action.pendingDelete.name}» desvinculará {action.pendingDelete.impact.works} trabajo(s),
-					{action.pendingDelete.impact.elements} elemento(s) y {action.pendingDelete.impact
-						.services} servicio(s) de edificio. Conservarán su nombre y sus evidencias no se borran.
+					{action.pendingDelete.impact.elements} elemento(s), {action.pendingDelete.impact.services} servicio(s)
+					de edificio y {action.pendingDelete.impact.requirements} requisito(s). Conservarán su nombre
+					y sus evidencias no se borran.
 				</p>
 				<form method="POST" action="?/deleteItem">
 					<input type="hidden" name="itemId" value={action.pendingDelete.itemId} />
@@ -169,6 +170,7 @@
 					>
 						<option value="">General</option>
 						<option value="buildings">Edificios</option>
+						<option value="requirements">Requisitos</option>
 					</select>
 				</div>
 				<div class="sm:col-span-3">
@@ -215,7 +217,7 @@
 							<div class="flex items-center gap-2">
 								<Badge variant="secondary">
 									{item.impact.works} trabajo(s) · {item.impact.elements} elemento(s) · {item.impact
-										.services} edificio(s)
+										.services} edificio(s) · {item.impact.requirements} requisito(s)
 								</Badge>
 								<Button
 									type="button"
