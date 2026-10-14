@@ -1,7 +1,7 @@
 # Estado de implementación de Lumen
 
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
-> Última actualización: **Etapa 7 completada**.
+> Última actualización: **Etapa 8 completada**.
 
 ## Resumen
 
@@ -15,7 +15,7 @@
 | 5 — Cambios estructurales y destrucción explícita | ✅ Completada |
 | 6 — Bandeja interna y Web Push                    | ✅ Completada |
 | 7 — Búsqueda y exportaciones                      | ✅ Completada |
-| 8 — Calidad, operaciones y publicación            | ⏳ Pendiente  |
+| 8 — Calidad, operaciones y publicación            | ✅ Completada |
 
 ## Stack real en uso
 
@@ -167,6 +167,43 @@ eliminado y los archivos limpiados.
 - Prueba dedicada **NOTIF‑02** (tras revocar el acceso, el recurso enlazado deja de autorizarse).
 - `hasSubmissions` simplificado (sin el guard `to_regclass`) y comentario del layout corregido.
 
+## Etapa 8 — Calidad, operaciones y publicación
+
+### Seguridad
+
+- `#lib/server/security/rate-limit.ts`: limitador de **ventana deslizante en memoria** (por
+  instancia) aplicado a **login**, **setup** y **subida de fotos** → `429` con `Retry-After`.
+- Cabeceras de seguridad en `hooks.server.ts` (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`) y **CSP** vía
+  configuración de SvelteKit (`csp` mode `auto`) en `vite.config.ts`.
+- Validación de imágenes por **contenido** con allowlist JPEG/PNG/WebP (ya en `images.ts`).
+
+### Accesibilidad y sin conexión
+
+- Banner «sin conexión» global (`offline-banner.svelte`); en la captura se **deshabilitan** la
+  subida y el envío sin red, sin fingir éxito (Lumen es online-only).
+- Enlace «Saltar al contenido» y `main#contenido` en el layout de la app.
+
+### Operaciones
+
+- `scripts/backup.mjs` / `scripts/restore.mjs` (+ `scripts/lib/backup.mjs`): `pg_dump`/`pg_restore`
+  y tar del volumen de fotos con `manifest.json` (tamaños y `sha256`); usan `pg_dump` local o el
+  contenedor `db` de Compose.
+- **Restauración probada** (drill real): backup de BD + fotos, restauración en una base separada y
+  en un directorio nuevo, verificando filas y archivos.
+- `maintenance:cleanup` ahora **registra el uso de disco** del volumen de fotos.
+
+### E2E, dependencias y publicación
+
+- **Playwright** (`e2e/`, `playwright.config.ts`, `scripts/e2e-server.mjs`): flujo crítico en
+  **escritorio y móvil** (acceso, servicio, trabajo, captura, envío, revisión, búsqueda) y
+  comprobación de cabeceras.
+- Dependencias actualizadas dentro de rango; lockfile reproducible.
+- `.github/workflows/ci.yml` (check, lint, unit, integración con Postgres, build y E2E) y
+  `.github/workflows/release.yml` (imagen a **GHCR** por tag).
+- `docs/deployment.md`: HTTPS/proxy, `ADDRESS_HEADER`/`XFF_DEPTH`, migraciones, VAPID,
+  backups/restauración, mantenimiento, seguridad y GHCR.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:
@@ -179,22 +216,25 @@ docker compose up -d db && pnpm install && pnpm db:migrate && pnpm dev
 ```
 
 Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integration`,
-`db:generate`, `db:migrate`, `db:studio`, `maintenance:cleanup`, `vapid:generate`.
+`test:e2e`, `db:generate`, `db:migrate`, `db:studio`, `maintenance:cleanup`, `backup`, `restore`,
+`vapid:generate`.
 
 ## Pruebas realizadas y resultados
 
-| Prueba                                      | Resultado                                                                                                                                                                                        |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm check`                                | ✅ 0 errores, 0 avisos                                                                                                                                                                           |
-| `pnpm lint`                                 | ✅ Limpio                                                                                                                                                                                        |
-| `pnpm test` (unit: `cn` + pipeline `sharp`) | ✅ 6/6                                                                                                                                                                                           |
-| `pnpm test:integration` (PostgreSQL real)   | ✅ 63/63                                                                                                                                                                                         |
-| `pnpm build`                                | ✅                                                                                                                                                                                               |
-| E2E HTTP (servidor compilado, Etapa 4)      | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                                                                                                             |
-| E2E HTTP PHOTO‑04                           | ✅ foto retirada de entrega histórica descarga `200`; sin historial, `404`                                                                                                                       |
-| E2E HTTP Etapa 5                            | ✅ conversión `direct→divided` `200`, conversión con entrega `409`, borrado de elemento/trabajo/servicio `200`                                                                                   |
-| E2E HTTP Etapa 6                            | ✅ `/api/push/vapid` (`configured:false`), alta de suscripción `200`, endpoint `http` `400`, bandeja y ajustes `200`, `manifest`/`sw.js`/icono `200`, entrega genera notificación del supervisor |
-| E2E HTTP Etapa 7                            | ✅ ZIP entrega/servicio `200` (contenido y `resumen.csv` verificados con `unzip`), CSV admin con `Entregas` correctas `200`, CSV a técnico `403`, búsqueda filtrada por ámbito                   |
+| Prueba                                         | Resultado                                                                                                                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm check`                                   | ✅ 0 errores, 0 avisos                                                                                                                                                                           |
+| `pnpm lint`                                    | ✅ Limpio                                                                                                                                                                                        |
+| `pnpm test` (unit)                             | ✅ 8/8                                                                                                                                                                                           |
+| `pnpm test:integration` (PostgreSQL real)      | ✅ 63/63                                                                                                                                                                                         |
+| `pnpm test:e2e` (Playwright, escritorio+móvil) | ✅ 4/4                                                                                                                                                                                           |
+| `pnpm build`                                   | ✅                                                                                                                                                                                               |
+| Drill de restauración                          | ✅ backup BD+fotos y restauración en base/directorio separados (filas y archivos verificados)                                                                                                    |
+| E2E HTTP (servidor compilado, Etapa 4)         | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                                                                                                             |
+| E2E HTTP PHOTO‑04                              | ✅ foto retirada de entrega histórica descarga `200`; sin historial, `404`                                                                                                                       |
+| E2E HTTP Etapa 5                               | ✅ conversión `direct→divided` `200`, conversión con entrega `409`, borrado de elemento/trabajo/servicio `200`                                                                                   |
+| E2E HTTP Etapa 6                               | ✅ `/api/push/vapid` (`configured:false`), alta de suscripción `200`, endpoint `http` `400`, bandeja y ajustes `200`, `manifest`/`sw.js`/icono `200`, entrega genera notificación del supervisor |
+| E2E HTTP Etapa 7                               | ✅ ZIP entrega/servicio `200` (contenido y `resumen.csv` verificados con `unzip`), CSV admin con `Entregas` correctas `200`, CSV a técnico `403`, búsqueda filtrada por ámbito                   |
 
 Pruebas de la Etapa 5 (`tests/integration/structural-changes.spec.ts`): WORK‑03 (conversión con
 entrega histórica prohibida), WORK‑04 (reasignación completa o sin cambios), dividido→directo,
@@ -210,6 +250,10 @@ Pruebas de la Etapa 7 (`tests/integration/search-exports.spec.ts`): SEARCH‑01 
 omitidos), saneado de nombres y neutralización de fórmulas en CSV, paginación/filtros de la cola de
 revisión.
 
+Pruebas de la Etapa 8: unit `rate-limit.spec.ts` (ventana deslizante y bloqueo con `Retry-After`);
+E2E Playwright del flujo crítico en escritorio y móvil y de las cabeceras de seguridad/CSP; drill
+de restauración manual documentado y ejecutado.
+
 ## Decisiones tomadas
 
 - **Borrado destructivo**: orden explícito dentro de transacción; limpieza de archivos best-effort
@@ -224,19 +268,23 @@ revisión.
 - **Service worker**: sin caché de respuestas (Lumen es online-only); solo push y `notificationclick`.
 - **Procesado de imágenes síncrono**; limpieza por script y por borrado; dependencias externas
   limitadas a `web-push` (canal estándar de Web Push) y `archiver` (ZIP).
+- **Rate limiting** en memoria (una instancia); con varias réplicas cada una aplica su límite.
+- **CSP compatible** (`csp` de SvelteKit en modo `auto`) y cabeceras de seguridad en el hook.
+- **Backup/restore** con `pg_dump`/`pg_restore` (local o contenedor `db`) + tar del volumen y
+  `manifest.json` con checksums; restauración verificada en entorno separado.
 
 ## Problemas conocidos / consideraciones
 
-- Sin limitación de tasa en login/subidas (Etapa 8).
+- El rate limiting es por instancia (suficiente para un contenedor; documentado en despliegue).
 - `scripts/cleanup.mjs` debe programarse (cron) para garantizar la purga de huérfanos antiguos.
 - La autorización se evalúa antes que la validación de contenido (p. ej. un revisor no asignado
   recibe `404` aunque el motivo esté vacío), lo que es intencional (no filtra recursos).
 
-## Próximos pasos (Etapa 8)
+## Próximos pasos (mantenimiento v1)
 
-1. Endurecimiento: rate limiting en login/subidas, revisión de CSRF/CSP/XSS y validación de archivos.
-2. Accesibilidad básica y estados sin conexión (online-only, sin prometer envíos offline).
-3. E2E móvil/escritorio de los flujos críticos.
-4. Operaciones: restauración de backup probada, purga de staging y control de disco, cron de
-   `maintenance:cleanup`.
-5. Documentación de despliegue (HTTPS, migraciones, VAPID, GHCR opcional) y publicación de imagen.
+1. Programar `pnpm backup` y `pnpm maintenance:cleanup` por cron y ejecutar pruebas de restauración
+   periódicas.
+2. Publicar imagen versionada en GHCR (`git tag`) y desplegar detrás de HTTPS siguiendo
+   `docs/deployment.md`.
+3. Mantener dependencias dentro de rango; las versiones mayores (TypeScript 7, Vitest 5) se
+   adoptarán de forma deliberada, no por `pnpm update`.

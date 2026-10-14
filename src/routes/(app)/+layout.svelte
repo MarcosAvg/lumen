@@ -42,6 +42,11 @@
 </script>
 
 <div class="min-h-dvh bg-background">
+	<a
+		href="#contenido"
+		class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
+		>Saltar al contenido</a
+	>
 	<header class="border-b">
 		<div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
 			<a href={resolve('/(app)/dashboard')} class="text-lg font-semibold tracking-tight">Lumen</a>
@@ -103,7 +108,7 @@
 		</div>
 	</header>
 
-	<main class="mx-auto max-w-5xl px-4 py-6">
+	<main id="contenido" class="mx-auto max-w-5xl px-4 py-6">
 		{@render children()}
 	</main>
 </div>

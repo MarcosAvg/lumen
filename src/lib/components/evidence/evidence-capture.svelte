@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -87,6 +87,21 @@
 	let submitError = $state<string | null>(null);
 	// Secciones plegables: por defecto expandidas (`true` = contraída).
 	let collapsedGroups = $state<Record<string, boolean>>({});
+
+	// Lumen es online-only: sin red se deshabilitan las mutaciones.
+	let online = $state(true);
+	onMount(() => {
+		const update = () => {
+			online = navigator.onLine;
+		};
+		update();
+		window.addEventListener('online', update);
+		window.addEventListener('offline', update);
+		return () => {
+			window.removeEventListener('online', update);
+			window.removeEventListener('offline', update);
+		};
+	});
 
 	function toggleGroup(key: string) {
 		collapsedGroups = { ...collapsedGroups, [key]: !collapsedGroups[key] };
@@ -472,6 +487,7 @@
 										type="file"
 										accept="image/*"
 										capture="environment"
+										disabled={!online}
 										class="hidden"
 										onchange={(event) => {
 											handleFiles(requirement.id, event.currentTarget.files);
@@ -490,6 +506,7 @@
 										type="file"
 										accept="image/*"
 										multiple
+										disabled={!online}
 										class="hidden"
 										onchange={(event) => {
 											handleFiles(requirement.id, event.currentTarget.files);
@@ -540,6 +557,7 @@
 								type="file"
 								accept="image/*"
 								multiple
+								disabled={!online}
 								class="hidden"
 								onchange={(event) => {
 									handleFiles(null, event.currentTarget.files);
@@ -589,8 +607,12 @@
 				<Card.Content class="flex flex-wrap items-center justify-between gap-2 pt-6">
 					{#if submitError}
 						<p class="text-sm text-destructive">{submitError}</p>
+					{:else if !online}
+						<p class="text-sm text-destructive">
+							Sin conexión: no puedes enviar evidencia hasta reconectar.
+						</p>
 					{/if}
-					<Button onclick={() => (showSubmit = true)}>Enviar evidencia</Button>
+					<Button disabled={!online} onclick={() => (showSubmit = true)}>Enviar evidencia</Button>
 				</Card.Content>
 			</Card.Root>
 		{/if}

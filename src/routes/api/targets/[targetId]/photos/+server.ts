@@ -5,6 +5,7 @@ import { requireCapture, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { appendPhoto } from '#lib/server/domain/photos';
 import { isUuid } from '#lib/server/params';
+import { consumeRateLimit, UPLOAD_RULE } from '#lib/server/security/rate-limit';
 import { storage } from '#lib/server/storage';
 import type { RequestHandler } from './$types';
 
@@ -26,6 +27,14 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const user = requireUser(locals);
+
+	const limit = consumeRateLimit(`upload:${user.id}`, UPLOAD_RULE);
+	if (!limit.allowed) {
+		return json(
+			{ message: 'Demasiadas subidas seguidas. Espera un momento e inténtalo de nuevo.' },
+			{ status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+		);
+	}
 
 	let form: FormData;
 	try {

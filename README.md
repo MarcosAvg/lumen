@@ -2,7 +2,7 @@
 
 **Lumen** es una aplicación web progresiva (PWA), autohospedada y orientada a equipos pequeños de servicios en campo. Permite que los técnicos capturen **evidencia fotográfica compartida**, que supervisores asignados la **aprueben o rechacen por entrega** y que administradores organicen servicios, trabajos, catálogos y usuarios.
 
-> **Estado:** implementación v1 en curso (Etapas 0–7 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica, envíos/revisiones, bandeja interna + Web Push, y búsqueda/exportaciones). El repositorio ya es una **aplicación ejecutable**; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Los ejemplos de rutas, entidades y parámetros pueden concretarse sin cambiar las reglas de negocio aprobadas.
+> **Estado:** implementación v1 en curso (Etapas 0–8 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica, envíos/revisiones, bandeja interna + Web Push, búsqueda/exportaciones y calidad/operación). El repositorio es una **aplicación ejecutable** con CI; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) y el despliegue en [`docs/deployment.md`](docs/deployment.md).
 
 ## Qué resuelve
 
@@ -116,18 +116,26 @@ pnpm check            # svelte-check (tipos)
 pnpm lint             # Prettier + ESLint
 pnpm test             # pruebas unitarias (Vitest)
 pnpm test:integration # pruebas con PostgreSQL real (requiere `docker compose up -d db`)
+pnpm test:e2e         # pruebas E2E con Playwright (escritorio y móvil)
 pnpm build            # build de producción (adapter-node)
 ```
 
 Las pruebas de integración usan `TEST_DATABASE_URL` (por defecto
 `postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`, que se crea y migra
-automáticamente); si no hay PostgreSQL disponible se omiten con un aviso.
+automáticamente); si no hay PostgreSQL disponible se omiten con un aviso. Las E2E preparan su
+propia base, construyen la app y arrancan el servidor; requieren
+`pnpm exec playwright install --with-deps chromium` una vez.
 
 ### Mantenimiento
 
 ```bash
 pnpm maintenance:cleanup   # borra temporales y binarios huérfanos (no toca los referenciados)
+pnpm backup                # respalda BD + fotos en ./backups/<fecha>
+pnpm restore ./backups/<fecha>
 ```
+
+Guía completa de despliegue, HTTPS, migraciones, VAPID, backups/restauración y GHCR en
+[`docs/deployment.md`](docs/deployment.md).
 
 ### Notificaciones push (opcional)
 
@@ -148,7 +156,8 @@ Sin esas variables, la app y la bandeja interna siguen siendo plenamente operati
 | ------------------------------------------ | --------------------------------------------------------------- |
 | `dev` / `build` / `start`                  | servidor de desarrollo, build de producción, arranque del build |
 | `check` / `lint` / `format`                | tipos, lint y formateo                                          |
-| `test` / `test:integration`                | pruebas unitarias y con base de datos real                      |
+| `test` / `test:integration` / `test:e2e`   | pruebas unitarias, con base de datos real y E2E (Playwright)    |
 | `db:generate` / `db:migrate` / `db:studio` | migraciones Drizzle (generar, aplicar, explorar)                |
 | `maintenance:cleanup`                      | limpieza de archivos temporales/huérfanos                       |
+| `backup` / `restore`                       | respaldo y restauración de BD + fotos                           |
 | `vapid:generate`                           | genera un par de claves VAPID para Web Push                     |

@@ -16,6 +16,24 @@ export default defineConfig(({ mode }) => {
 			tailwindcss(),
 			sveltekit({
 				paths: { origin },
+				// CSP compatible: SvelteKit añade nonces a sus scripts inline (mode auto).
+				csp: {
+					mode: 'auto',
+					directives: {
+						'default-src': ['self'],
+						'script-src': ['self'],
+						'style-src': ['self', 'unsafe-inline'],
+						'img-src': ['self', 'data:', 'blob:'],
+						'font-src': ['self', 'data:'],
+						'connect-src': ['self'],
+						'object-src': ['none'],
+						'base-uri': ['self'],
+						'form-action': ['self'],
+						'frame-ancestors': ['none'],
+						'worker-src': ['self'],
+						'manifest-src': ['self']
+					}
+				},
 				compilerOptions: {
 					// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 					runes: ({ filename }) =>

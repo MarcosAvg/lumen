@@ -15,5 +15,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		? await findActiveSession(getDatabase().db, hashSessionToken(token))
 		: null;
 
+	// Cabeceras de seguridad para todas las respuestas. La CSP la añade
+	// SvelteKit (config `csp`) para no chocar con los nonces de sus scripts.
+	event.setHeaders({
+		'X-Content-Type-Options': 'nosniff',
+		'X-Frame-Options': 'DENY',
+		'Referrer-Policy': 'strict-origin-when-cross-origin',
+		'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
+		'Cross-Origin-Opener-Policy': 'same-origin'
+	});
+
 	return resolve(event);
 };

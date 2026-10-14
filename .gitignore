@@ -12,6 +12,14 @@ node_modules
 # Datos locales (fotos en desarrollo)
 /data
 
+# Pruebas E2E y backups locales
+/.e2e
+/backups
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
 # OS
 .DS_Store
 Thumbs.db

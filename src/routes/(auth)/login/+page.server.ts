@@ -4,6 +4,7 @@ import { startSession } from '#lib/server/auth/start-session';
 import { getDatabase } from '#lib/server/db';
 import { findUserForLogin, isSetupRequired } from '#lib/server/domain/users';
 import { parseForm } from '#lib/server/forms';
+import { consumeRateLimit, LOGIN_RULE } from '#lib/server/security/rate-limit';
 import { loginSchema } from '#lib/schemas/auth';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -16,6 +17,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	default: async (event) => {
+		const limit = consumeRateLimit(`login:${event.getClientAddress()}`, LOGIN_RULE);
+		if (!limit.allowed) {
+			return fail(429, { message: 'Demasiados intentos. Espera unos minutos.' });
+		}
+
 		const parsed = parseForm(loginSchema, await event.request.formData());
 		if (!parsed.ok) return fail(400, { errors: parsed.errors });
 
