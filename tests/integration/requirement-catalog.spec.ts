@@ -15,7 +15,14 @@ import {
 } from '#lib/server/domain/requirements';
 import { createService } from '#lib/server/domain/services';
 import { createFirstAdmin } from '#lib/server/domain/users';
-import { createWork } from '#lib/server/domain/works';
+import { getTargetForElement, getTargetForWork } from '#lib/server/domain/targets';
+import {
+	addElements,
+	applyGeneration,
+	createWork,
+	listElementsDetailed,
+	listWorksDetailed
+} from '#lib/server/domain/works';
 import { describeWithDatabase, truncateAll } from './helpers/db';
 
 const PASSWORD = 'contrasena-segura';
@@ -39,7 +46,7 @@ await describeWithDatabase('Requisitos desde catálogo', ({ db, client }) => {
 			name: 'Trabajo',
 			actorId: admin
 		});
-		return { admin, targetId: work.targetId as string };
+		return { admin, serviceId: service.id, targetId: work.targetId as string };
 	}
 
 	async function requirementCatalog(admin: string, name = 'Requisitos') {
@@ -160,5 +167,108 @@ await describeWithDatabase('Requisitos desde catálogo', ({ db, client }) => {
 				actorId: admin
 			})
 		).rejects.toBeInstanceOf(DomainError);
+	});
+
+	it('al crear un trabajo directo aplica los requisitos (catálogo y propios)', async () => {
+		const { admin, serviceId } = await seed();
+		const catalogId = await requirementCatalog(admin);
+		const antes = await createCatalogItem(db, { catalogId, name: 'Antes', actorId: admin });
+
+		const work = await createWork(db, {
+			serviceId,
+			mode: 'direct',
+			name: 'Trabajo con requisitos',
+			requirements: [{ catalogItemId: antes.id }, { name: 'Detalle propio' }],
+			requirementIsRequired: true,
+			actorId: admin
+		});
+
+		const requirements = await listRequirements(db, work.targetId as string);
+		expect(requirements.map((row) => row.name).sort()).toEqual(['Antes', 'Detalle propio']);
+	});
+
+	it('en un trabajo dividido aplica el mismo conjunto a cada elemento', async () => {
+		const { admin, serviceId } = await seed();
+		const catalogId = await requirementCatalog(admin);
+		const antes = await createCatalogItem(db, { catalogId, name: 'Antes', actorId: admin });
+
+		const work = await createWork(db, {
+			serviceId,
+			mode: 'divided',
+			name: 'Edificio',
+			elements: [{ name: 'Piso 1' }, { name: 'Piso 2' }],
+			requirements: [{ catalogItemId: antes.id }],
+			actorId: admin
+		});
+
+		expect(work.elementIds).toHaveLength(2);
+		for (const elementId of work.elementIds) {
+			const target = await getTargetForElement(db, elementId);
+			const requirements = await listRequirements(db, target.id);
+			expect(requirements.map((row) => row.name)).toEqual(['Antes']);
+		}
+	});
+
+	it('aplica requisitos a los elementos añadidos después', async () => {
+		const { admin, serviceId } = await seed();
+		const catalogId = await requirementCatalog(admin);
+		const antes = await createCatalogItem(db, { catalogId, name: 'Antes', actorId: admin });
+
+		const work = await createWork(db, {
+			serviceId,
+			mode: 'divided',
+			name: 'Edificio',
+			elements: [{ name: 'Piso 1' }],
+			actorId: admin
+		});
+		const { elementIds } = await addElements(db, {
+			workId: work.id,
+			elements: [{ name: 'Piso 2' }],
+			requirements: [{ catalogItemId: antes.id }],
+			actorId: admin
+		});
+
+		const target = await getTargetForElement(db, elementIds[0]);
+		expect((await listRequirements(db, target.id)).map((row) => row.name)).toEqual(['Antes']);
+	});
+
+	it('la generación en lote aplica requisitos a cada objetivo creado', async () => {
+		const { admin, serviceId } = await seed();
+		const catalogId = await requirementCatalog(admin);
+		const antes = await createCatalogItem(db, { catalogId, name: 'Antes', actorId: admin });
+
+		await applyGeneration(db, {
+			serviceId,
+			works: [
+				{ catalogItemId: null, name: 'Directo', include: true, elements: [] },
+				{
+					catalogItemId: null,
+					name: 'Dividido',
+					include: true,
+					elements: [
+						{ catalogItemId: null, name: 'Elem 1', include: true },
+						{ catalogItemId: null, name: 'Elem 2', include: true }
+					]
+				}
+			],
+			requirements: [{ catalogItemId: antes.id }],
+			requirementIsRequired: true,
+			actorId: admin
+		});
+
+		const works = await listWorksDetailed(db, serviceId);
+		const direct = works.find((row) => row.name === 'Directo');
+		expect(direct).toBeTruthy();
+		const directTarget = await getTargetForWork(db, direct!.id);
+		expect((await listRequirements(db, directTarget.id)).map((row) => row.name)).toEqual(['Antes']);
+
+		const divided = works.find((row) => row.name === 'Dividido');
+		expect(divided).toBeTruthy();
+		const elements = await listElementsDetailed(db, divided!.id);
+		expect(elements).toHaveLength(2);
+		for (const element of elements) {
+			const target = await getTargetForElement(db, element.id);
+			expect((await listRequirements(db, target.id)).map((row) => row.name)).toEqual(['Antes']);
+		}
 	});
 });

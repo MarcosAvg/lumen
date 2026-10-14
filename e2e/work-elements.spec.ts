@@ -49,9 +49,17 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await dialog.locator('#work-name').fill(workName);
 
 	await dialog.locator('#element-name-draft').fill('UMA 1');
-	await dialog.getByRole('button', { name: 'Agregar' }).last().click();
+	await dialog
+		.locator('#element-name-draft')
+		.locator('xpath=../..')
+		.getByRole('button', { name: 'Agregar', exact: true })
+		.click();
 	await dialog.locator('#element-name-draft').fill('UMA 2');
-	await dialog.getByRole('button', { name: 'Agregar' }).last().click();
+	await dialog
+		.locator('#element-name-draft')
+		.locator('xpath=../..')
+		.getByRole('button', { name: 'Agregar', exact: true })
+		.click();
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
@@ -68,7 +76,11 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await page.getByRole('button', { name: 'Añadir elementos' }).click();
 	const elementDialog = page.getByRole('dialog');
 	await elementDialog.locator('#element-name-draft').fill('UMA 3');
-	await elementDialog.getByRole('button', { name: 'Agregar' }).last().click();
+	await elementDialog
+		.locator('#element-name-draft')
+		.locator('xpath=../..')
+		.getByRole('button', { name: 'Agregar', exact: true })
+		.click();
 	await elementDialog.getByRole('button', { name: 'Añadir elementos' }).click();
 
 	await expect(page.getByText('Elementos añadidos.')).toBeVisible();

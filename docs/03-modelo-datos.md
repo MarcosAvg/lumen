@@ -132,6 +132,7 @@ Estado permitido: `pending`, `in_progress`, `in_review`, `rejected`, `approved`.
 - El nombre visible es `COALESCE(catalog_items.name, photo_requirements.custom_name)`, con **origen XOR**: o un ítem de un catálogo de propósito `requirements` (nombre **dinámico**) o un nombre propio.
 - Renombrar el requisito a mano lo **desvincula** (guarda `custom_name`); renombrar el ítem del catálogo actualiza los requisitos aún ligados. Borrar el ítem/catálogo copia el último nombre a `custom_name` y desvincula.
 - Requisitos son por **target**, no por servicio/trabajo dividido como una plantilla global mutable; el catálogo de requisitos es una lista de nombres reutilizables, no la estructura del requisito.
+- La creación de trabajos, la generación en lote y el alta de elementos aceptan un conjunto de requisitos que se inserta (helper `insertRequirements`) en el objetivo directo o en **cada** elemento, omitiendo duplicados por nombre.
 - La condición «nunca se envió» equivale a `NOT EXISTS (SELECT 1 FROM evidence_submissions WHERE target_id=...)`, no a `latest_status <> in_review`.
 - Después de primer envío: bloquear mutaciones del requisito incluso si se rechazó. Las entregas ya guardan `requirement_name_snapshot`, así que el historial no cambia.
 - El grupo **Adicionales** es representado por `requirement_id NULL`, **no** una fila obligatoria ni un requisito borrable.

@@ -16,3 +16,9 @@ export interface ElementDraft {
 	catalogItemId: string;
 	name: string;
 }
+
+/** Requisito en construcción: por ítem de catálogo de requisitos o por nombre propio. */
+export interface RequirementDraft {
+	catalogItemId: string;
+	name: string;
+}

@@ -18,6 +18,7 @@ import {
 import { failFrom, fieldErrors, parseForm } from '#lib/server/forms';
 import { isUuid, requireUuidParam } from '#lib/server/params';
 import { createWorkElementSchema, updateElementSchema, updateWorkSchema } from '#lib/schemas/works';
+import { requirementDraftSchema } from '#lib/schemas/requirements';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -103,10 +104,23 @@ export const actions: Actions = {
 		const parsed = z.array(createWorkElementSchema).min(1).safeParse(raw);
 		if (!parsed.success) return fail(400, { elementErrors: fieldErrors(parsed.error) });
 
+		let requirements: { name?: string; catalogItemId?: string }[];
+		try {
+			const result = z
+				.array(requirementDraftSchema)
+				.safeParse(JSON.parse(String(form.get('requirements') ?? '[]')));
+			if (!result.success) return fail(400, { elementErrors: fieldErrors(result.error) });
+			requirements = result.data;
+		} catch {
+			return fail(400, { elementErrors: { _form: 'Requisitos inválidos.' } });
+		}
+
 		try {
 			await addElements(getDatabase().db, {
 				workId,
 				elements: parsed.data,
+				requirements,
+				requirementIsRequired: String(form.get('requirementIsRequired') ?? 'true') === 'true',
 				actorId: admin.id
 			});
 		} catch (error) {

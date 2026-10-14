@@ -26,3 +26,21 @@ export const updateRequirementBodySchema = z.object({
 	name: requirementNameSchema,
 	isRequired: z.boolean().optional().default(true)
 });
+
+/** Requisito en construcción: por ítem de catálogo de requisitos o por nombre propio. */
+export const requirementDraftSchema = z
+	.object({
+		catalogItemId: z
+			.union([z.uuid('Ítem inválido.'), z.literal('')])
+			.optional()
+			.default(''),
+		name: z
+			.string()
+			.trim()
+			.max(120, 'El nombre no puede superar 120 caracteres.')
+			.optional()
+			.default('')
+	})
+	.refine((data) => Boolean(data.catalogItemId) !== data.name.length > 0, {
+		message: 'Cada requisito debe tener un ítem de catálogo o un nombre propio (exactamente uno).'
+	});

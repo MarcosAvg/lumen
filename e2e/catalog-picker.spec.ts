@@ -65,7 +65,7 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
 	// Paso 1: catálogo. Paso 2: ítem del catálogo (con búsqueda).
-	await dialog.getByLabel('Catálogo').selectOption({ label: catalogName });
+	await dialog.getByLabel('Catálogo').first().selectOption({ label: catalogName });
 	await dialog.getByRole('button', { name: 'Elige ítem…' }).click();
 	await page.getByPlaceholder('Buscar ítem…').fill(itemName);
 	const option = page.locator('[data-slot="command-item"]').filter({ hasText: itemName });

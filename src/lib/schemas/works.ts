@@ -24,7 +24,10 @@ export const createWorkSchema = z.object({
 		.optional()
 		.default(''),
 	/** Elementos del trabajo dividido, serializados como JSON (ver `createWorkElementSchema`). */
-	elements: z.string().optional().default('[]')
+	elements: z.string().optional().default('[]'),
+	/** Requisitos del trabajo (o de cada elemento), serializados como JSON. */
+	requirements: z.string().optional().default('[]'),
+	requirementIsRequired: z.enum(['true', 'false']).optional().default('true')
 });
 
 /** Elemento definido en el modal de creación del trabajo dividido. */

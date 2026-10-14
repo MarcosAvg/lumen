@@ -288,6 +288,11 @@ renombrar a mano desvincula y borrar el ítem/catálogo copia el nombre y desvin
 omite duplicados por nombre y es transaccional) o escribir requisitos libres. Las entregas conservan
 `requirement_name_snapshot`, así que el historial no cambia.
 
+**Requisitos al crear**: el helper `insertRequirements` (dominio) se reutiliza para aplicar un
+conjunto de requisitos —de catálogo o libres— **al crear un trabajo** (objetivo directo o cada
+elemento), **al añadir elementos** y **al generar en lote** (a cada objetivo creado). El editor
+`requirements-editor` (multi-picker + nombre propio + «Obligatorio») se integra en los tres modales.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

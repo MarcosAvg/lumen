@@ -5,6 +5,7 @@ import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { applyGeneration } from '#lib/server/domain/works';
 import { isUuid } from '#lib/server/params';
+import { requirementDraftSchema } from '#lib/schemas/requirements';
 import type { RequestHandler } from './$types';
 
 const elementSchema = z.object({
@@ -18,7 +19,11 @@ const workSchema = z.object({
 	include: z.boolean().default(true),
 	elements: z.array(elementSchema).default([])
 });
-const bodySchema = z.object({ works: z.array(workSchema).min(1) });
+const bodySchema = z.object({
+	works: z.array(workSchema).min(1),
+	requirements: z.array(requirementDraftSchema).optional().default([]),
+	requirementIsRequired: z.boolean().optional().default(true)
+});
 
 /** Aplica la estructura planificada (admin). */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
@@ -32,6 +37,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		const result = await applyGeneration(getDatabase().db, {
 			serviceId: params.serviceId,
 			works: parsed.data.works,
+			requirements: parsed.data.requirements,
+			requirementIsRequired: parsed.data.requirementIsRequired,
 			actorId: admin.id
 		});
 		return json(result);

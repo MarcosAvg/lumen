@@ -7,7 +7,8 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
-	import type { CatalogGroup } from '#lib/components/catalog/types';
+	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
+	import type { CatalogGroup, RequirementDraft } from '#lib/components/catalog/types';
 
 	interface PlanElement {
 		catalogItemId: string | null;
@@ -30,12 +31,20 @@
 	let {
 		serviceId,
 		catalogs,
+		requirementCatalogs = [],
 		open = $bindable(false)
-	}: { serviceId: string; catalogs: CatalogGroup[]; open?: boolean } = $props();
+	}: {
+		serviceId: string;
+		catalogs: CatalogGroup[];
+		requirementCatalogs?: CatalogGroup[];
+		open?: boolean;
+	} = $props();
 
 	let step = $state<'select' | 'plan'>('select');
 	let workItemIds = $state<string[]>([]);
 	let elementItemIds = $state<string[]>([]);
+	let requirements = $state<RequirementDraft[]>([]);
+	let requirementsRequired = $state(true);
 	let plan = $state<Plan | null>(null);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -45,6 +54,8 @@
 			step = 'select';
 			workItemIds = [];
 			elementItemIds = [];
+			requirements = [];
+			requirementsRequired = true;
 			plan = null;
 			error = null;
 		}
@@ -78,7 +89,11 @@
 			const response = await fetch(`/api/services/${serviceId}/generate/apply`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ works: plan.works })
+				body: JSON.stringify({
+					works: plan.works,
+					requirements,
+					requirementIsRequired: requirementsRequired
+				})
 			});
 			const body = (await response.json().catch(() => ({}))) as {
 				worksCreated?: number;
@@ -132,6 +147,20 @@
 						disabled={busy}
 					/>
 				</div>
+				{#if requirementCatalogs.length > 0}
+					<div class="space-y-2 rounded-lg border p-3">
+						<Label>Requisitos (opcional)</Label>
+						<p class="text-xs text-muted-foreground">
+							Se aplicarán a cada objetivo generado (trabajos directos y elementos).
+						</p>
+						<RequirementsEditor
+							catalogs={requirementCatalogs}
+							bind:value={requirements}
+							bind:required={requirementsRequired}
+							disabled={busy}
+						/>
+					</div>
+				{/if}
 			</div>
 		{:else if plan}
 			<div class="space-y-3">

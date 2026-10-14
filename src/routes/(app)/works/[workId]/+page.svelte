@@ -12,7 +12,8 @@
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
-	import type { CatalogGroup, ElementDraft } from '#lib/components/catalog/types';
+	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
+	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string; elementErrors?: Record<string, string> };
@@ -22,6 +23,8 @@
 
 	let elementOpen = $state(false);
 	let newElements = $state<ElementDraft[]>([]);
+	let elementRequirements = $state<RequirementDraft[]>([]);
+	let elementRequirementsRequired = $state(true);
 
 	const catalogsForPicker = $derived<CatalogGroup[]>(
 		data.catalogs
@@ -44,11 +47,14 @@
 	);
 
 	const elementsJson = $derived(JSON.stringify(newElements));
+	const elementRequirementsJson = $derived(JSON.stringify(elementRequirements));
 
 	$effect(() => {
 		if (action?.success) {
 			elementOpen = false;
 			newElements = [];
+			elementRequirements = [];
+			elementRequirementsRequired = true;
 		}
 	});
 
@@ -180,10 +186,16 @@
 		</Card.Root>
 
 		<Dialog.Root bind:open={elementOpen}>
-			<Dialog.Content>
+			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
 				<form method="POST" action="?/createElements" class="space-y-4">
 					<input type="hidden" name="workId" value={data.work.id} />
 					<input type="hidden" name="elements" value={elementsJson} />
+					<input type="hidden" name="requirements" value={elementRequirementsJson} />
+					<input
+						type="hidden"
+						name="requirementIsRequired"
+						value={elementRequirementsRequired ? 'true' : 'false'}
+					/>
 					<Dialog.Header>
 						<Dialog.Title>Añadir elementos</Dialog.Title>
 						<Dialog.Description>
@@ -191,6 +203,17 @@
 						</Dialog.Description>
 					</Dialog.Header>
 					<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
+					{#if requirementCatalogs.length > 0}
+						<div class="space-y-2 rounded-lg border p-3">
+							<Label>Requisitos (opcional)</Label>
+							<p class="text-xs text-muted-foreground">Se aplicarán a cada elemento nuevo.</p>
+							<RequirementsEditor
+								catalogs={requirementCatalogs}
+								bind:value={elementRequirements}
+								bind:required={elementRequirementsRequired}
+							/>
+						</div>
+					{/if}
 					{#if action?.elementErrors?._form}
 						<p class="text-sm text-destructive">{action.elementErrors._form}</p>
 					{/if}

@@ -12,6 +12,7 @@ import {
 import type { TargetStatus, WorkMode } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
+import { insertRequirements, type RequirementInput } from './requirements';
 
 const visibleWorkName = sql<string>`coalesce(${catalogItems.name}, ${works.customName})`;
 const visibleElementName = sql<string>`coalesce(${catalogItems.name}, ${elements.customName})`;
@@ -66,6 +67,9 @@ export interface CreateWorkInput {
 	name?: string | null;
 	/** Elementos a crear junto al trabajo (solo si `mode === 'divided'`). */
 	elements?: CreateWorkElementInput[];
+	/** Requisitos a aplicar al objetivo directo o a cada elemento. */
+	requirements?: RequirementInput[];
+	requirementIsRequired?: boolean;
 	actorId: string;
 }
 
@@ -85,6 +89,8 @@ export async function createWork(
 		if (input.mode !== 'divided' && elementInputs.length > 0) {
 			throw new DomainError(400, 'Un trabajo directo no puede tener elementos.');
 		}
+		const requirements = input.requirements ?? [];
+		const requirementIsRequired = input.requirementIsRequired ?? true;
 
 		const name = await resolveNameSource(tx, input);
 		const [next] = await tx
@@ -112,6 +118,13 @@ export async function createWork(
 				.values({ workId: created.id })
 				.returning({ id: evidenceTargets.id });
 			targetId = target.id;
+			if (requirements.length > 0) {
+				await insertRequirements(tx, {
+					targetId: target.id,
+					requirements,
+					isRequired: requirementIsRequired
+				});
+			}
 		}
 
 		// Elementos creados junto al trabajo dividido, cada uno con su objetivo.
@@ -128,7 +141,17 @@ export async function createWork(
 					sortOrder: elementSort
 				})
 				.returning({ id: elements.id });
-			await tx.insert(evidenceTargets).values({ elementId: createdElement.id });
+			const [target] = await tx
+				.insert(evidenceTargets)
+				.values({ elementId: createdElement.id })
+				.returning({ id: evidenceTargets.id });
+			if (requirements.length > 0) {
+				await insertRequirements(tx, {
+					targetId: target.id,
+					requirements,
+					isRequired: requirementIsRequired
+				});
+			}
 			elementIds.push(createdElement.id);
 			elementSort += 1;
 		}
@@ -139,7 +162,7 @@ export async function createWork(
 			entityType: 'work',
 			entityId: created.id,
 			action: 'work.created',
-			metadata: { mode: input.mode, elements: elementIds.length }
+			metadata: { mode: input.mode, elements: elementIds.length, requirements: requirements.length }
 		});
 
 		return { id: created.id, targetId, elementIds };
@@ -206,6 +229,9 @@ export async function createElement(
 export interface AddElementsInput {
 	workId: string;
 	elements: CreateWorkElementInput[];
+	/** Requisitos a aplicar a cada elemento nuevo. */
+	requirements?: RequirementInput[];
+	requirementIsRequired?: boolean;
 	actorId: string;
 }
 
@@ -227,6 +253,8 @@ export async function addElements(
 		if (input.elements.length === 0) {
 			throw new DomainError(400, 'Añade al menos un elemento.');
 		}
+		const requirements = input.requirements ?? [];
+		const requirementIsRequired = input.requirementIsRequired ?? true;
 
 		const [base] = await tx
 			.select({ value: sql<number>`coalesce(max(${elements.sortOrder}), -1) + 1` })
@@ -246,7 +274,17 @@ export async function addElements(
 					sortOrder
 				})
 				.returning({ id: elements.id });
-			await tx.insert(evidenceTargets).values({ elementId: created.id });
+			const [target] = await tx
+				.insert(evidenceTargets)
+				.values({ elementId: created.id })
+				.returning({ id: evidenceTargets.id });
+			if (requirements.length > 0) {
+				await insertRequirements(tx, {
+					targetId: target.id,
+					requirements,
+					isRequired: requirementIsRequired
+				});
+			}
 			elementIds.push(created.id);
 			sortOrder += 1;
 		}
@@ -257,7 +295,7 @@ export async function addElements(
 			entityType: 'element',
 			entityId: work.id,
 			action: 'elements.created',
-			metadata: { count: elementIds.length }
+			metadata: { count: elementIds.length, requirements: requirements.length }
 		});
 
 		return { elementIds };
@@ -762,6 +800,9 @@ async function listItemRelations(
 export interface ApplyGenerationInput {
 	serviceId: string;
 	works: GenerationWork[];
+	/** Requisitos a aplicar a cada objetivo creado (directos y elementos). */
+	requirements?: RequirementInput[];
+	requirementIsRequired?: boolean;
 	actorId: string;
 }
 
@@ -795,6 +836,8 @@ export async function applyGeneration(
 		let sortOrder = base?.value ?? 0;
 		let worksCreated = 0;
 		let elementsCreated = 0;
+		const requirements = input.requirements ?? [];
+		const requirementIsRequired = input.requirementIsRequired ?? true;
 
 		for (const work of includedWorks) {
 			const includedElements = work.elements.filter((el) => el.include && el.name.trim());
@@ -815,7 +858,17 @@ export async function applyGeneration(
 			worksCreated += 1;
 
 			if (mode === 'direct') {
-				await tx.insert(evidenceTargets).values({ workId: createdWork.id });
+				const [target] = await tx
+					.insert(evidenceTargets)
+					.values({ workId: createdWork.id })
+					.returning({ id: evidenceTargets.id });
+				if (requirements.length > 0) {
+					await insertRequirements(tx, {
+						targetId: target.id,
+						requirements,
+						isRequired: requirementIsRequired
+					});
+				}
 			}
 
 			let elementSort = 0;
@@ -832,7 +885,17 @@ export async function applyGeneration(
 					.returning({ id: elements.id });
 				elementSort += 1;
 				elementsCreated += 1;
-				await tx.insert(evidenceTargets).values({ elementId: createdElement.id });
+				const [target] = await tx
+					.insert(evidenceTargets)
+					.values({ elementId: createdElement.id })
+					.returning({ id: evidenceTargets.id });
+				if (requirements.length > 0) {
+					await insertRequirements(tx, {
+						targetId: target.id,
+						requirements,
+						isRequired: requirementIsRequired
+					});
+				}
 			}
 		}
 
@@ -842,7 +905,7 @@ export async function applyGeneration(
 			entityType: 'service',
 			entityId: input.serviceId,
 			action: 'works.generated',
-			metadata: { worksCreated, elementsCreated }
+			metadata: { worksCreated, elementsCreated, requirements: requirements.length }
 		});
 
 		return { worksCreated, elementsCreated };

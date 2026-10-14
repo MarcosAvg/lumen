@@ -208,7 +208,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 - Formularios simples: nombre, descripción, edificio opcional, participantes asignados.
 - Selector de modo directo/dividido al crear trabajo, con explicación visible de dónde vivirán fotos y aprobaciones.
-- Crear trabajos/elementos manualmente o **en lote** desde catálogo. Vista previa antes de aplicar lote: árboles/fila, cantidad final, duplicados contextuales, opciones de excepción por instancia.
+- Crear trabajos/elementos manualmente o **en lote** desde catálogo. Vista previa antes de aplicar lote: árboles/fila, cantidad final, duplicados contextuales, opciones de excepción por instancia. Al crear un trabajo o generar en lote se pueden elegir **requisitos** (de catálogo o libres) que se aplican al objetivo directo o a cada elemento; al añadir elementos a un trabajo existente también.
 - Editar/eliminar trabajos y elementos en cualquier estado, con advertencia de eliminación **destructiva** de todas las fotos e historial del ámbito.
 - Administrar requisitos en cada target mientras no exista primer envío; se pueden **añadir varios desde un catálogo de requisitos** (omitiendo duplicados) o escribir requisitos libres; renombrarlos a mano los desvincula. Opción de copiar plantilla a elementos recién creados sin enlazarles requisitos posteriormente.
 - Cambiar modo abre asistente de reasignación de fotos y requisitos, **solo si nunca hubo envío**; no crear destino/suprimir fotos automáticamente. Permitir cancelar sin cambios.

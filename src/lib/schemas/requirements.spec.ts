@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	createRequirementBodySchema,
 	createRequirementsBatchSchema,
+	requirementDraftSchema,
 	updateRequirementBodySchema
 } from './requirements';
 
@@ -31,5 +32,14 @@ describe('requisitos (validación)', () => {
 	it('el renombrado exige un nombre no vacío', () => {
 		expect(updateRequirementBodySchema.safeParse({ name: 'Antes' }).success).toBe(true);
 		expect(updateRequirementBodySchema.safeParse({ name: '   ' }).success).toBe(false);
+	});
+
+	it('el borrador de requisito acepta catálogo o nombre, nunca ambos', () => {
+		expect(requirementDraftSchema.safeParse({ catalogItemId: ITEM }).success).toBe(true);
+		expect(requirementDraftSchema.safeParse({ name: 'Antes' }).success).toBe(true);
+		expect(requirementDraftSchema.safeParse({ catalogItemId: ITEM, name: 'Antes' }).success).toBe(
+			false
+		);
+		expect(requirementDraftSchema.safeParse({}).success).toBe(false);
 	});
 });

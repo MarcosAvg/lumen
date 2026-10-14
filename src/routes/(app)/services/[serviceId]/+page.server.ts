@@ -20,6 +20,7 @@ import {
 	updateElementSchema,
 	updateWorkSchema
 } from '#lib/schemas/works';
+import { requirementDraftSchema } from '#lib/schemas/requirements';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -84,6 +85,16 @@ export const actions: Actions = {
 			elements = result.data;
 		}
 
+		let requirements: { name?: string; catalogItemId?: string }[];
+		try {
+			const raw = JSON.parse(parsed.data.requirements || '[]');
+			const result = z.array(requirementDraftSchema).safeParse(raw);
+			if (!result.success) return fail(400, { workErrors: fieldErrors(result.error) });
+			requirements = result.data;
+		} catch {
+			return fail(400, { workErrors: { _form: 'Requisitos inválidos.' } });
+		}
+
 		try {
 			await createWork(getDatabase().db, {
 				serviceId: parsed.data.serviceId,
@@ -92,6 +103,8 @@ export const actions: Actions = {
 				catalogItemId: parsed.data.catalogItemId || null,
 				description: parsed.data.description,
 				elements,
+				requirements,
+				requirementIsRequired: parsed.data.requirementIsRequired === 'true',
 				actorId: admin.id
 			});
 		} catch (error) {

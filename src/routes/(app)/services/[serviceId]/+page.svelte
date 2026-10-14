@@ -14,7 +14,8 @@
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
-	import type { CatalogGroup, ElementDraft } from '#lib/components/catalog/types';
+	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
+	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -31,6 +32,8 @@
 	let workSource = $state<'catalog' | 'custom'>('catalog');
 	let workMode = $state<'direct' | 'divided'>('direct');
 	let workElements = $state<ElementDraft[]>([]);
+	let workRequirements = $state<RequirementDraft[]>([]);
+	let workRequirementsRequired = $state(true);
 	let sourceSeeded = false;
 	$effect(() => {
 		// Origen por defecto: catálogo si hay alguno, si no nombre propio.
@@ -43,10 +46,13 @@
 			workSource = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
 			workMode = 'direct';
 			workElements = [];
+			workRequirements = [];
+			workRequirementsRequired = true;
 		}
 	});
 
 	const elementsJson = $derived(JSON.stringify(workElements));
+	const requirementsJson = $derived(JSON.stringify(workRequirements));
 
 	const accessLabel = {
 		admin: 'Administrador',
@@ -66,6 +72,16 @@
 	const catalogsForPicker = $derived<CatalogGroup[]>(
 		data.catalogs
 			.filter((catalog) => catalog.purpose !== 'buildings' && catalog.purpose !== 'requirements')
+			.map((catalog) => ({
+				id: catalog.id,
+				name: catalog.name,
+				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+			}))
+	);
+	// Requisitos: solo catálogos marcados como tales.
+	const requirementCatalogs = $derived<CatalogGroup[]>(
+		data.catalogs
+			.filter((catalog) => catalog.purpose === 'requirements')
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
@@ -277,7 +293,7 @@
 
 	{#if data.isAdmin}
 		<Dialog.Root bind:open={workOpen}>
-			<Dialog.Content>
+			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
 				<form method="POST" action="?/createWork" class="space-y-4">
 					<input type="hidden" name="serviceId" value={data.service.id} />
 					<Dialog.Header>
@@ -334,7 +350,30 @@
 							<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
 						</div>
 					{/if}
+					{#if requirementCatalogs.length > 0}
+						<div class="space-y-3 rounded-lg border p-3">
+							<Label>Requisitos</Label>
+							<p class="text-xs text-muted-foreground">
+								{#if workMode === 'divided'}
+									Se aplicarán a cada elemento creado.
+								{:else}
+									Se aplicarán al trabajo.
+								{/if}
+							</p>
+							<RequirementsEditor
+								catalogs={requirementCatalogs}
+								bind:value={workRequirements}
+								bind:required={workRequirementsRequired}
+							/>
+						</div>
+					{/if}
 					<input type="hidden" name="elements" value={elementsJson} />
+					<input type="hidden" name="requirements" value={requirementsJson} />
+					<input
+						type="hidden"
+						name="requirementIsRequired"
+						value={workRequirementsRequired ? 'true' : 'false'}
+					/>
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit">Crear trabajo</Button>
@@ -346,6 +385,7 @@
 		<GenerateStructureDialog
 			serviceId={data.service.id}
 			catalogs={catalogsForPicker}
+			{requirementCatalogs}
 			bind:open={generateOpen}
 		/>
 	{/if}

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	catalogItems,
@@ -158,6 +158,89 @@ export async function createRequirement(
 	});
 }
 
+export interface RequirementInput {
+	catalogItemId?: string | null;
+	name?: string | null;
+}
+
+export interface InsertRequirementsResult {
+	created: number;
+	skipped: number;
+	requirements: RequirementRow[];
+}
+
+/**
+ * Inserta requisitos (ítem de catálogo de requisitos o nombre propio) en un
+ * target, omitiendo duplicados por nombre. Debe invocarse dentro de una
+ * transacción sobre un target ya validado (creación o edición permitida).
+ */
+export async function insertRequirements(
+	tx: Database,
+	input: { targetId: string; requirements: RequirementInput[]; isRequired: boolean }
+): Promise<InsertRequirementsResult> {
+	if (input.requirements.length === 0) {
+		return { created: 0, skipped: 0, requirements: [] };
+	}
+
+	// Resuelve el origen y el nombre visible de cada entrada.
+	const resolved: { catalogItemId: string | null; name: string }[] = [];
+	for (const draft of input.requirements) {
+		const source = await resolveNameSource(tx, draft);
+		let name = source.customName ?? '';
+		if (source.catalogItemId) {
+			const [item] = await tx
+				.select({ name: catalogItems.name })
+				.from(catalogItems)
+				.where(eq(catalogItems.id, source.catalogItemId))
+				.limit(1);
+			name = item?.name ?? '';
+		}
+		resolved.push({ catalogItemId: source.catalogItemId, name });
+	}
+
+	const existing = await tx
+		.select({ name: visibleRequirementName })
+		.from(photoRequirements)
+		.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
+		.where(eq(photoRequirements.targetId, input.targetId));
+	const taken = new Set(existing.map((row) => row.name.trim().toLowerCase()));
+
+	const [base] = await tx
+		.select({ value: sql<number>`coalesce(max(${photoRequirements.sortOrder}), -1) + 1` })
+		.from(photoRequirements)
+		.where(eq(photoRequirements.targetId, input.targetId));
+	let order = base?.value ?? 0;
+
+	let created = 0;
+	const createdRows: RequirementRow[] = [];
+	for (const entry of resolved) {
+		const key = entry.name.trim().toLowerCase();
+		if (taken.has(key)) continue;
+		taken.add(key);
+		const [inserted] = await tx
+			.insert(photoRequirements)
+			.values({
+				targetId: input.targetId,
+				catalogItemId: entry.catalogItemId,
+				customName: entry.catalogItemId ? null : entry.name,
+				isRequired: input.isRequired,
+				sortOrder: order
+			})
+			.returning({ id: photoRequirements.id, sortOrder: photoRequirements.sortOrder });
+		createdRows.push({
+			id: inserted.id,
+			name: entry.name,
+			isRequired: input.isRequired,
+			sortOrder: inserted.sortOrder,
+			catalogItemId: entry.catalogItemId
+		});
+		order += 1;
+		created += 1;
+	}
+
+	return { created, skipped: resolved.length - created, requirements: createdRows };
+}
+
 export interface CreateRequirementsBatchInput {
 	targetId: string;
 	catalogItemIds: string[];
@@ -187,71 +270,24 @@ export async function createRequirementsBatch(
 	return db.transaction(async (tx) => {
 		await assertRequirementsEditable(tx, input.targetId);
 
-		const items = await tx
-			.select({ id: catalogItems.id, name: catalogItems.name })
-			.from(catalogItems)
-			.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
-			.where(and(inArray(catalogItems.id, catalogItemIds), eq(catalogs.purpose, 'requirements')));
-		if (items.length !== catalogItemIds.length) {
-			throw new DomainError(
-				404,
-				'Algún ítem no existe o no pertenece a un catálogo de requisitos.'
-			);
-		}
-		const nameById = new Map(items.map((item) => [item.id, item.name]));
+		const result = await insertRequirements(tx, {
+			targetId: input.targetId,
+			requirements: catalogItemIds.map((catalogItemId) => ({ catalogItemId })),
+			isRequired: input.isRequired
+		});
 
-		const existing = await tx
-			.select({ name: visibleRequirementName })
-			.from(photoRequirements)
-			.leftJoin(catalogItems, eq(catalogItems.id, photoRequirements.catalogItemId))
-			.where(eq(photoRequirements.targetId, input.targetId));
-		const taken = new Set(existing.map((row) => row.name.trim().toLowerCase()));
-
-		const [base] = await tx
-			.select({ value: sql<number>`coalesce(max(${photoRequirements.sortOrder}), -1) + 1` })
-			.from(photoRequirements)
-			.where(eq(photoRequirements.targetId, input.targetId));
-		let order = base?.value ?? 0;
-
-		let created = 0;
-		const createdRows: RequirementRow[] = [];
-		for (const itemId of catalogItemIds) {
-			const key = (nameById.get(itemId) ?? '').trim().toLowerCase();
-			if (taken.has(key)) continue;
-			taken.add(key);
-			const [inserted] = await tx
-				.insert(photoRequirements)
-				.values({
-					targetId: input.targetId,
-					catalogItemId: itemId,
-					customName: null,
-					isRequired: input.isRequired,
-					sortOrder: order
-				})
-				.returning({ id: photoRequirements.id, sortOrder: photoRequirements.sortOrder });
-			createdRows.push({
-				id: inserted.id,
-				name: nameById.get(itemId) ?? '',
-				isRequired: input.isRequired,
-				sortOrder: inserted.sortOrder,
-				catalogItemId: itemId
-			});
-			order += 1;
-			created += 1;
-		}
-
-		if (created > 0) {
+		if (result.created > 0) {
 			await bumpVersion(tx, input.targetId);
 			await recordAudit(tx, {
 				actorUserId: input.actorId,
 				entityType: 'photo_requirement',
 				entityId: input.targetId,
 				action: 'requirements.batch_created',
-				metadata: { created, skipped: catalogItemIds.length - created }
+				metadata: { created: result.created, skipped: result.skipped }
 			});
 		}
 
-		return { created, skipped: catalogItemIds.length - created, requirements: createdRows };
+		return result;
 	});
 }
 

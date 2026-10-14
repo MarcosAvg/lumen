@@ -93,6 +93,7 @@ Un usuario debe estar **activo** y disponer de sesión válida para cualquier op
 | ¿Fotos en el padre además de elementos? | Sí, por ser objetivo | **No** |
 
 - Se pueden editar nombre y descripción del trabajo o elemento en cualquier momento; no cambia el historial de fotografías ni la decisión de revisión.
+- Al **crear** un trabajo (o al **generar en lote**, o al **añadir elementos**) se pueden elegir requisitos —de catálogo o libres— que se aplican al objetivo directo o a **cada** elemento; se omiten duplicados por nombre.
 - Los administradores pueden añadir o quitar elementos de un trabajo dividido **en cualquier momento**, incluso si estaba aprobado.
 - Borrar un elemento o trabajo elimina destructivamente su evidencia y todo su historial, previa advertencia y confirmación explícita. Afecta al avance sin revertir las aprobaciones independientes de objetos que permanecen.
 
