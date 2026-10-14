@@ -1,0 +1,775 @@
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
+import type { Database } from '#lib/server/db';
+import {
+	catalogItemRelations,
+	catalogItems,
+	elements,
+	evidenceTargets,
+	services,
+	works
+} from '#lib/server/db/schema';
+import type { TargetStatus, WorkMode } from '#lib/types';
+import { recordAudit } from './audit';
+import { DomainError } from './errors';
+
+const visibleWorkName = sql<string>`coalesce(${catalogItems.name}, ${works.customName})`;
+const visibleElementName = sql<string>`coalesce(${catalogItems.name}, ${elements.customName})`;
+
+function countInt() {
+	return sql<number>`cast(count(*) as int)`;
+}
+
+export interface NameSource {
+	catalogItemId?: string | null;
+	name?: string | null;
+}
+
+async function resolveNameSource(
+	db: Database,
+	source: NameSource
+): Promise<{ catalogItemId: string | null; customName: string | null }> {
+	const hasCatalog = Boolean(source.catalogItemId);
+	const custom = source.name?.trim() ?? '';
+	const hasCustom = custom.length > 0;
+
+	if (hasCatalog === hasCustom) {
+		throw new DomainError(
+			400,
+			'Debes indicar un ítem de catálogo o un nombre personalizado (exactamente uno).'
+		);
+	}
+
+	if (hasCatalog) {
+		const [item] = await db
+			.select({ id: catalogItems.id })
+			.from(catalogItems)
+			.where(eq(catalogItems.id, source.catalogItemId as string))
+			.limit(1);
+		if (!item) throw new DomainError(404, 'Ítem de catálogo no encontrado.');
+		return { catalogItemId: item.id, customName: null };
+	}
+
+	return { catalogItemId: null, customName: custom };
+}
+
+export interface CreateWorkInput {
+	serviceId: string;
+	mode: WorkMode;
+	description?: string | null;
+	catalogItemId?: string | null;
+	name?: string | null;
+	actorId: string;
+}
+
+export async function createWork(
+	db: Database,
+	input: CreateWorkInput
+): Promise<{ id: string; targetId: string | null }> {
+	return db.transaction(async (tx) => {
+		const [service] = await tx
+			.select({ id: services.id })
+			.from(services)
+			.where(eq(services.id, input.serviceId))
+			.limit(1);
+		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+
+		const name = await resolveNameSource(tx, input);
+		const [next] = await tx
+			.select({ value: sql<number>`coalesce(max(${works.sortOrder}), -1) + 1` })
+			.from(works)
+			.where(eq(works.serviceId, input.serviceId));
+
+		const [created] = await tx
+			.insert(works)
+			.values({
+				serviceId: input.serviceId,
+				mode: input.mode,
+				catalogItemId: name.catalogItemId,
+				customName: name.customName,
+				description: input.description?.trim() || null,
+				sortOrder: next?.value ?? 0
+			})
+			.returning({ id: works.id });
+
+		// Un trabajo directo posee un único objetivo propio; el dividido no tiene evidencia de padre.
+		let targetId: string | null = null;
+		if (input.mode === 'direct') {
+			const [target] = await tx
+				.insert(evidenceTargets)
+				.values({ workId: created.id })
+				.returning({ id: evidenceTargets.id });
+			targetId = target.id;
+		}
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: input.serviceId,
+			entityType: 'work',
+			entityId: created.id,
+			action: 'work.created',
+			metadata: { mode: input.mode }
+		});
+
+		return { id: created.id, targetId };
+	});
+}
+
+export interface CreateElementInput {
+	workId: string;
+	description?: string | null;
+	catalogItemId?: string | null;
+	name?: string | null;
+	actorId: string;
+}
+
+export async function createElement(
+	db: Database,
+	input: CreateElementInput
+): Promise<{ id: string; targetId: string }> {
+	return db.transaction(async (tx) => {
+		const [work] = await tx
+			.select({ id: works.id, mode: works.mode, serviceId: works.serviceId })
+			.from(works)
+			.where(eq(works.id, input.workId))
+			.limit(1);
+		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.mode !== 'divided') {
+			throw new DomainError(409, 'Solo los trabajos divididos pueden tener elementos.');
+		}
+
+		const name = await resolveNameSource(tx, input);
+		const [next] = await tx
+			.select({ value: sql<number>`coalesce(max(${elements.sortOrder}), -1) + 1` })
+			.from(elements)
+			.where(eq(elements.workId, input.workId));
+
+		const [created] = await tx
+			.insert(elements)
+			.values({
+				workId: input.workId,
+				catalogItemId: name.catalogItemId,
+				customName: name.customName,
+				description: input.description?.trim() || null,
+				sortOrder: next?.value ?? 0
+			})
+			.returning({ id: elements.id });
+
+		const [target] = await tx
+			.insert(evidenceTargets)
+			.values({ elementId: created.id })
+			.returning({ id: evidenceTargets.id });
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: work.serviceId,
+			entityType: 'element',
+			entityId: created.id,
+			action: 'element.created'
+		});
+
+		return { id: created.id, targetId: target.id };
+	});
+}
+
+export interface UpdateNamedItemInput {
+	id: string;
+	name: string;
+	description?: string | null;
+	actorId: string;
+}
+
+/**
+ * Actualiza el nombre/descripción de un trabajo. Si el nombre difiere del ítem de
+ * catálogo vinculado, el trabajo se **desvincula** y conserva ese nombre propio.
+ */
+export async function updateWork(db: Database, input: UpdateNamedItemInput): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [work] = await tx
+			.select({
+				id: works.id,
+				serviceId: works.serviceId,
+				catalogItemId: works.catalogItemId,
+				catalogName: catalogItems.name
+			})
+			.from(works)
+			.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+			.where(eq(works.id, input.id))
+			.limit(1);
+		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+
+		const keepsLink = Boolean(work.catalogItemId) && work.catalogName === input.name.trim();
+		await tx
+			.update(works)
+			.set({
+				catalogItemId: keepsLink ? work.catalogItemId : null,
+				customName: keepsLink ? null : input.name.trim(),
+				description: input.description?.trim() || null,
+				updatedAt: new Date()
+			})
+			.where(eq(works.id, input.id));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: work.serviceId,
+			entityType: 'work',
+			entityId: input.id,
+			action: 'work.updated',
+			metadata: { detached: !keepsLink && Boolean(work.catalogItemId) }
+		});
+	});
+}
+
+export async function updateElement(db: Database, input: UpdateNamedItemInput): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [row] = await tx
+			.select({
+				id: elements.id,
+				workId: elements.workId,
+				serviceId: works.serviceId,
+				catalogItemId: elements.catalogItemId,
+				catalogName: catalogItems.name
+			})
+			.from(elements)
+			.innerJoin(works, eq(works.id, elements.workId))
+			.leftJoin(catalogItems, eq(catalogItems.id, elements.catalogItemId))
+			.where(eq(elements.id, input.id))
+			.limit(1);
+		if (!row) throw new DomainError(404, 'Elemento no encontrado.');
+
+		const keepsLink = Boolean(row.catalogItemId) && row.catalogName === input.name.trim();
+		await tx
+			.update(elements)
+			.set({
+				catalogItemId: keepsLink ? row.catalogItemId : null,
+				customName: keepsLink ? null : input.name.trim(),
+				description: input.description?.trim() || null,
+				updatedAt: new Date()
+			})
+			.where(eq(elements.id, input.id));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: row.serviceId,
+			entityType: 'element',
+			entityId: input.id,
+			action: 'element.updated',
+			metadata: { detached: !keepsLink && Boolean(row.catalogItemId) }
+		});
+	});
+}
+
+export interface WorkListItem {
+	id: string;
+	name: string;
+	mode: WorkMode;
+	description: string | null;
+	sortOrder: number;
+	elementCount: number;
+	approvedElements: number;
+	workStatus: TargetStatus | null;
+	approved: boolean;
+}
+
+export async function listWorksDetailed(db: Database, serviceId: string): Promise<WorkListItem[]> {
+	const rows = await db
+		.select({
+			id: works.id,
+			mode: works.mode,
+			description: works.description,
+			sortOrder: works.sortOrder,
+			name: visibleWorkName
+		})
+		.from(works)
+		.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+		.where(eq(works.serviceId, serviceId))
+		.orderBy(asc(works.sortOrder), asc(works.createdAt));
+
+	if (rows.length === 0) return [];
+	const workIds = rows.map((row) => row.id);
+
+	const elementCounts = await db
+		.select({
+			workId: elements.workId,
+			total: countInt(),
+			approved: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'approved') as int)`
+		})
+		.from(elements)
+		.leftJoin(evidenceTargets, eq(evidenceTargets.elementId, elements.id))
+		.where(inArray(elements.workId, workIds))
+		.groupBy(elements.workId);
+
+	const directStatuses = await db
+		.select({ workId: evidenceTargets.workId, status: evidenceTargets.currentStatus })
+		.from(evidenceTargets)
+		.where(inArray(evidenceTargets.workId, workIds));
+
+	const countByWork = new Map(elementCounts.map((row) => [row.workId, row]));
+	const statusByWork = new Map(directStatuses.map((row) => [row.workId, row.status]));
+
+	return rows.map((row) => {
+		const counts = countByWork.get(row.id);
+		const elementCount = counts?.total ?? 0;
+		const approvedElements = counts?.approved ?? 0;
+		const workStatus = row.mode === 'direct' ? (statusByWork.get(row.id) ?? 'pending') : null;
+		const approved =
+			row.mode === 'direct'
+				? workStatus === 'approved'
+				: elementCount > 0 && approvedElements === elementCount;
+		return { ...row, elementCount, approvedElements, workStatus, approved };
+	});
+}
+
+export interface ElementListItem {
+	id: string;
+	name: string;
+	description: string | null;
+	sortOrder: number;
+	status: TargetStatus;
+}
+
+export async function listElementsDetailed(
+	db: Database,
+	workId: string
+): Promise<ElementListItem[]> {
+	return db
+		.select({
+			id: elements.id,
+			name: visibleElementName,
+			description: elements.description,
+			sortOrder: elements.sortOrder,
+			status: sql<TargetStatus>`coalesce(${evidenceTargets.currentStatus}, 'pending')`
+		})
+		.from(elements)
+		.leftJoin(catalogItems, eq(catalogItems.id, elements.catalogItemId))
+		.leftJoin(evidenceTargets, eq(evidenceTargets.elementId, elements.id))
+		.where(eq(elements.workId, workId))
+		.orderBy(asc(elements.sortOrder), asc(elements.createdAt));
+}
+
+export interface WorkDetail {
+	id: string;
+	name: string;
+	mode: WorkMode;
+	description: string | null;
+	serviceId: string;
+	serviceName: string;
+	catalogItemId: string | null;
+}
+
+export async function getWorkDetail(db: Database, workId: string): Promise<WorkDetail> {
+	const [row] = await db
+		.select({
+			id: works.id,
+			mode: works.mode,
+			description: works.description,
+			catalogItemId: works.catalogItemId,
+			serviceId: works.serviceId,
+			serviceName: services.name,
+			name: visibleWorkName
+		})
+		.from(works)
+		.innerJoin(services, eq(services.id, works.serviceId))
+		.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+		.where(eq(works.id, workId))
+		.limit(1);
+	if (!row) throw new DomainError(404, 'Trabajo no encontrado.');
+	return row;
+}
+
+export interface ElementDetail {
+	id: string;
+	name: string;
+	description: string | null;
+	catalogItemId: string | null;
+	workId: string;
+	workName: string;
+	serviceId: string;
+	serviceName: string;
+}
+
+export async function getElementDetail(db: Database, elementId: string): Promise<ElementDetail> {
+	const workCatalog = alias(catalogItems, 'work_catalog');
+	const [row] = await db
+		.select({
+			id: elements.id,
+			description: elements.description,
+			catalogItemId: elements.catalogItemId,
+			workId: works.id,
+			workName: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`,
+			serviceId: services.id,
+			serviceName: services.name,
+			name: visibleElementName
+		})
+		.from(elements)
+		.innerJoin(works, eq(works.id, elements.workId))
+		.innerJoin(services, eq(services.id, works.serviceId))
+		.leftJoin(catalogItems, eq(catalogItems.id, elements.catalogItemId))
+		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
+		.where(eq(elements.id, elementId))
+		.limit(1);
+	if (!row) throw new DomainError(404, 'Elemento no encontrado.');
+	return row;
+}
+
+/** Id del objetivo de evidencia de un elemento (para la captura de la Etapa 3). */
+export async function getElementTargetId(db: Database, elementId: string): Promise<string | null> {
+	const [row] = await db
+		.select({ id: evidenceTargets.id })
+		.from(evidenceTargets)
+		.where(eq(evidenceTargets.elementId, elementId))
+		.limit(1);
+	return row?.id ?? null;
+}
+
+export interface WorkProgressItem {
+	id: string;
+	name: string;
+	mode: WorkMode;
+	approved: boolean;
+	elementCount: number;
+	approvedElements: number;
+}
+
+export interface ServiceProgress {
+	totalTargets: number;
+	approvedTargets: number;
+	percent: number;
+	completed: boolean;
+	works: WorkProgressItem[];
+}
+
+/**
+ * Progreso derivado (docs/03 §10): nunca se persiste. Un servicio se completa si
+ * tiene al menos un trabajo y todos están aprobados; un trabajo dividido sin
+ * elementos nunca está aprobado.
+ */
+export async function getServiceProgress(
+	db: Database,
+	serviceId: string
+): Promise<ServiceProgress> {
+	const rows = await db
+		.select({ id: works.id, mode: works.mode, name: visibleWorkName })
+		.from(works)
+		.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+		.where(eq(works.serviceId, serviceId))
+		.orderBy(asc(works.sortOrder), asc(works.createdAt));
+
+	if (rows.length === 0) {
+		return { totalTargets: 0, approvedTargets: 0, percent: 0, completed: false, works: [] };
+	}
+
+	const workIds = rows.map((row) => row.id);
+	const elementRows = await db
+		.select({ id: elements.id, workId: elements.workId })
+		.from(elements)
+		.where(inArray(elements.workId, workIds));
+	const elementIds = elementRows.map((row) => row.id);
+
+	const directTargets = await db
+		.select({ workId: evidenceTargets.workId, status: evidenceTargets.currentStatus })
+		.from(evidenceTargets)
+		.where(inArray(evidenceTargets.workId, workIds));
+	const elementTargets = elementIds.length
+		? await db
+				.select({ elementId: evidenceTargets.elementId, status: evidenceTargets.currentStatus })
+				.from(evidenceTargets)
+				.where(inArray(evidenceTargets.elementId, elementIds))
+		: [];
+
+	const directStatus = new Map(directTargets.map((row) => [row.workId, row.status]));
+	const elementStatus = new Map(elementTargets.map((row) => [row.elementId, row.status]));
+
+	const elementsByWork = new Map<string, string[]>();
+	for (const row of elementRows) {
+		const list = elementsByWork.get(row.workId) ?? [];
+		list.push(row.id);
+		elementsByWork.set(row.workId, list);
+	}
+
+	let totalTargets = 0;
+	let approvedTargets = 0;
+	const workProgress: WorkProgressItem[] = [];
+
+	for (const row of rows) {
+		if (row.mode === 'direct') {
+			const approved = directStatus.get(row.id) === 'approved';
+			totalTargets += 1;
+			if (approved) approvedTargets += 1;
+			workProgress.push({
+				id: row.id,
+				name: row.name,
+				mode: row.mode,
+				approved,
+				elementCount: 0,
+				approvedElements: 0
+			});
+			continue;
+		}
+
+		const ids = elementsByWork.get(row.id) ?? [];
+		const approvedElements = ids.filter((id) => elementStatus.get(id) === 'approved').length;
+		totalTargets += ids.length;
+		approvedTargets += approvedElements;
+		workProgress.push({
+			id: row.id,
+			name: row.name,
+			mode: row.mode,
+			approved: ids.length > 0 && approvedElements === ids.length,
+			elementCount: ids.length,
+			approvedElements
+		});
+	}
+
+	return {
+		totalTargets,
+		approvedTargets,
+		percent: totalTargets === 0 ? 0 : Math.round((approvedTargets / totalTargets) * 100),
+		completed: workProgress.length > 0 && workProgress.every((work) => work.approved),
+		works: workProgress
+	};
+}
+
+// --- Generación masiva -------------------------------------------------------
+
+export interface GenerationElement {
+	catalogItemId: string | null;
+	name: string;
+	include: boolean;
+}
+
+export interface GenerationWork {
+	catalogItemId: string | null;
+	name: string;
+	include: boolean;
+	elements: GenerationElement[];
+}
+
+export interface GenerationPlan {
+	works: GenerationWork[];
+	totalWorks: number;
+	totalElements: number;
+	warnings: string[];
+}
+
+export interface PlanGenerationInput {
+	serviceId: string;
+	workItemIds: string[];
+	elementItemIds: string[];
+}
+
+/**
+ * Construye (sin escribir) la estructura propuesta: cada trabajo seleccionado con
+ * los elementos elegidos. Si existen relaciones entre ítems de los catálogos,
+ * limitan los elementos de ese trabajo; si no, se aplican todos a cada trabajo.
+ */
+export async function planGeneration(
+	db: Database,
+	input: PlanGenerationInput
+): Promise<GenerationPlan> {
+	const [service] = await db
+		.select({ id: services.id })
+		.from(services)
+		.where(eq(services.id, input.serviceId))
+		.limit(1);
+	if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+
+	const workItems = input.workItemIds.length
+		? await db
+				.select({ id: catalogItems.id, name: catalogItems.name })
+				.from(catalogItems)
+				.where(inArray(catalogItems.id, input.workItemIds))
+		: [];
+	if (workItems.length === 0) {
+		throw new DomainError(400, 'Selecciona al menos un trabajo de catálogo.');
+	}
+
+	const elementItems = input.elementItemIds.length
+		? await db
+				.select({ id: catalogItems.id, name: catalogItems.name })
+				.from(catalogItems)
+				.where(inArray(catalogItems.id, input.elementItemIds))
+		: [];
+
+	const workOrder = new Map(input.workItemIds.map((id, index) => [id, index]));
+	const elementOrder = new Map(input.elementItemIds.map((id, index) => [id, index]));
+	workItems.sort((a, b) => (workOrder.get(a.id) ?? 0) - (workOrder.get(b.id) ?? 0));
+	elementItems.sort((a, b) => (elementOrder.get(a.id) ?? 0) - (elementOrder.get(b.id) ?? 0));
+
+	const relations = await listItemRelations(db, input.workItemIds, input.elementItemIds);
+	const elementsForWork = new Map<string, Set<string>>();
+	for (const relation of relations) {
+		const set = elementsForWork.get(relation.fromItemId) ?? new Set<string>();
+		set.add(relation.toItemId);
+		elementsForWork.set(relation.fromItemId, set);
+	}
+
+	const existingNames = new Set(
+		(
+			await db
+				.select({ name: visibleWorkName })
+				.from(works)
+				.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+				.where(eq(works.serviceId, input.serviceId))
+		).map((row) => row.name.trim().toLowerCase())
+	);
+
+	const warnings: string[] = [];
+	const seen = new Set<string>();
+	let totalElements = 0;
+
+	const planWorks: GenerationWork[] = workItems.map((workItem) => {
+		const linked = elementsForWork.get(workItem.id);
+		const chosen = linked ? elementItems.filter((item) => linked.has(item.id)) : elementItems;
+		const elementList = chosen.map((item) => ({
+			catalogItemId: item.id,
+			name: item.name,
+			include: true
+		}));
+		totalElements += elementList.length;
+
+		const key = workItem.name.trim().toLowerCase();
+		if (seen.has(key))
+			warnings.push(`Nombre de trabajo repetido en la propuesta: «${workItem.name}».`);
+		seen.add(key);
+		if (existingNames.has(key)) {
+			warnings.push(`El servicio ya tiene un trabajo llamado «${workItem.name}».`);
+		}
+
+		return {
+			catalogItemId: workItem.id,
+			name: workItem.name,
+			include: true,
+			elements: elementList
+		};
+	});
+
+	return { works: planWorks, totalWorks: planWorks.length, totalElements, warnings };
+}
+
+async function listItemRelations(
+	db: Database,
+	fromItemIds: string[],
+	toItemIds: string[]
+): Promise<{ fromItemId: string; toItemId: string }[]> {
+	if (fromItemIds.length === 0 || toItemIds.length === 0) return [];
+	return db
+		.select({
+			fromItemId: catalogItemRelations.fromItemId,
+			toItemId: catalogItemRelations.toItemId
+		})
+		.from(catalogItemRelations)
+		.where(
+			and(
+				inArray(catalogItemRelations.fromItemId, fromItemIds),
+				inArray(catalogItemRelations.toItemId, toItemIds)
+			)
+		);
+}
+
+export interface ApplyGenerationInput {
+	serviceId: string;
+	works: GenerationWork[];
+	actorId: string;
+}
+
+export interface ApplyGenerationResult {
+	worksCreated: number;
+	elementsCreated: number;
+}
+
+export async function applyGeneration(
+	db: Database,
+	input: ApplyGenerationInput
+): Promise<ApplyGenerationResult> {
+	return db.transaction(async (tx) => {
+		const [service] = await tx
+			.select({ id: services.id })
+			.from(services)
+			.where(eq(services.id, input.serviceId))
+			.limit(1);
+		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+
+		const includedWorks = input.works.filter((work) => work.include && work.name.trim());
+		if (includedWorks.length === 0) {
+			throw new DomainError(400, 'No hay trabajos seleccionados para generar.');
+		}
+
+		const [base] = await tx
+			.select({ value: sql<number>`coalesce(max(${works.sortOrder}), -1) + 1` })
+			.from(works)
+			.where(eq(works.serviceId, input.serviceId));
+
+		let sortOrder = base?.value ?? 0;
+		let worksCreated = 0;
+		let elementsCreated = 0;
+
+		for (const work of includedWorks) {
+			const includedElements = work.elements.filter((el) => el.include && el.name.trim());
+			const mode: WorkMode = includedElements.length > 0 ? 'divided' : 'direct';
+			const name = await resolvePlannedName(tx, work.catalogItemId, work.name);
+
+			const [createdWork] = await tx
+				.insert(works)
+				.values({
+					serviceId: input.serviceId,
+					mode,
+					catalogItemId: name.catalogItemId,
+					customName: name.customName,
+					sortOrder
+				})
+				.returning({ id: works.id });
+			sortOrder += 1;
+			worksCreated += 1;
+
+			if (mode === 'direct') {
+				await tx.insert(evidenceTargets).values({ workId: createdWork.id });
+			}
+
+			let elementSort = 0;
+			for (const element of includedElements) {
+				const elementName = await resolvePlannedName(tx, element.catalogItemId, element.name);
+				const [createdElement] = await tx
+					.insert(elements)
+					.values({
+						workId: createdWork.id,
+						catalogItemId: elementName.catalogItemId,
+						customName: elementName.customName,
+						sortOrder: elementSort
+					})
+					.returning({ id: elements.id });
+				elementSort += 1;
+				elementsCreated += 1;
+				await tx.insert(evidenceTargets).values({ elementId: createdElement.id });
+			}
+		}
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: input.serviceId,
+			entityType: 'service',
+			entityId: input.serviceId,
+			action: 'works.generated',
+			metadata: { worksCreated, elementsCreated }
+		});
+
+		return { worksCreated, elementsCreated };
+	});
+}
+
+async function resolvePlannedName(
+	tx: Database,
+	catalogItemId: string | null,
+	name: string
+): Promise<{ catalogItemId: string | null; customName: string | null }> {
+	const trimmed = name.trim();
+	if (!catalogItemId) return { catalogItemId: null, customName: trimmed };
+	const [item] = await tx
+		.select({ id: catalogItems.id, name: catalogItems.name })
+		.from(catalogItems)
+		.where(eq(catalogItems.id, catalogItemId))
+		.limit(1);
+	if (!item) throw new DomainError(404, 'Ítem de catálogo no encontrado.');
+	if (item.name === trimmed) return { catalogItemId: item.id, customName: null };
+	return { catalogItemId: null, customName: trimmed };
+}

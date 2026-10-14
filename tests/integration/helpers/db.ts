@@ -50,7 +50,7 @@ export async function createTestDatabase(): Promise<TestContext> {
 /** Vacía todas las tablas de dominio entre pruebas. */
 export async function truncateAll(client: TestClient): Promise<void> {
 	await client.unsafe(
-		'truncate table service_assignments, audit_events, sessions, services, users restart identity cascade'
+		'truncate table service_assignments, audit_events, sessions, services, users, catalogs, catalog_items, catalog_item_relations, works, elements, evidence_targets restart identity cascade'
 	);
 }
 

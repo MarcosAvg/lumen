@@ -14,6 +14,25 @@ export const createServiceSchema = z.object({
 		.default('')
 });
 
+export const updateServiceSchema = z.object({
+	serviceId: z.uuid('Servicio inválido.'),
+	name: z
+		.string()
+		.trim()
+		.min(1, 'El nombre del servicio es obligatorio.')
+		.max(120, 'El nombre no puede superar 120 caracteres.'),
+	description: z
+		.string()
+		.trim()
+		.max(2000, 'La descripción no puede superar 2000 caracteres.')
+		.optional()
+		.default(''),
+	buildingItemId: z
+		.union([z.uuid('Edificio inválido.'), z.literal('')])
+		.optional()
+		.default('')
+});
+
 export const assignUserSchema = z.object({
 	serviceId: z.uuid('Servicio inválido.'),
 	userId: z.uuid('Usuario inválido.'),

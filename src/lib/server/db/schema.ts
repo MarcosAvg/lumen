@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm';
 import {
 	boolean,
+	check,
 	index,
+	integer,
 	jsonb,
 	pgEnum,
 	pgTable,
@@ -12,17 +14,33 @@ import {
 } from 'drizzle-orm/pg-core';
 
 /**
- * Esquema Drizzle de Lumen (Etapa 1: identidad, sesiones y asignaciones).
+ * Esquema Drizzle de Lumen.
+ *
+ * Etapa 1: identidad, sesiones y asignaciones.
+ * Etapa 2: catálogos, servicios (edificio), trabajos, elementos y objetivos.
  *
  * Convenciones (docs/03-modelo-datos.md):
  * - IDs `uuid` para recursos expuestos; fechas `timestamptz` en UTC.
  * - Nombres de usuario case-insensitive mediante índice funcional sobre `lower(username)`.
- * - Las asignaciones activas son únicas por `(servicio, usuario, rol)`.
+ * - El nombre visible de trabajos/elementos es `COALESCE(catalog_item.name, custom_name)`
+ *   con la invariante de tener **exactamente un origen de nombre** (vínculo XOR personalizado).
  */
 
 export const userRole = pgEnum('user_role', ['admin', 'supervisor', 'technician']);
 
 export const assignmentRole = pgEnum('assignment_role', ['technician', 'supervisor']);
+
+export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings']);
+
+export const workMode = pgEnum('work_mode', ['direct', 'divided']);
+
+export const targetStatus = pgEnum('target_status', [
+	'pending',
+	'in_progress',
+	'in_review',
+	'rejected',
+	'approved'
+]);
 
 export const users = pgTable(
 	'users',
@@ -60,16 +78,76 @@ export const sessions = pgTable(
 	]
 );
 
-// Esqueleto de servicio en la Etapa 1: lo mínimo para poder asignar usuarios.
-// El edificio y los vínculos a catálogos se añaden en la Etapa 2 (migración aditiva).
-export const services = pgTable('services', {
+export const catalogs = pgTable('catalogs', {
 	id: uuid('id').primaryKey().defaultRandom(),
 	name: text('name').notNull(),
 	description: text('description'),
-	createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+	purpose: catalogPurpose('purpose'),
+	sortOrder: integer('sort_order').notNull().default(0),
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
+
+export const catalogItems = pgTable(
+	'catalog_items',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		catalogId: uuid('catalog_id')
+			.notNull()
+			.references(() => catalogs.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		// Sin duplicados dentro del mismo catálogo (case-insensitive); otros catálogos no se afectan.
+		uniqueIndex('catalog_items_catalog_name_lower_idx').on(
+			table.catalogId,
+			sql`lower(${table.name})`
+		)
+	]
+);
+
+export const catalogItemRelations = pgTable(
+	'catalog_item_relations',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		fromItemId: uuid('from_item_id')
+			.notNull()
+			.references(() => catalogItems.id, { onDelete: 'cascade' }),
+		toItemId: uuid('to_item_id')
+			.notNull()
+			.references(() => catalogItems.id, { onDelete: 'cascade' }),
+		relationType: text('relation_type'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		uniqueIndex('catalog_item_relations_unique').on(
+			table.fromItemId,
+			table.toItemId,
+			table.relationType
+		),
+		check('catalog_item_relations_not_self', sql`${table.fromItemId} <> ${table.toItemId}`)
+	]
+);
+
+export const services = pgTable(
+	'services',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		name: text('name').notNull(),
+		description: text('description'),
+		buildingCatalogItemId: uuid('building_catalog_item_id').references(() => catalogItems.id, {
+			onDelete: 'set null'
+		}),
+		buildingNameSnapshot: text('building_name_snapshot'),
+		createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('services_building_item_idx').on(table.buildingCatalogItemId)]
+);
 
 export const serviceAssignments = pgTable(
 	'service_assignments',
@@ -94,6 +172,82 @@ export const serviceAssignments = pgTable(
 	]
 );
 
+export const works = pgTable(
+	'works',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		serviceId: uuid('service_id')
+			.notNull()
+			.references(() => services.id, { onDelete: 'cascade' }),
+		mode: workMode('mode').notNull(),
+		catalogItemId: uuid('catalog_item_id').references(() => catalogItems.id, {
+			onDelete: 'set null'
+		}),
+		customName: text('custom_name'),
+		description: text('description'),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('works_service_sort_idx').on(table.serviceId, table.sortOrder),
+		index('works_catalog_item_idx').on(table.catalogItemId),
+		check(
+			'works_name_source_check',
+			sql`(${table.catalogItemId} is null) <> (${table.customName} is null)`
+		)
+	]
+);
+
+export const elements = pgTable(
+	'elements',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		workId: uuid('work_id')
+			.notNull()
+			.references(() => works.id, { onDelete: 'cascade' }),
+		catalogItemId: uuid('catalog_item_id').references(() => catalogItems.id, {
+			onDelete: 'set null'
+		}),
+		customName: text('custom_name'),
+		description: text('description'),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		index('elements_work_sort_idx').on(table.workId, table.sortOrder),
+		index('elements_catalog_item_idx').on(table.catalogItemId),
+		check(
+			'elements_name_source_check',
+			sql`(${table.catalogItemId} is null) <> (${table.customName} is null)`
+		)
+	]
+);
+
+export const evidenceTargets = pgTable(
+	'evidence_targets',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		workId: uuid('work_id').references(() => works.id, { onDelete: 'cascade' }),
+		elementId: uuid('element_id').references(() => elements.id, { onDelete: 'cascade' }),
+		currentStatus: targetStatus('current_status').notNull().default('pending'),
+		version: integer('version').notNull().default(0),
+		// FK a `evidence_submissions` añadida en la Etapa 4 (rompe el ciclo de referencias).
+		latestSubmissionId: uuid('latest_submission_id'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		uniqueIndex('evidence_targets_work_unique').on(table.workId),
+		uniqueIndex('evidence_targets_element_unique').on(table.elementId),
+		check(
+			'evidence_targets_scope_check',
+			sql`(${table.workId} is null) <> (${table.elementId} is null)`
+		)
+	]
+);
+
 export const auditEvents = pgTable(
 	'audit_events',
 	{
@@ -113,3 +267,8 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type ServiceAssignment = typeof serviceAssignments.$inferSelect;
 export type Service = typeof services.$inferSelect;
+export type Catalog = typeof catalogs.$inferSelect;
+export type CatalogItem = typeof catalogItems.$inferSelect;
+export type Work = typeof works.$inferSelect;
+export type Element = typeof elements.$inferSelect;
+export type EvidenceTarget = typeof evidenceTargets.$inferSelect;

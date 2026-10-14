@@ -1,7 +1,7 @@
 # Estado de implementación de Lumen
 
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
-> Última actualización: **Etapa 1 completada**.
+> Última actualización: **Etapa 2 completada**.
 
 ## Resumen
 
@@ -9,7 +9,7 @@
 | ------------------------------------------------- | ------------- |
 | 0 — Proyecto y entorno reproducible               | ✅ Completada |
 | 1 — Identidad, sesiones, roles y asignaciones     | ✅ Completada |
-| 2 — Catálogos, servicios y trabajos               | ⏳ Pendiente  |
+| 2 — Catálogos, servicios y trabajos               | ✅ Completada |
 | 3 — Captura y almacenamiento fotográfico          | ⏳ Pendiente  |
 | 4 — Envíos, revisiones e historial inmutable      | ⏳ Pendiente  |
 | 5 — Cambios estructurales y destrucción explícita | ⏳ Pendiente  |
@@ -27,125 +27,112 @@
 
 ## Convenciones del proyecto (SvelteKit 3)
 
-- Los imports internos usan el alias **`#lib`** (SvelteKit 3 **eliminó `$lib`**). tsconfig y
-  `components.json` apuntan a `#lib`.
-- El **origen público** se fija en **build** vía `paths.origin` (desde `ORIGIN`), porque
-  `@sveltejs/adapter-node` 6 ya no lee `ORIGIN` en tiempo de ejecución. En Compose se pasa como
-  build-arg; sin definirlo, adapter-node deriva el origen del proxy (`host` + `https`).
-- Las rutas usan `resolve()` de `$app/paths` (routes tipadas); los componentes shadcn quedan
-  exentos de `svelte/no-navigation-without-resolve`.
+- Imports internos con el alias **`#lib`** (SvelteKit 3 **eliminó `$lib`**).
+- El **origen público** se fija en **build** vía `paths.origin` (desde `ORIGIN`); en Compose se
+  pasa como build-arg. Sin definirlo, adapter-node deriva el origen del proxy.
+- Rutas con `resolve()` de `$app/paths` (routes tipadas); los componentes shadcn quedan exentos de
+  `svelte/no-navigation-without-resolve`.
 
-## Etapa 1 — Identidad, sesiones, roles y asignaciones
+## Etapa 2 — Catálogos, servicios y trabajos
 
-### Modelo de datos (`drizzle/0001_identity.sql`)
+### Modelo de datos (`drizzle/0002_structure.sql`)
 
-| Tabla                 | Notas                                                                                 |
-| --------------------- | ------------------------------------------------------------------------------------- |
-| `users`               | `role` enum, `is_active`, `disabled_at`; índice **único funcional** `lower(username)` |
-| `sessions`            | `token_hash` (SHA-256) único, `expires_at`, `revoked_at`, `user_agent`, `ip`          |
-| `services`            | Esqueleto (Etapa 2 amplía edificio/catálogos con migración aditiva)                   |
-| `service_assignments` | **único parcial** `(service_id, user_id, assignment_role) WHERE revoked_at IS NULL`   |
-| `audit_events`        | Registro de acciones críticas (roles, asignaciones, altas, contraseñas)               |
+| Tabla                    | Notas                                                                                                                                   |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalogs`               | `purpose` (`general`/`buildings`), orden, descripción                                                                                   |
+| `catalog_items`          | **único case-insensitive dentro del catálogo** (`catalog_id, lower(name)`)                                                              |
+| `catalog_item_relations` | único `(from,to,type)`; `CHECK from <> to`; solo catálogos distintos                                                                    |
+| `services` (ampliar)     | `building_catalog_item_id` (`SET NULL`) + `building_name_snapshot`                                                                      |
+| `works`                  | `mode` (`direct`/`divided`), `catalog_item_id`/`custom_name` con **XOR**                                                                |
+| `elements`               | `work_id`, `catalog_item_id`/`custom_name` con **XOR**                                                                                  |
+| `evidence_targets`       | XOR `work_id`/`element_id`, `UNIQUE(work_id)`/`UNIQUE(element_id)`, `version`; `latest_submission_id` **sin FK** (se enlaza en Etapa 4) |
 
-### Backend (`#lib/server`)
+### Backend (`#lib/server/domain`)
 
-- `auth/password.ts`: Argon2id (19 MiB, 2 iteraciones) mediante `@node-rs/argon2`.
-- `auth/token.ts`: token de sesión aleatorio (32 bytes) + hash SHA-256 persistido.
-- `auth/session.ts`: `insertSession`, `findActiveSession` (join + `is_active` + vigencia), revocación.
-- `auth/cookies.ts`: cookie `lumen_session` `HttpOnly`/`SameSite=Lax`/`Secure` según HTTPS.
-- `auth/start-session.ts` y `auth/guards.ts` (`requireUser`, `requireAdmin`, `requireServiceAccess`).
-- `hooks.server.ts`: resuelve `event.locals.user` en cada petición (nunca confía en la cookie).
-- `domain/users.ts`: `createFirstAdmin` y cambios de estado de `users`/roles con **advisory lock**
-  (`pg_advisory_xact_lock`) — protege el último admin y serializa el primer arranque.
-- `domain/services.ts` / `domain/assignments.ts`: ámbito por servicio y asignaciones.
-- `domain/audit.ts`: eventos de auditoría dentro de la transacción.
+- `catalogs.ts`: CRUD de catálogos/ítems/relaciones y **borrado preservador** del ítem (copia el
+  nombre a `custom_name`, snapshot de edificio, borra relaciones; nunca toca evidencia).
+- `works.ts`: `createWork`/`createElement` **creando el objetivo correcto** (directo → target del
+  padre; dividido → sin target de padre; elemento → target propio); `updateWork`/`updateElement`
+  (renombrar una instancia **desvincula**); `listWorksDetailed`/`listElementsDetailed`; resolución
+  de nombre `COALESCE(catalog_item.name, custom_name)`.
+- `works.ts` (progreso): `getServiceProgress` según docs/03 §10 — nunca se persiste; servicio
+  completado si tiene ≥1 trabajo y todos aprobados; dividido sin elementos nunca aprobado.
+- `works.ts` (generación): `planGeneration` (sin escritura, con conteos y avisos de duplicados) y
+  `applyGeneration` transaccional; si hay **relaciones** entre ítems, acotan los elementos por
+  trabajo, si no se aplica la selección a cada trabajo. Con elementos → `divided`; sin ellos → `direct`.
+- `services.ts`: `updateService` (nombre/descripción/edificio con snapshot) y `buildingName`
+  resuelto dinámicamente.
 
-### Rutas
+### Rutas / UI
 
-- `/setup` (asistente atómico de primera cuenta), `/login`, `/logout` (POST).
-- `(app)/dashboard`, `(app)/admin/users` (crear, activar/desactivar, cambiar rol con confirmación de
-  revocaciones, restablecer contraseña), `(app)/admin/services` (crear/listar) y
-  `(app)/admin/services/[serviceId]` (asignar/revocar técnicos y supervisores).
-- `(app)/services/[serviceId]`: detalle protegido por `requireServiceAccess` (404 opaco fuera de ámbito).
-- `/` redirige según estado (setup → login → dashboard).
+- `/admin/catalogs` y `/admin/catalogs/[catalogId]`: ítems, renombrar, **borrar con diálogo de
+  impacto** (recuento de trabajos/elementos/servicios afectados) y relaciones entre catálogos.
+- `/services/[serviceId]`: edificio, progreso, trabajos con estado; admin edita datos/edificio y
+  crea trabajos y elementos (manual o desde catálogo).
+- `/admin/services/[serviceId]/generate`: selección de catálogos → **preview editable**
+  (incluir/excluir + renombrar por fila + avisos) → aplicar.
+- `/works/[workId]`: trabajo directo (placeholder de captura) o lista de elementos con estado; admin
+  renombra trabajo y elementos.
 
 ### Pruebas
 
-- **Unitarias** (`pnpm test`): `cn` en `src/lib/**`.
-- **Integración** (`pnpm test:integration`) contra PostgreSQL real en `lumen_test` (creada y migrada
-  por el propio test), con `truncate` entre casos:
-  - AUTH-05: dos primeros arranques simultáneos → exactamente un admin.
-  - Login correcto/incorrecto (usuario case-insensitive).
-  - AUTH-04: desactivar invalida sesiones activas.
-  - Protección del último admin (desactivar y degradar).
-  - Cambio de rol con revocación de asignaciones incompatibles (y confirmación obligatoria).
-  - Restablecer contraseña revoca sesiones; usuario duplicado rechazado.
-  - AUTH-01 y ámbito por servicio: técnico/supervisor no asignado bloqueado; asignado accede;
-    administrador global; revocación quita acceso; rol de asignación incompatible rechazado;
-    no se asignan usuarios inactivos; asignación duplicada idempotente.
+- Integración (PostgreSQL real): un directo crea target y cero elementos; dividido con 2 elementos
+  crea 2 targets y ninguno en el padre; servicio vacío/dividido vacío nunca completados; CAT-01/02/03
+  (renombrar maestro, desvincular instancia, borrar ítem preservando nombres de trabajo/elemento/
+  edificio); relaciones solo entre catálogos distintos; **generación 34×4** correcta; aprobar un
+  dividido y añadir elemento lo vuelve incompleto sin revertir aprobaciones (WORK-01/02); editar
+  edificio/nombre no altera trabajos.
 
 ## Cómo ejecutar
 
 ```bash
-cp .env.example .env          # ajustar POSTGRES_PASSWORD y ORIGIN
-docker compose up -d --build  # app + db + migraciones
+cp .env.example .env
+docker compose up -d --build       # app + db + migraciones
 curl http://localhost:3000/health
 ```
 
-Desarrollo en el host (el contenedor `db` publica `127.0.0.1:5432`):
-
-```bash
-docker compose up -d db
-pnpm install
-pnpm db:migrate               # carga .env automáticamente
-pnpm dev                      # http://localhost:5173
-```
+Desarrollo: `docker compose up -d db` + `pnpm install` + `pnpm db:migrate` + `pnpm dev`.
 
 Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integration`,
 `db:generate`, `db:migrate`, `db:studio`.
 
 > `pnpm test:integration` usa `TEST_DATABASE_URL` (por defecto
-> `postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`). Requiere PostgreSQL accesible;
-> si no lo está, las suites se omiten con un aviso.
->
-> El puerto publicado de la app es configurable con `APP_PORT` (por defecto 3000).
+> `postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`); se omite con aviso si no hay
+> PostgreSQL. El puerto de la app es configurable con `APP_PORT` (por defecto 3000).
 
 ## Pruebas realizadas y resultados
 
-| Prueba                             | Resultado                                                                     |
-| ---------------------------------- | ----------------------------------------------------------------------------- |
-| `pnpm check`                       | ✅ 0 errores, 0 avisos                                                        |
-| `pnpm lint` (Prettier + ESLint)    | ✅ Limpio                                                                     |
-| `pnpm test` (unit)                 | ✅ 2/2                                                                        |
-| `pnpm test:integration`            | ✅ 15/15                                                                      |
-| `pnpm build`                       | ✅                                                                            |
-| `docker compose up -d --build`     | ✅ `app` y `db` healthy                                                       |
-| E2E setup (servidor compilado)     | ✅ Crea admin, emite sesión, `/dashboard` 200, segundo setup `409`            |
-| E2E login/CSRF/logout (contenedor) | ✅ login 303 + cookie, dashboard 200, login inválido 400, CSRF sin Origin 403 |
-| Fuera de ámbito                    | ✅ Cubierto por integración (AUTH-01) y `404` opaco                           |
+| Prueba                   | Resultado                                                                                                            |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`             | ✅ 0 errores, 0 avisos                                                                                               |
+| `pnpm lint`              | ✅ Limpio                                                                                                            |
+| `pnpm test` (unit)       | ✅ 2/2                                                                                                               |
+| `pnpm test:integration`  | ✅ 25/25                                                                                                             |
+| `pnpm build`             | ✅                                                                                                                   |
+| E2E (servidor compilado) | ✅ setup, catálogo+ítem, servicio, trabajos directo/dividido, elemento                                               |
+| E2E páginas nuevas       | ✅ `/admin/catalogs`, `/admin/catalogs/[id]`, `/services/[id]`, `/works/[id]`, `/admin/services/[id]/generate` → 200 |
+| E2E generación           | ✅ preview y apply por HTTP (campos indexados)                                                                       |
 
 ## Decisiones tomadas
 
-- **UUID** y **sesiones con token opaco hasheado**.
-- **`#lib`** como alias (no `$lib`).
-- **`paths.origin` en build** para CSRF; en Compose se pasa `ORIGIN` como build-arg.
-- Migraciones con runner propio; sin `db:push`.
-- `no-navigation-without-resolve` exento solo para `#lib/components/ui/**`.
+- **Duplicados de ítems**: bloqueo case-insensitive dentro del mismo catálogo.
+- **Generación masiva**: preview editable (incluir/excluir + renombrar) y aplicación transaccional.
+- **Borrado destructivo** de servicio/trabajo/elemento: **diferido a Etapa 5**; aquí solo el borrado
+  preservador de ítems de catálogo.
 
 ## Problemas conocidos / consideraciones
 
-- **Sin limitación de tasa** en login/uploads todavía (Etapa 8, endurecimiento). Mensaje de error de
-  login es neutro.
-- La UI de servicios es un **esqueleto** (nombre/descripción/participantes); el edificio, catálogos y
-  la estructura de trabajos llegan en la Etapa 2.
-- Sin PWA (manifest/service worker) ni notificaciones (Etapas 6/8).
-- `ORIGIN` ya no se valida en runtime: cambiarlo exige reconstruir la imagen.
+- Sin limitación de tasa en login/uploads (Etapa 8).
+- Sin captura de fotos ni requisitos (Etapa 3); los objetivos quedan en `pending`.
+- Sin PWA ni notificaciones todavía.
+- El borrado destructivo administrativo (servicio/trabajo/elemento) y la conversión `direct ↔ divided`
+  llegan en la Etapa 5.
 
-## Próximos pasos (Etapa 2)
+## Próximos pasos (Etapa 3)
 
-1. `catalogs`, `catalog_items`, `catalog_item_relations`.
-2. Ampliar `services` (edificio con `building_catalog_item_id` + snapshot) y `works`/`elements`.
-3. `evidence_targets` con XOR `work_id`/`element_id` y únicos.
-4. Nombres vinculados dinámicos y desvinculación al renombrar instancias; borrado preservador de ítems.
-5. Generación masiva desde catálogos con **preview** y excepciones; progreso derivado.
-6. Pruebas CAT-1..3 y WORK-1/2 con PostgreSQL real.
+1. `photo_requirements` por objetivo (obligatorios por defecto) y grupo virtual Adicionales.
+2. `photos` con staging seguro, validación real de formato/tamaño, normalización y miniaturas.
+3. Pantalla de captura con secciones plegables, subida múltiple, retiro (soft removal) y reordenación
+   solo dentro del grupo; concurrencia optimista (`version`).
+4. Bloqueo de mutaciones de requisitos tras el primer envío (se completará en la Etapa 4).
+5. Pruebas PHOTO-01..04 y limpieza de huérfanos.

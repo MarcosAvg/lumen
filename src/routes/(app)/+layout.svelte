@@ -18,7 +18,8 @@
 			? [
 					{ href: resolve('/(app)/dashboard'), label: 'Inicio' },
 					{ href: resolve('/(app)/admin/users'), label: 'Usuarios' },
-					{ href: resolve('/(app)/admin/services'), label: 'Servicios' }
+					{ href: resolve('/(app)/admin/services'), label: 'Servicios' },
+					{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos' }
 				]
 			: [{ href: resolve('/(app)/dashboard'), label: 'Inicio' }]
 	);
