@@ -247,6 +247,10 @@ Se eliminó el volcado plano de catálogos en selectores:
   columna de **usos** (trabajos/elementos/edificios) y **reordenar** ítems (arriba/abajo).
 - `ServiceSummary` expone `buildingCatalogItemId` para preseleccionar el edificio actual.
 
+**Modales de trabajo/elemento**: el origen del nombre se elige con pestañas mutuamente excluyentes
+«Desde catálogo» (catálogo → ítem) y «Nombre propio» (input), evitando ambigüedad y garantizando que
+se envía exactamente un origen; el modo inicial es catálogo si el servicio tiene catálogos.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:

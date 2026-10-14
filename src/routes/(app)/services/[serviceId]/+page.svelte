@@ -5,6 +5,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
+	import * as Tabs from '#lib/components/ui/tabs';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
@@ -25,10 +26,23 @@
 
 	let workOpen = $state(false);
 	let elementOpen = $state(false);
+	let workSource = $state<'catalog' | 'custom'>('catalog');
+	let elementSource = $state<'catalog' | 'custom'>('catalog');
+	let sourceSeeded = false;
 	$effect(() => {
+		// Origen por defecto: catálogo si hay alguno, si no nombre propio.
+		if (!sourceSeeded) {
+			const fallback = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
+			workSource = fallback;
+			elementSource = fallback;
+			sourceSeeded = true;
+		}
 		if (action?.success) {
 			workOpen = false;
 			elementOpen = false;
+			const fallback = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
+			workSource = fallback;
+			elementSource = fallback;
 		}
 	});
 
@@ -266,19 +280,33 @@
 							<option value="divided">Dividido</option>
 						</select>
 					</div>
-					<div class="space-y-1">
-						<Label for="work-catalog">Desde catálogo (opcional)</Label>
-						<CatalogItemPicker
-							name="catalogItemId"
-							catalogs={catalogsForPicker}
-							itemPlaceholder="— Nombre propio —"
-						/>
-					</div>
-					<div class="space-y-1">
-						<Label for="work-name">Nombre propio</Label>
-						<Input id="work-name" name="name" placeholder="Solo si no eliges catálogo" />
-						{#if action?.workErrors?.name}
-							<p class="text-sm text-destructive">{action.workErrors.name}</p>
+					<div class="space-y-2">
+						<p class="text-xs text-muted-foreground">
+							Elige un ítem del catálogo o escribe un nombre propio.
+						</p>
+						<Tabs.Root bind:value={workSource}>
+							<Tabs.List class="grid w-full grid-cols-2">
+								<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
+								<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
+							</Tabs.List>
+						</Tabs.Root>
+						{#if workSource === 'catalog'}
+							<div class="space-y-1 pt-2">
+								<Label for="work-catalog">Ítem del catálogo</Label>
+								<CatalogItemPicker
+									name="catalogItemId"
+									catalogs={catalogsForPicker}
+									itemPlaceholder="Elige ítem…"
+								/>
+							</div>
+						{:else}
+							<div class="space-y-1 pt-2">
+								<Label for="work-name">Nombre propio</Label>
+								<Input id="work-name" name="name" required />
+								{#if action?.workErrors?.name}
+									<p class="text-sm text-destructive">{action.workErrors.name}</p>
+								{/if}
+							</div>
 						{/if}
 					</div>
 					<Dialog.Footer>
@@ -309,19 +337,33 @@
 							{/each}
 						</select>
 					</div>
-					<div class="space-y-1">
-						<Label for="el-catalog">Desde catálogo (opcional)</Label>
-						<CatalogItemPicker
-							name="catalogItemId"
-							catalogs={catalogsForPicker}
-							itemPlaceholder="— Nombre propio —"
-						/>
-					</div>
-					<div class="space-y-1">
-						<Label for="el-name">Nombre propio</Label>
-						<Input id="el-name" name="name" />
-						{#if action?.elementErrors?.name}
-							<p class="text-sm text-destructive">{action.elementErrors.name}</p>
+					<div class="space-y-2">
+						<p class="text-xs text-muted-foreground">
+							Elige un ítem del catálogo o escribe un nombre propio.
+						</p>
+						<Tabs.Root bind:value={elementSource}>
+							<Tabs.List class="grid w-full grid-cols-2">
+								<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
+								<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
+							</Tabs.List>
+						</Tabs.Root>
+						{#if elementSource === 'catalog'}
+							<div class="space-y-1 pt-2">
+								<Label for="el-catalog">Ítem del catálogo</Label>
+								<CatalogItemPicker
+									name="catalogItemId"
+									catalogs={catalogsForPicker}
+									itemPlaceholder="Elige ítem…"
+								/>
+							</div>
+						{:else}
+							<div class="space-y-1 pt-2">
+								<Label for="el-name">Nombre propio</Label>
+								<Input id="el-name" name="name" required />
+								{#if action?.elementErrors?.name}
+									<p class="text-sm text-destructive">{action.elementErrors.name}</p>
+								{/if}
+							</div>
 						{/if}
 					</div>
 					<Dialog.Footer>

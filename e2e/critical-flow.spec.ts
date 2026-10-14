@@ -51,6 +51,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
+	await page.getByRole('tab', { name: 'Nombre propio' }).click();
 	await page.locator('#work-mode').selectOption('direct');
 	await page.locator('#work-name').fill(workName);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
