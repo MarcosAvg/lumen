@@ -1,4 +1,4 @@
-import { describe } from 'vitest';
+import { afterAll, describe } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
@@ -43,7 +43,7 @@ async function ensureDatabaseExists(): Promise<void> {
 
 export async function createTestDatabase(): Promise<TestContext> {
 	await ensureDatabaseExists();
-	const client = postgres(TEST_DATABASE_URL, { max: 5, onnotice: () => {} });
+	const client = postgres(TEST_DATABASE_URL, { max: 2, onnotice: () => {} });
 	const db = drizzle(client, { schema });
 	await migrate(db, { migrationsFolder: './drizzle' });
 	return { client, db };
@@ -78,5 +78,11 @@ export async function describeWithDatabase(
 		return;
 	}
 
-	describe(name, () => register(context as TestContext));
+	describe(name, () => {
+		afterAll(async () => {
+			// Libera conexiones al terminar la suite (evita agotar el pool de Postgres).
+			await (context as TestContext).client.end();
+		});
+		register(context as TestContext);
+	});
 }

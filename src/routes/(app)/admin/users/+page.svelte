@@ -21,6 +21,7 @@
 		details?: RoleChangeConflict | null;
 		createErrors?: Record<string, string>;
 		resetErrors?: Record<string, string>;
+		profileErrors?: Record<string, string>;
 	};
 
 	let { data, form }: PageProps = $props();
@@ -210,6 +211,37 @@
 									/>
 								</div>
 								<Button type="submit" variant="outline" size="sm">Restablecer</Button>
+							</form>
+						</details>
+						<details class="mt-2 w-full border-t pt-3">
+							<summary class="cursor-pointer text-sm text-muted-foreground">
+								Editar nombre y usuario
+							</summary>
+							<form method="POST" action="?/updateProfile" class="mt-2 grid gap-2 sm:grid-cols-3">
+								<input type="hidden" name="userId" value={user.id} />
+								<div class="space-y-1">
+									<Label for="name-{user.id}">Nombre visible</Label>
+									<Input id="name-{user.id}" name="displayName" value={user.displayName} required />
+									{#if action?.profileErrors?.displayName}
+										<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
+									{/if}
+								</div>
+								<div class="space-y-1">
+									<Label for="username-{user.id}">Usuario</Label>
+									<Input
+										id="username-{user.id}"
+										name="username"
+										value={user.username}
+										autocomplete="off"
+										required
+									/>
+									{#if action?.profileErrors?.username}
+										<p class="text-sm text-destructive">{action.profileErrors.username}</p>
+									{/if}
+								</div>
+								<div class="flex items-end">
+									<Button type="submit" variant="outline" size="sm">Guardar</Button>
+								</div>
 							</form>
 						</details>
 					</Card.Footer>

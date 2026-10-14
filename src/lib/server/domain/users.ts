@@ -310,6 +310,54 @@ export async function setUserPassword(db: Database, input: SetUserPasswordInput)
 	});
 }
 
+export interface UpdateUserProfileInput {
+	userId: string;
+	username: string;
+	displayName: string;
+	actorId: string;
+}
+
+/**
+ * Edita el nombre visible y el nombre de usuario. **No** modifica las firmas
+ * históricas congeladas: el historial conserva el nombre de cuando se actuó.
+ */
+export async function updateUserProfile(
+	db: Database,
+	input: UpdateUserProfileInput
+): Promise<void> {
+	const username = normalizeUsername(input.username);
+	const displayName = input.displayName.trim();
+
+	try {
+		await db.transaction(async (tx) => {
+			const [target] = await tx.select().from(users).where(eq(users.id, input.userId)).limit(1);
+			if (!target) throw new DomainError(404, 'Usuario no encontrado.');
+			if (target.username === username && target.displayName === displayName) return;
+
+			await tx
+				.update(users)
+				.set({ username, displayName, updatedAt: new Date() })
+				.where(eq(users.id, input.userId));
+
+			await recordAudit(tx, {
+				actorUserId: input.actorId,
+				entityType: 'user',
+				entityId: input.userId,
+				action: 'user.updated',
+				metadata: {
+					before: { username: target.username, displayName: target.displayName },
+					after: { username, displayName }
+				}
+			});
+		});
+	} catch (error) {
+		if (getPgErrorCode(error) === '23505') {
+			throw new DomainError(409, 'Ese nombre de usuario ya existe.');
+		}
+		throw error;
+	}
+}
+
 export interface UserListItem {
 	id: string;
 	username: string;

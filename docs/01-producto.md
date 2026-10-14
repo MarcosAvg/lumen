@@ -38,6 +38,7 @@ Un usuario debe estar **activo** y disponer de sesión válida para cualquier op
 
 - Primer inicio: un asistente configura la **primera cuenta administradora** de forma atómica. Después solo administradores crean cuentas.
 - Autenticación local con nombre de usuario o identificador único configurado y contraseña segura; la aplicación no requiere correo electrónico para funcionar.
+- Administradores pueden **editar** el nombre visible y el nombre de usuario de una cuenta (el nuevo nombre se usa desde ese momento; el historial conserva la firma de cuando se actuó).
 - Administradores pueden **desactivar/reactivar** usuarios, conservar íntegra su autoría en entregas, fotos, auditoría y revisiones. Desactivar invalida sesiones y evita nuevos accesos/asignaciones. Las asignaciones existentes pueden conservarse inactivas y vuelven a aplicar tras reactivación según su estado.
 - Administradores pueden cambiar el **rol global**: antes de confirmarlo, deben previsualizar y resolver asignaciones incompatibles. El cambio no altera quién creó/revisó objetos anteriores. El acceso se evalúa con el rol actual.
 - Prohibido desactivar, borrar o degradar al **último administrador activo**. Sí se admite **eliminar** una cuenta: se borra el registro y se revocan sesiones y asignaciones, pero su **firma histórica se conserva** mediante los nombres congelados en entregas, revisiones, fotos y auditoría (no aparece como «eliminado»). La desactivación sigue disponible para retirar el acceso sin borrar la cuenta.

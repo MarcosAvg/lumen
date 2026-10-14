@@ -7,13 +7,15 @@ import {
 	createUser,
 	listUsers,
 	setUserActive,
-	setUserPassword
+	setUserPassword,
+	updateUserProfile
 } from '#lib/server/domain/users';
 import { failFrom, parseForm } from '#lib/server/forms';
 import {
 	changeRoleSchema,
 	createUserSchema,
 	resetPasswordSchema,
+	updateUserProfileSchema,
 	userTargetSchema
 } from '#lib/schemas/users';
 import type { Actions, PageServerLoad } from './$types';
@@ -102,6 +104,19 @@ export const actions: Actions = {
 		} catch (error) {
 			return failFrom(error);
 		}
+	},
+
+	updateProfile: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(updateUserProfileSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { profileErrors: parsed.errors });
+
+		try {
+			await updateUserProfile(getDatabase().db, { ...parsed.data, actorId: admin.id });
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Usuario actualizado.' };
 	},
 
 	resetPassword: async (event) => {

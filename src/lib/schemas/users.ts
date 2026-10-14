@@ -26,3 +26,9 @@ export const resetPasswordSchema = z.object({
 	userId: z.uuid('Usuario inválido.'),
 	password: passwordSchema
 });
+
+export const updateUserProfileSchema = z.object({
+	userId: z.uuid('Usuario inválido.'),
+	username: usernameSchema,
+	displayName: displayNameSchema
+});

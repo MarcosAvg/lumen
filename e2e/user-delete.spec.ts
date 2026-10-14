@@ -27,9 +27,9 @@ test('el administrador elimina un usuario', async ({ page }, testInfo) => {
 	await page.goto('/admin/users');
 
 	// Crear usuario.
-	await page.getByLabel('Nombre visible').last().fill(displayName);
-	await page.getByLabel('Usuario').last().fill(username);
-	await page.getByLabel('Contraseña', { exact: true }).last().fill('contrasena-segura');
+	await page.locator('#new-displayName').fill(displayName);
+	await page.locator('#new-username').fill(username);
+	await page.locator('#new-password').fill('contrasena-segura');
 	await page.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 	await expect(page.getByText(displayName)).toBeVisible();
