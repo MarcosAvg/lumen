@@ -1,7 +1,7 @@
 # Estado de implementación de Lumen
 
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
-> Última actualización: **Etapa 4 completada**.
+> Última actualización: **Etapa 5 completada**.
 
 ## Resumen
 
@@ -12,7 +12,7 @@
 | 2 — Catálogos, servicios y trabajos               | ✅ Completada |
 | 3 — Captura y almacenamiento fotográfico          | ✅ Completada |
 | 4 — Envíos, revisiones e historial inmutable      | ✅ Completada |
-| 5 — Cambios estructurales y destrucción explícita | ⏳ Pendiente  |
+| 5 — Cambios estructurales y destrucción explícita | ✅ Completada |
 | 6 — Bandeja interna y Web Push                    | ⏳ Pendiente  |
 | 7 — Búsqueda y exportaciones                      | ⏳ Pendiente  |
 | 8 — Calidad, operaciones y publicación            | ⏳ Pendiente  |
@@ -30,43 +30,74 @@
 - Imports internos con el alias **`#lib`** (SvelteKit 3 eliminó `$lib`).
 - El **origen público** se fija en **build** vía `paths.origin` (build-arg `ORIGIN` en Compose).
 - Rutas con `resolve()`; los componentes shadcn quedan exentos de la regla de navegación.
+- CSRF de SvelteKit activo: las peticiones mutantes (POST/DELETE) deben llevar `Origin` acorde
+  al origen de build (los navegadores lo hacen automáticamente).
 
 ## Etapa 4 — Envíos, revisiones e historial inmutable
 
 ### Modelo de datos (`drizzle/0004_submissions.sql`)
 
-| Tabla                  | Notas                                                                                                                                                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `evidence_submissions` | `target_id`, `sequence_no`, `submitted_by`, `submitted_at`, `evidence_version`, snapshots de nombres; **`UNIQUE(target_id, sequence_no)`**                                                                           |
-| `submission_photos`    | `submission_id`, `photo_id` **`RESTRICT`**, `group_kind` (`requirement`/`additional`), `requirement_name_snapshot`, `group_sort_order`, `photo_sort_order`, autoría congelada; **`UNIQUE(submission_id, photo_id)`** |
-| `reviews`              | `submission_id` **`UNIQUE`**, `reviewer_id`, `decision`, `reason`, `reviewed_at`; **`CHECK`** rechazo ⇒ motivo no vacío                                                                                              |
-| `evidence_targets`     | FK **`latest_submission_id`** → `evidence_submissions` (`SET NULL`)                                                                                                                                                  |
+`evidence_submissions` (UNIQUE `target_id, sequence_no`), `submission_photos` (`photo_id`
+**RESTRICT**, UNIQUE `submission_id, photo_id`, snapshots de grupo/orden/autoría), `reviews`
+(UNIQUE `submission_id`, CHECK rechazo ⇒ motivo), y `evidence_targets.latest_submission_id`.
 
 ### Dominio (`#lib/server/domain/submissions.ts`)
 
-- `submitEvidence`: transacción con `SELECT … FOR UPDATE`; valida estado y versión, exige **≥1 foto por requisito obligatorio** (o **≥1 foto total** si no hay obligatorios), calcula `sequence_no`, congela grupos/orden/IDs en `submission_photos` y pasa el objetivo a `in_review`.
-- `reviewSubmission`: lock del objetivo; exige `latest_submission_id` y `in_review`; inserta `reviews` (el `UNIQUE` garantiza una sola decisión); rechazo con **motivo obligatorio**; `approved` bloquea el objetivo, `rejected` desbloquea la corrección.
-- `getHistory` / `getSubmissionDetail`: historial **inmutable** de solo lectura, descendente.
-- `getLatestRejection`: motivo del último rechazo para destacarlo en la evidencia actual.
-- `listPendingReviews`: cola de revisión por ámbito (admin: todas; supervisor: servicios asignados).
-- El **bloqueo de requisitos** por historia de envíos pasa a ser real (REQ‑04).
+`submitEvidence` (transacción + `FOR UPDATE`, valida estado/versión, exige ≥1 foto por requisito
+obligatorio o ≥1 total, congela grupos/orden/IDs), `reviewSubmission` (una sola decisión),
+`getHistory`, `getSubmissionDetail`, `getLatestRejection`, `listPendingReviews`.
 
-### Autorización
+### Corrección PHOTO‑04 (regresión de Etapa 4, arreglada en Etapa 5)
 
-- `requireReview(submissionId)`: administrador o **supervisor asignado** (técnico → `403`).
-- El acceso al historial/detalle se valida por el ámbito del servicio (opaco `404`).
+`getPhotoAccessContext` expone `historicalReference` (EXISTS sobre `submission_photos`) y
+`isPhotoAvailable` permite descargar una foto retirada del borrador **si quedó congelada en una
+entrega**. Antes, `content`/`thumbnail` devolvían `404` al mirar solo `removedAt`, rompiendo el
+criterio «foto histórica visible y descargable».
+
+## Etapa 5 — Cambios estructurales y destrucción explícita
+
+### Dominio (`#lib/server/domain/structure.ts`)
+
+- `getElementImpact` / `getWorkImpact` / `getServiceImpact`: recuento (trabajos, elementos,
+  objetivos, entregas, fotos vigentes/totales) para el resumen previo.
+- `deleteElement` / `deleteWork` / `deleteService`: transacción con **orden explícito de borrado**
+  (`submission_photos → reviews → evidence_submissions → photo_requirements → photos →
+evidence_targets → works/elements/service`). El orden es obligatorio: confiar en las cascadas
+  viola el `RESTRICT` de `submission_photos.photo_id`.
+- `convertWorkMode`: conversión `direct ↔ divided` **solo sin ninguna entrega** (rechazada o
+  aprobada) en cualquiera de sus objetivos. Exige reasignar explícitamente todos los requisitos y
+  fotos adicionales (`409` si el conjunto no coincide) y cancela sin cambios, o no hace nada.
+- `getWorkForConversion`: datos del asistente (modo, requisitos y fotos por objetivo), sin mutar.
+
+### Limpieza diferida (`#lib/server/storage/orphans.ts`)
+
+`removeUnreferencedFiles` borra, **después del commit** y best-effort, los binarios que quedaron
+sin fila en `photos`. Si falla, `scripts/cleanup.mjs` los recoge más tarde. Los paths son UUID por
+foto, por lo que no se reutilizan.
 
 ### API
 
-`POST /api/targets/[id]/submit` (body `{ version }`) y `POST /api/submissions/[id]/review` (body `{ decision, reason }`).
+- `GET`/`DELETE /api/elements/[elementId]`
+- `GET`/`DELETE /api/works/[workId]`
+- `GET`/`DELETE /api/services/[serviceId]`
+- `POST /api/works/[workId]/convert` (cuerpo `convertWorkModeSchema`)
+
+Todas exigen **administrador**; el `GET` devuelve el impacto y el `DELETE` responde `200` con lo
+eliminado y los archivos limpiados.
 
 ### UI
 
-- Pestañas **«Evidencia actual | Historial»** en la pantalla de evidencia; vista inicial = Actual.
-- **Enviar evidencia** con diálogo de confirmación (total de fotos y aviso de bloqueo) y manejo de `409`.
-- Motivo del **rechazo destacado** en la pestaña Actual; corrección y reenvío.
-- **Historial** descendente con #, autor, fecha y estado; detalle de entrega con galería congelada, grupos/orden originales, revisor y motivo.
-- **Cola de revisión** `(app)/reviews` (supervisor/admin) y detalle con **Aprobar / Rechazar** (motivo obligatorio); el ZIP por entrega se difiere a la Etapa 7.
+- `#lib/components/destructive-delete.svelte`: botón que consulta el impacto y exige confirmación
+  con el resumen antes de borrar.
+- `#lib/components/convert-work-mode.svelte`: asistente con mapeo manual (elementos destino +
+  reasignación de requisitos/fotos) o confirmación explícita para unificar.
+- Páginas: `services/[serviceId]` (eliminar trabajo), `works/[workId]` (eliminar elemento +
+  conversión), `admin/services/[serviceId]` (eliminar servicio).
+
+### Requisitos ya cubiertos desde etapas previas
+
+- Congelado de requisitos tras el primer envío (REQ‑04) y borrado de requisito preenvío
+  trasladando sus fotos a Adicionales (REQ‑03): implementados en `requirements.ts`.
 
 ## Cómo ejecutar
 
@@ -84,35 +115,43 @@ Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integ
 
 ## Pruebas realizadas y resultados
 
-| Prueba                                      | Resultado                                                                                      |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `pnpm check`                                | ✅ 0 errores, 0 avisos                                                                         |
-| `pnpm lint`                                 | ✅ Limpio                                                                                      |
-| `pnpm test` (unit: `cn` + pipeline `sharp`) | ✅ 6/6                                                                                         |
-| `pnpm test:integration` (PostgreSQL real)   | ✅ 40/40                                                                                       |
-| `pnpm build`                                | ✅                                                                                             |
-| E2E envío/revisión (servidor compilado)     | ✅ entrega #1, rechazo con motivo, segunda decisión `409`, corrección y entrega #2, aprobación |
-| E2E autorización de revisión                | ✅ supervisor no asignado `404`; asignado puede revisar; rechazo sin motivo bloqueado          |
-| Páginas nuevas                              | ✅ detalle de entrega, cola de revisión y evidencia → `200`                                    |
+| Prueba                                      | Resultado                                                                                                      |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `pnpm check`                                | ✅ 0 errores, 0 avisos                                                                                         |
+| `pnpm lint`                                 | ✅ Limpio                                                                                                      |
+| `pnpm test` (unit: `cn` + pipeline `sharp`) | ✅ 6/6                                                                                                         |
+| `pnpm test:integration` (PostgreSQL real)   | ✅ 47/47                                                                                                       |
+| `pnpm build`                                | ✅                                                                                                             |
+| E2E HTTP (servidor compilado, Etapa 4)      | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                           |
+| E2E HTTP PHOTO‑04                           | ✅ foto retirada de entrega histórica descarga `200`; sin historial, `404`                                     |
+| E2E HTTP Etapa 5                            | ✅ conversión `direct→divided` `200`, conversión con entrega `409`, borrado de elemento/trabajo/servicio `200` |
+
+Pruebas de la Etapa 5 (`tests/integration/structural-changes.spec.ts`): WORK‑03 (conversión con
+entrega histórica prohibida), WORK‑04 (reasignación completa o sin cambios), dividido→directo,
+DEL‑01 (borrado de servicio con historial aislado) y limpieza de binarios huérfanos.
 
 ## Decisiones tomadas
 
-- **ZIP por entrega**: diferido a la Etapa 7 (en la Etapa 4 solo descarga de foto individual).
-- **Historial**: pestañas dentro de la pantalla de evidencia.
-- Procesado de imágenes síncrono; limpieza por script; sin dependencias externas obligatorias.
+- **Borrado destructivo**: orden explícito dentro de transacción; limpieza de archivos best-effort
+  tras el commit, con `maintenance:cleanup` como red de seguridad.
+- **Conversión de modo**: se exige confirmar/mapear el conjunto completo de requisitos y fotos;
+  cualquier entrega previa la bloquea.
+- **ZIP por entrega/servicio y CSV administrativo**: diferidos a la Etapa 7.
+- **Procesado de imágenes síncrono**; limpieza por script y por borrado; sin dependencias externas.
 
 ## Problemas conocidos / consideraciones
 
 - Sin limitación de tasa en login/subidas (Etapa 8).
-- ZIP de entrega/servicio y CSV administrativo (Etapa 7); notificaciones (Etapa 6); borrado
-  destructivo y conversión `direct ↔ divided` (Etapa 5).
+- Notificaciones y Web Push (Etapa 6); búsqueda/ZIP/CSV (Etapa 7).
+- `scripts/cleanup.mjs` debe programarse (cron) para garantizar la purga de huérfanos antiguos.
 - La autorización se evalúa antes que la validación de contenido (p. ej. un revisor no asignado
   recibe `404` aunque el motivo esté vacío), lo que es intencional (no filtra recursos).
 
-## Próximos pasos (Etapa 5)
+## Próximos pasos (Etapa 6)
 
-1. Cambios estructurales en cualquier estado: crear/borrar trabajos y elementos recalculando avances.
-2. Asistente `direct ↔ divided` solo sin envíos previos, con reasignación manual completa.
-3. Eliminación destructiva de servicio/trabajo/elemento con resumen de impacto y confirmación.
-4. Limpieza diferida de binarios sin referencias tras el commit.
-5. Pruebas WORK‑02/03/04 y DEL‑01.
+1. Notificaciones SQL idempotentes dentro de la transacción de envío/revisión.
+2. Bandeja interna con contador, marcado individual/total y enlaces reautorizados.
+3. Suscripciones Web Push (VAPID), service worker e instalación PWA.
+4. Destinatarios: supervisores asignados al enviar; técnicos asignados al revisar; admitir fallo
+   de push sin revertir la operación.
+5. Pruebas NOTIF‑01/NOTIF‑02 y gestión de suscripciones inválidas.

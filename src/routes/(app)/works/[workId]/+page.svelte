@@ -6,6 +6,8 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import ConvertWorkMode from '#lib/components/convert-work-mode.svelte';
+	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import type { PageProps } from './$types';
 
@@ -117,6 +119,14 @@
 										/>
 										<Button type="submit" variant="outline" size="sm">Renombrar</Button>
 									</form>
+									<div class="mt-2">
+										<DestructiveDelete
+											label="Eliminar elemento"
+											endpoint={`/api/elements/${element.id}`}
+											itemName={element.name}
+											description="Se eliminarán su evidencia, entregas y fotos."
+										/>
+									</div>
 								{/if}
 							</li>
 						{/each}
@@ -136,6 +146,16 @@
 			history={data.history}
 			rejection={data.rejection}
 			isAdmin={data.isAdmin}
+		/>
+	{/if}
+
+	{#if data.isAdmin && data.conversion}
+		<ConvertWorkMode
+			workId={data.work.id}
+			mode={data.conversion.mode}
+			hasSubmissions={data.conversion.hasSubmissions}
+			direct={data.conversion.direct}
+			elements={data.conversion.elements}
 		/>
 	{/if}
 </div>

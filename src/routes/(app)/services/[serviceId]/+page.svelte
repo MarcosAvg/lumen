@@ -6,6 +6,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -149,11 +150,21 @@
 									</p>
 								{/if}
 							</div>
-							<Button
-								href={resolve('/(app)/works/[workId]', { workId: work.id })}
-								variant="outline"
-								size="sm">Abrir</Button
-							>
+							<div class="flex items-center gap-2">
+								<Button
+									href={resolve('/(app)/works/[workId]', { workId: work.id })}
+									variant="outline"
+									size="sm">Abrir</Button
+								>
+								{#if data.isAdmin}
+									<DestructiveDelete
+										label="Eliminar"
+										endpoint={`/api/works/${work.id}`}
+										itemName={work.name}
+										description="Se eliminarán sus elementos, entregas y fotos."
+									/>
+								{/if}
+							</div>
 						</li>
 					{/each}
 				</ul>

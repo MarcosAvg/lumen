@@ -3,6 +3,7 @@ import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/aut
 import { getDatabase } from '#lib/server/db';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
+import { getWorkForConversion } from '#lib/server/domain/structure';
 import { isEditableStatus, getTargetForWork } from '#lib/server/domain/targets';
 import {
 	getWorkDetail,
@@ -31,24 +32,28 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			getHistory(db, target.id),
 			getLatestRejection(db, target.id)
 		]);
+		const conversion = user.role === 'admin' ? await getWorkForConversion(db, workId) : null;
 		return {
 			work,
 			elements: [],
 			evidence,
 			history,
 			rejection,
+			conversion,
 			editable: isEditableStatus(target.status),
 			isAdmin: user.role === 'admin'
 		};
 	}
 
 	const elements = await listElementsDetailed(db, workId);
+	const conversion = user.role === 'admin' ? await getWorkForConversion(db, workId) : null;
 	return {
 		work,
 		elements,
 		evidence: null,
 		history: [],
 		rejection: null,
+		conversion,
 		editable: false,
 		isAdmin: user.role === 'admin'
 	};

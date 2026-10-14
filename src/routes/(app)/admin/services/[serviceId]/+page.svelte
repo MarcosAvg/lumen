@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Label } from '#lib/components/ui/label';
+	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string };
@@ -118,6 +120,24 @@
 					{/each}
 				</ul>
 			{/if}
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header><Card.Title class="text-base">Zona de peligro</Card.Title></Card.Header>
+		<Card.Content class="space-y-2">
+			<p class="text-sm text-muted-foreground">
+				Eliminar el servicio borra de forma permanente sus trabajos, elementos, evidencia, entregas
+				y asignaciones.
+			</p>
+			<DestructiveDelete
+				label="Eliminar servicio"
+				endpoint={`/api/services/${data.service.id}`}
+				itemName={data.service.name}
+				onDeleted={() => {
+					void goto(resolve('/(app)/admin/services'));
+				}}
+			/>
 		</Card.Content>
 	</Card.Root>
 </div>
