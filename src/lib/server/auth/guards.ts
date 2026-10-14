@@ -3,6 +3,7 @@ import type { SessionUser } from '#lib/types';
 import { getDatabase } from '#lib/server/db';
 import { getPhotoAccessContext, type PhotoAccessContext } from '#lib/server/domain/photos';
 import { getServiceForUser, type ServiceAccessResult } from '#lib/server/domain/services';
+import { getSubmissionContext, type SubmissionContext } from '#lib/server/domain/submissions';
 import { getTargetContext, type TargetContext } from '#lib/server/domain/targets';
 
 /** Exige una sesión activa; en su defecto responde `401`. */
@@ -58,4 +59,25 @@ export async function requirePhotoAccess(
 	// Lanza 404 opaco si el servicio queda fuera del ámbito del usuario.
 	await getServiceForUser(getDatabase().db, user, photo.serviceId);
 	return photo;
+}
+
+/**
+ * Autoriza la revisión de una entrega: administrador o **supervisor asignado**.
+ * Los técnicos no revisan (docs/01 §2).
+ */
+export async function requireReview(
+	locals: App.Locals,
+	submissionId: string
+): Promise<SubmissionContext> {
+	const user = requireUser(locals);
+	const context = await getSubmissionContext(getDatabase().db, submissionId);
+
+	if (user.role !== 'admin') {
+		const { access } = await getServiceForUser(getDatabase().db, user, context.serviceId);
+		if (access !== 'supervisor') {
+			throw error(403, 'Solo los supervisores asignados pueden revisar esta entrega.');
+		}
+	}
+
+	return context;
 }

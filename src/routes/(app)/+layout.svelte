@@ -13,16 +13,19 @@
 		technician: 'Técnico'
 	} as const;
 
-	const items = $derived(
-		data.user.role === 'admin'
-			? [
-					{ href: resolve('/(app)/dashboard'), label: 'Inicio' },
-					{ href: resolve('/(app)/admin/users'), label: 'Usuarios' },
-					{ href: resolve('/(app)/admin/services'), label: 'Servicios' },
-					{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos' }
-				]
-			: [{ href: resolve('/(app)/dashboard'), label: 'Inicio' }]
-	);
+	const items = $derived.by(() => {
+		const base = [{ href: resolve('/(app)/dashboard'), label: 'Inicio' }];
+		if (data.user.role === 'technician') return base;
+		const reviews = [{ href: resolve('/(app)/reviews'), label: 'Revisiones' }];
+		if (data.user.role === 'supervisor') return [...base, ...reviews];
+		return [
+			...base,
+			...reviews,
+			{ href: resolve('/(app)/admin/users'), label: 'Usuarios' },
+			{ href: resolve('/(app)/admin/services'), label: 'Servicios' },
+			{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos' }
+		];
+	});
 
 	const nav = $derived(
 		items.map((item) => ({ ...item, current: page.url.pathname === item.href }))

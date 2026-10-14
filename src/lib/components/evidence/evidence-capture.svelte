@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
@@ -26,6 +27,22 @@
 		state: 'uploading' | 'error' | 'done';
 		message?: string;
 	}
+	interface HistoryEntry {
+		id: string;
+		sequenceNo: number;
+		submittedAt: Date;
+		submittedByName: string | null;
+		photoCount: number;
+		decision: 'approved' | 'rejected' | null;
+		reviewedAt: Date | null;
+		reviewerName: string | null;
+		reason: string | null;
+	}
+	interface Rejection {
+		reason: string;
+		reviewedAt: Date;
+		reviewerName: string | null;
+	}
 
 	interface Props {
 		targetId: string;
@@ -35,6 +52,8 @@
 		version: number;
 		requirements: Req[];
 		photos: Photo[];
+		history: HistoryEntry[];
+		rejection: Rejection | null;
 		isAdmin: boolean;
 	}
 
@@ -46,6 +65,8 @@
 		version: initialVersion,
 		requirements: initialRequirements,
 		photos: initialPhotos,
+		history,
+		rejection,
 		isAdmin
 	}: Props = $props();
 
@@ -60,6 +81,10 @@
 	let newRequirement = $state('');
 	let newRequired = $state(true);
 	let busy = $state(false);
+	let tab = $state<'current' | 'history'>('current');
+	let showSubmit = $state(false);
+	let submitting = $state(false);
+	let submitError = $state<string | null>(null);
 
 	const statusLabel: Record<TargetStatus, string> = {
 		pending: 'Pendiente',
@@ -68,6 +93,10 @@
 		rejected: 'Rechazado',
 		approved: 'Aprobado'
 	};
+
+	function formatDate(value: Date): string {
+		return new Date(value).toLocaleString();
+	}
 
 	function groupPhotos(requirementId: string | null): Photo[] {
 		return photos
@@ -81,6 +110,29 @@
 		conflict = true;
 	}
 
+	async function submitEvidence() {
+		submitting = true;
+		submitError = null;
+		const response = await fetch(`/api/targets/${targetId}/submit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ version })
+		});
+		submitting = false;
+		if (response.ok) {
+			location.reload();
+			return;
+		}
+		if (response.status === 409) {
+			markConflict();
+			showSubmit = false;
+			return;
+		}
+		submitError =
+			((await response.json().catch(() => ({}))) as { message?: string }).message ??
+			'No se pudo enviar la evidencia.';
+	}
+
 	async function handleFiles(requirementId: string | null, fileList: FileList | null) {
 		if (!fileList || fileList.length === 0) return;
 		for (const file of Array.from(fileList)) {
@@ -92,7 +144,7 @@
 		const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 		uploads = [...uploads, { key, name: file.name, progress: 0, state: 'uploading' }];
 
-		return new Promise((resolve) => {
+		return new Promise((resolveUpload) => {
 			const xhr = new XMLHttpRequest();
 			xhr.open('POST', `/api/targets/${targetId}/photos`);
 			xhr.upload.onprogress = (event) => {
@@ -128,13 +180,13 @@
 						item.key === key ? { ...item, state: 'error', message: 'Respuesta inválida' } : item
 					);
 				}
-				resolve();
+				resolveUpload();
 			};
 			xhr.onerror = () => {
 				uploads = uploads.map((item) =>
 					item.key === key ? { ...item, state: 'error', message: 'Error de red' } : item
 				);
-				resolve();
+				resolveUpload();
 			};
 
 			const form = new FormData();
@@ -208,7 +260,7 @@
 		} else {
 			adminError =
 				((await response.json().catch(() => ({}))) as { message?: string }).message ??
-				'No se pudo crear.';
+				'No se pudo crear el requisito.';
 		}
 	}
 
@@ -268,12 +320,37 @@
 			<h2 class="text-lg font-semibold">{label}</h2>
 			<Badge variant={status === 'approved' ? 'default' : 'secondary'}>{statusLabel[status]}</Badge>
 		</div>
-		{#if editable}
+		{#if status === 'in_review'}
+			<span class="text-sm text-muted-foreground">
+				En revisión. La edición está bloqueada hasta que se decida.
+			</span>
+		{:else if status === 'approved'}
+			<span class="text-sm text-muted-foreground"
+				>Evidencia aprobada: las fotografías están bloqueadas.</span
+			>
+		{:else if editable}
 			<span class="text-sm text-muted-foreground">{photos.length} fotografía(s)</span>
-		{:else}
-			<span class="text-sm text-muted-foreground">Evidencia en solo lectura</span>
 		{/if}
 	</header>
+
+	<nav class="flex gap-1 border-b" aria-label="Secciones de evidencia">
+		<button
+			type="button"
+			class="px-3 py-2 text-sm {tab === 'current'
+				? 'border-b-2 border-foreground font-medium'
+				: 'text-muted-foreground'}"
+			aria-current={tab === 'current' ? 'page' : undefined}
+			onclick={() => (tab = 'current')}>Evidencia actual</button
+		>
+		<button
+			type="button"
+			class="px-3 py-2 text-sm {tab === 'history'
+				? 'border-b-2 border-foreground font-medium'
+				: 'text-muted-foreground'}"
+			aria-current={tab === 'history' ? 'page' : undefined}
+			onclick={() => (tab = 'history')}>Historial ({history.length})</button
+		>
+	</nav>
 
 	{#if conflict}
 		<Alert variant="destructive">
@@ -287,181 +364,272 @@
 		<Alert variant="destructive"><AlertDescription>{adminError}</AlertDescription></Alert>
 	{/if}
 
-	{#if uploads.length > 0}
-		<Card.Root>
-			<Card.Content class="space-y-2 pt-6">
-				{#each uploads as upload (upload.key)}
-					<div class="text-sm">
-						<div class="flex justify-between gap-2">
-							<span class="truncate">{upload.name}</span>
-							<span>{upload.state === 'error' ? 'Error' : `${upload.progress}%`}</span>
-						</div>
-						{#if upload.state === 'error' && upload.message}
-							<p class="text-xs text-destructive">{upload.message}</p>
-						{/if}
-					</div>
-				{/each}
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	{#if tab === 'current'}
+		{#if rejection && status === 'rejected'}
+			<Alert variant="destructive">
+				<AlertDescription>
+					<p class="font-medium">Entrega rechazada: revisa el motivo y envía una corrección.</p>
+					<p class="mt-1">{rejection.reason}</p>
+					<p class="text-xs">
+						{rejection.reviewerName ?? 'Revisor'} · {formatDate(rejection.reviewedAt)}
+					</p>
+				</AlertDescription>
+			</Alert>
+		{/if}
 
-	{#each requirements as requirement (requirement.id)}
+		{#if uploads.length > 0}
+			<Card.Root>
+				<Card.Content class="space-y-2 pt-6">
+					{#each uploads as upload (upload.key)}
+						<div class="text-sm">
+							<div class="flex justify-between gap-2">
+								<span class="truncate">{upload.name}</span>
+								<span>{upload.state === 'error' ? 'Error' : `${upload.progress}%`}</span>
+							</div>
+							{#if upload.state === 'error' && upload.message}
+								<p class="text-xs text-destructive">{upload.message}</p>
+							{/if}
+						</div>
+					{/each}
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
+		{#each requirements as requirement (requirement.id)}
+			<Card.Root>
+				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
+					<Card.Title class="flex items-center gap-2 text-base">
+						{requirement.name}
+						{#if requirement.isRequired}<Badge variant="secondary">Obligatorio</Badge>{/if}
+						<span class="text-sm font-normal text-muted-foreground">
+							{groupPhotos(requirement.id).length} foto(s)
+						</span>
+					</Card.Title>
+					{#if isAdmin && editable}
+						<div class="flex items-center gap-1">
+							<Button variant="ghost" size="sm" onclick={() => toggleRequired(requirement)}>
+								{requirement.isRequired ? 'Hacer opcional' : 'Hacer obligatorio'}
+							</Button>
+							<Button
+								variant="destructive"
+								size="sm"
+								onclick={() => deleteRequirement(requirement)}
+							>
+								Eliminar
+							</Button>
+						</div>
+					{/if}
+				</Card.Header>
+				<Card.Content class="space-y-3">
+					{#if isAdmin && editable}
+						<form
+							class="flex flex-wrap items-center gap-2"
+							onsubmit={(event) => {
+								event.preventDefault();
+								const input = event.currentTarget.elements.namedItem('reqName');
+								if (input instanceof HTMLInputElement) renameRequirement(requirement, input.value);
+							}}
+						>
+							<Input
+								name="reqName"
+								value={requirement.name}
+								class="h-8 max-w-xs"
+								aria-label="Nombre del requisito"
+							/>
+							<Button type="submit" variant="outline" size="sm">Renombrar</Button>
+						</form>
+					{/if}
+
+					{@render PhotoGrid({
+						editable,
+						group: groupPhotos(requirement.id),
+						onremove: (photo) => (pendingRemove = photo),
+						onmove: (photoId, direction) => movePhoto(requirement.id, photoId, direction),
+						onopen: (photo) => (lightbox = photo)
+					})}
+
+					{#if editable}
+						<div class="flex flex-wrap gap-2">
+							<label class="cursor-pointer">
+								<span class="sr-only">Tomar foto</span>
+								<input
+									type="file"
+									accept="image/*"
+									capture="environment"
+									class="hidden"
+									onchange={(event) => {
+										handleFiles(requirement.id, event.currentTarget.files);
+										event.currentTarget.value = '';
+									}}
+								/>
+								<span
+									class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+								>
+									Tomar foto
+								</span>
+							</label>
+							<label class="cursor-pointer">
+								<span class="sr-only">Elegir archivos</span>
+								<input
+									type="file"
+									accept="image/*"
+									multiple
+									class="hidden"
+									onchange={(event) => {
+										handleFiles(requirement.id, event.currentTarget.files);
+										event.currentTarget.value = '';
+									}}
+								/>
+								<span
+									class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+								>
+									Elegir archivos
+								</span>
+							</label>
+						</div>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/each}
+
 		<Card.Root>
-			<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-				<Card.Title class="flex items-center gap-2 text-base">
-					{requirement.name}
-					{#if requirement.isRequired}<Badge variant="secondary">Obligatorio</Badge>{/if}
-					<span class="text-sm font-normal text-muted-foreground">
-						{groupPhotos(requirement.id).length} foto(s)
-					</span>
-				</Card.Title>
-				{#if isAdmin && editable}
-					<div class="flex items-center gap-1">
-						<Button variant="ghost" size="sm" onclick={() => toggleRequired(requirement)}>
-							{requirement.isRequired ? 'Hacer opcional' : 'Hacer obligatorio'}
-						</Button>
-						<Button variant="destructive" size="sm" onclick={() => deleteRequirement(requirement)}>
-							Eliminar
-						</Button>
-					</div>
-				{/if}
+			<Card.Header class="flex items-center justify-between">
+				<Card.Title class="text-base">Adicionales</Card.Title>
+				<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
 			</Card.Header>
 			<Card.Content class="space-y-3">
-				{#if isAdmin && editable}
+				{@render PhotoGrid({
+					editable,
+					group: additionalPhotos,
+					onremove: (photo) => (pendingRemove = photo),
+					onmove: (photoId, direction) => movePhoto(null, photoId, direction),
+					onopen: (photo) => (lightbox = photo)
+				})}
+				{#if editable}
+					<label class="cursor-pointer">
+						<span class="sr-only">Agregar fotografía</span>
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							class="hidden"
+							onchange={(event) => {
+								handleFiles(null, event.currentTarget.files);
+								event.currentTarget.value = '';
+							}}
+						/>
+						<span
+							class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+						>
+							Agregar fotografía
+						</span>
+					</label>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		{#if isAdmin && editable}
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="text-base">Requisitos (solo antes del primer envío)</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-3">
 					<form
-						class="flex flex-wrap items-center gap-2"
+						class="flex flex-wrap items-end gap-2"
 						onsubmit={(event) => {
 							event.preventDefault();
-							const input = event.currentTarget.elements.namedItem('reqName');
-							if (input instanceof HTMLInputElement) renameRequirement(requirement, input.value);
+							createRequirement();
 						}}
 					>
 						<Input
-							name="reqName"
-							value={requirement.name}
-							class="h-8 max-w-xs"
-							aria-label="Nombre del requisito"
+							bind:value={newRequirement}
+							placeholder="Nuevo requisito (p. ej. Antes)"
+							class="max-w-xs"
 						/>
-						<Button type="submit" variant="outline" size="sm">Renombrar</Button>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={newRequired} /> Obligatorio
+						</label>
+						<Button type="submit" size="sm" disabled={busy}>Añadir requisito</Button>
 					</form>
-				{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
 
-				{@render PhotoGrid({
-					editable,
-					group: groupPhotos(requirement.id),
-					requirementId: requirement.id,
-					onremove: (photo) => (pendingRemove = photo),
-					onmove: (photoId, direction) => movePhoto(requirement.id, photoId, direction),
-					onopen: (photo) => (lightbox = photo)
-				})}
+		{#if editable}
+			<Card.Root>
+				<Card.Content class="flex flex-wrap items-center justify-between gap-2 pt-6">
+					{#if submitError}
+						<p class="text-sm text-destructive">{submitError}</p>
+					{/if}
+					<Button onclick={() => (showSubmit = true)}>Enviar evidencia</Button>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+	{:else}
+		{#if history.length === 0}
+			<Card.Root>
+				<Card.Content class="py-8 text-center text-sm text-muted-foreground">
+					Sin entregas todavía.
+				</Card.Content>
+			</Card.Root>
+		{:else}
+			<ul class="space-y-3">
+				{#each history as entry (entry.id)}
+					<li>
+						<Card.Root>
+							<Card.Content class="flex flex-wrap items-center justify-between gap-3 pt-6">
+								<div>
+									<p class="flex items-center gap-2 font-medium">
+										Entrega #{entry.sequenceNo}
+										{#if entry.decision === 'approved'}
+											<Badge>Aprobada</Badge>
+										{:else if entry.decision === 'rejected'}
+											<Badge variant="destructive">Rechazada</Badge>
+										{:else}
+											<Badge variant="secondary">Pendiente</Badge>
+										{/if}
+									</p>
+									<p class="text-sm text-muted-foreground">
+										{formatDate(entry.submittedAt)} · {entry.submittedByName ?? 'Autor desconocido'} ·
+										{entry.photoCount} foto(s)
+									</p>
+									{#if entry.decision === 'rejected' && entry.reason}
+										<p class="text-sm">Motivo: {entry.reason}</p>
+									{/if}
+								</div>
+								<Button
+									href={resolve('/(app)/submissions/[submissionId]', { submissionId: entry.id })}
+									variant="outline"
+									size="sm">Ver entrega</Button
+								>
+							</Card.Content>
+						</Card.Root>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	{/if}
 
-				{#if editable}
-					<div class="flex flex-wrap gap-2">
-						<label class="cursor-pointer">
-							<span class="sr-only">Tomar foto</span>
-							<input
-								type="file"
-								accept="image/*"
-								capture="environment"
-								class="hidden"
-								onchange={(event) => {
-									handleFiles(requirement.id, event.currentTarget.files);
-									event.currentTarget.value = '';
-								}}
-							/>
-							<span
-								class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-							>
-								Tomar foto
-							</span>
-						</label>
-						<label class="cursor-pointer">
-							<span class="sr-only">Elegir archivos</span>
-							<input
-								type="file"
-								accept="image/*"
-								multiple
-								class="hidden"
-								onchange={(event) => {
-									handleFiles(requirement.id, event.currentTarget.files);
-									event.currentTarget.value = '';
-								}}
-							/>
-							<span
-								class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-							>
-								Elegir archivos
-							</span>
-						</label>
-					</div>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-	{/each}
-
-	<Card.Root>
-		<Card.Header class="flex items-center justify-between">
-			<Card.Title class="text-base">Adicionales</Card.Title>
-			<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
-		</Card.Header>
-		<Card.Content class="space-y-3">
-			{@render PhotoGrid({
-				editable,
-				group: additionalPhotos,
-				requirementId: null,
-				onremove: (photo) => (pendingRemove = photo),
-				onmove: (photoId, direction) => movePhoto(null, photoId, direction),
-				onopen: (photo) => (lightbox = photo)
-			})}
-			{#if editable}
-				<label class="cursor-pointer">
-					<span class="sr-only">Agregar fotografía</span>
-					<input
-						type="file"
-						accept="image/*"
-						multiple
-						class="hidden"
-						onchange={(event) => {
-							handleFiles(null, event.currentTarget.files);
-							event.currentTarget.value = '';
-						}}
-					/>
-					<span
-						class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-					>
-						Agregar fotografía
-					</span>
-				</label>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	{#if isAdmin && editable}
-		<Card.Root>
-			<Card.Header
-				><Card.Title class="text-base">Requisitos (solo antes del primer envío)</Card.Title
-				></Card.Header
-			>
-			<Card.Content class="space-y-3">
-				<form
-					class="flex flex-wrap items-end gap-2"
-					onsubmit={(event) => {
-						event.preventDefault();
-						createRequirement();
-					}}
-				>
-					<Input
-						bind:value={newRequirement}
-						placeholder="Nuevo requisito (p. ej. Antes)"
-						class="max-w-xs"
-					/>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={newRequired} /> Obligatorio
-					</label>
-					<Button type="submit" size="sm" disabled={busy}>Añadir requisito</Button>
-				</form>
-			</Card.Content>
-		</Card.Root>
+	{#if showSubmit}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+			<Card.Root class="w-full max-w-md">
+				<Card.Header>
+					<Card.Title>¿Enviar esta evidencia a revisión?</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-2 text-sm">
+					<p>Se enviarán <strong>{photos.length} fotografía(s)</strong>.</p>
+					<p>La edición quedará bloqueada para todos los técnicos hasta que sea revisada.</p>
+				</Card.Content>
+				<Card.Footer class="flex justify-end gap-2">
+					<Button variant="outline" onclick={() => (showSubmit = false)} disabled={submitting}>
+						Cancelar
+					</Button>
+					<Button onclick={submitEvidence} disabled={submitting}>
+						{submitting ? 'Enviando…' : 'Confirmar envío'}
+					</Button>
+				</Card.Footer>
+			</Card.Root>
+		</div>
 	{/if}
 
 	{#if pendingRemove}
@@ -513,7 +681,6 @@
 {#snippet PhotoGrid(options: {
 	editable: boolean;
 	group: Photo[];
-	requirementId: string | null;
 	onremove: (photo: Photo) => void;
 	onmove: (photoId: string, direction: -1 | 1) => void;
 	onopen: (photo: Photo) => void;

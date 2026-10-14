@@ -133,6 +133,8 @@
 			version={data.evidence.target.version}
 			requirements={data.evidence.requirements}
 			photos={data.evidence.photos}
+			history={data.history}
+			rejection={data.rejection}
 			isAdmin={data.isAdmin}
 		/>
 	{/if}

@@ -1,4 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
 import { catalogItems, elements, evidenceTargets, services, works } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
@@ -12,6 +13,8 @@ export interface TargetContext {
 	serviceName: string;
 	/** Nombre visible del trabajo o elemento que contiene el objetivo. */
 	label: string;
+	/** Nombre visible del trabajo padre (igual a `label` en trabajos directos). */
+	workName: string;
 	mode: WorkMode;
 	status: TargetStatus;
 	version: number;
@@ -34,17 +37,20 @@ async function workLabel(db: Database, workId: string) {
 }
 
 async function elementLabel(db: Database, elementId: string) {
+	const workCatalog = alias(catalogItems, 'work_catalog');
 	const [row] = await db
 		.select({
 			serviceId: works.serviceId,
 			serviceName: services.name,
 			workMode: works.mode,
-			label: sql<string>`coalesce(${catalogItems.name}, ${elements.customName})`
+			label: sql<string>`coalesce(${catalogItems.name}, ${elements.customName})`,
+			workName: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
 		})
 		.from(elements)
 		.innerJoin(works, eq(works.id, elements.workId))
 		.innerJoin(services, eq(services.id, works.serviceId))
 		.leftJoin(catalogItems, eq(catalogItems.id, elements.catalogItemId))
+		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
 		.where(eq(elements.id, elementId))
 		.limit(1);
 	return row ?? null;
@@ -69,6 +75,7 @@ export async function getTargetContext(db: Database, targetId: string): Promise<
 			serviceId: work.serviceId,
 			serviceName: work.serviceName,
 			label: work.label,
+			workName: work.label,
 			mode: work.mode,
 			status: target.currentStatus,
 			version: target.version
@@ -84,6 +91,7 @@ export async function getTargetContext(db: Database, targetId: string): Promise<
 		serviceId: element.serviceId,
 		serviceName: element.serviceName,
 		label: element.label,
+		workName: element.workName,
 		mode: 'divided',
 		status: target.currentStatus,
 		version: target.version

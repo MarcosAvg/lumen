@@ -2,6 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { loadEvidence } from '#lib/server/domain/photos';
+import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { isEditableStatus, getTargetForWork } from '#lib/server/domain/targets';
 import {
 	getWorkDetail,
@@ -25,20 +26,33 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	if (work.mode === 'direct') {
 		const target = await getTargetForWork(db, workId);
-		const evidence = await loadEvidence(db, target.id);
+		const [evidence, history, rejection] = await Promise.all([
+			loadEvidence(db, target.id),
+			getHistory(db, target.id),
+			getLatestRejection(db, target.id)
+		]);
 		return {
 			work,
 			elements: [],
 			evidence,
+			history,
+			rejection,
 			editable: isEditableStatus(target.status),
 			isAdmin: user.role === 'admin'
 		};
 	}
 
 	const elements = await listElementsDetailed(db, workId);
-	return { work, elements, evidence: null, editable: false, isAdmin: user.role === 'admin' };
+	return {
+		work,
+		elements,
+		evidence: null,
+		history: [],
+		rejection: null,
+		editable: false,
+		isAdmin: user.role === 'admin'
+	};
 };
-
 export const actions: Actions = {
 	updateWork: async (event) => {
 		const admin = requireAdmin(event.locals);

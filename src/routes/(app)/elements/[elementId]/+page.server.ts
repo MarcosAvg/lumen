@@ -1,6 +1,7 @@
 import { requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { loadEvidence } from '#lib/server/domain/photos';
+import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getTargetForElement, isEditableStatus } from '#lib/server/domain/targets';
 import { getElementDetail } from '#lib/server/domain/works';
 import { requireUuidParam } from '#lib/server/params';
@@ -15,11 +16,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	await requireServiceAccess(locals, element.serviceId);
 
 	const target = await getTargetForElement(db, elementId);
-	const evidence = await loadEvidence(db, target.id);
+	const [evidence, history, rejection] = await Promise.all([
+		loadEvidence(db, target.id),
+		getHistory(db, target.id),
+		getLatestRejection(db, target.id)
+	]);
 
 	return {
 		element,
 		evidence,
+		history,
+		rejection,
 		editable: isEditableStatus(target.status),
 		isAdmin: user.role === 'admin'
 	};

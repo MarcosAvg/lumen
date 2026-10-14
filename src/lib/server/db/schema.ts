@@ -10,7 +10,8 @@ import {
 	text,
 	timestamp,
 	uniqueIndex,
-	uuid
+	uuid,
+	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -47,6 +48,10 @@ export const targetStatus = pgEnum('target_status', [
 	'rejected',
 	'approved'
 ]);
+
+export const reviewDecision = pgEnum('review_decision', ['approved', 'rejected']);
+
+export const submissionGroupKind = pgEnum('submission_group_kind', ['requirement', 'additional']);
 
 export const users = pgTable(
 	'users',
@@ -239,8 +244,11 @@ export const evidenceTargets = pgTable(
 		elementId: uuid('element_id').references(() => elements.id, { onDelete: 'cascade' }),
 		currentStatus: targetStatus('current_status').notNull().default('pending'),
 		version: integer('version').notNull().default(0),
-		// FK a `evidence_submissions` añadida en la Etapa 4 (rompe el ciclo de referencias).
-		latestSubmissionId: uuid('latest_submission_id'),
+		// FK a `evidence_submissions` añadida en la Etapa 4 (ciclo de referencias resuelto con tipo `AnyPgColumn`).
+		latestSubmissionId: uuid('latest_submission_id').references(
+			(): AnyPgColumn => evidenceSubmissions.id,
+			{ onDelete: 'set null' }
+		),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
@@ -305,6 +313,78 @@ export const photos = pgTable(
 	]
 );
 
+export const evidenceSubmissions = pgTable(
+	'evidence_submissions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		targetId: uuid('target_id')
+			.notNull()
+			.references(() => evidenceTargets.id, { onDelete: 'cascade' }),
+		// Número 1, 2, 3… por objetivo; asignado serializando con el bloqueo del target.
+		sequenceNo: integer('sequence_no').notNull(),
+		submittedBy: uuid('submitted_by').references(() => users.id, { onDelete: 'set null' }),
+		submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+		evidenceVersion: integer('evidence_version').notNull(),
+		targetNameSnapshot: text('target_name_snapshot'),
+		workNameSnapshot: text('work_name_snapshot'),
+		serviceNameSnapshot: text('service_name_snapshot')
+	},
+	(table) => [
+		uniqueIndex('evidence_submissions_target_sequence_unique').on(table.targetId, table.sequenceNo)
+	]
+);
+
+export const submissionPhotos = pgTable(
+	'submission_photos',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		submissionId: uuid('submission_id')
+			.notNull()
+			.references(() => evidenceSubmissions.id, { onDelete: 'cascade' }),
+		// `RESTRICT`: una foto usada en una entrega no puede borrarse físicamente.
+		photoId: uuid('photo_id')
+			.notNull()
+			.references(() => photos.id, { onDelete: 'restrict' }),
+		groupKind: submissionGroupKind('group_kind').notNull(),
+		requirementNameSnapshot: text('requirement_name_snapshot'),
+		groupSortOrder: integer('group_sort_order').notNull(),
+		photoSortOrder: integer('photo_sort_order').notNull(),
+		photoUploadedBySnapshot: uuid('photo_uploaded_by_snapshot').references(() => users.id, {
+			onDelete: 'set null'
+		}),
+		photoUploadedAtSnapshot: timestamp('photo_uploaded_at_snapshot', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('submission_photos_submission_photo_unique').on(table.submissionId, table.photoId),
+		index('submission_photos_order_idx').on(
+			table.submissionId,
+			table.groupSortOrder,
+			table.photoSortOrder
+		)
+	]
+);
+
+export const reviews = pgTable(
+	'reviews',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		submissionId: uuid('submission_id')
+			.notNull()
+			.references(() => evidenceSubmissions.id, { onDelete: 'cascade' }),
+		reviewerId: uuid('reviewer_id').references(() => users.id, { onDelete: 'set null' }),
+		decision: reviewDecision('decision').notNull(),
+		reason: text('reason'),
+		reviewedAt: timestamp('reviewed_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		uniqueIndex('reviews_submission_unique').on(table.submissionId),
+		check(
+			'reviews_reason_check',
+			sql`${table.decision} <> 'rejected' or (${table.reason} is not null and length(trim(${table.reason})) > 0)`
+		)
+	]
+);
+
 export const auditEvents = pgTable(
 	'audit_events',
 	{
@@ -331,3 +411,6 @@ export type Element = typeof elements.$inferSelect;
 export type EvidenceTarget = typeof evidenceTargets.$inferSelect;
 export type PhotoRequirement = typeof photoRequirements.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
+export type EvidenceSubmission = typeof evidenceSubmissions.$inferSelect;
+export type SubmissionPhoto = typeof submissionPhotos.$inferSelect;
+export type Review = typeof reviews.$inferSelect;

@@ -2,7 +2,7 @@
 
 **Lumen** es una aplicación web progresiva (PWA), autohospedada y orientada a equipos pequeños de servicios en campo. Permite que los técnicos capturen **evidencia fotográfica compartida**, que supervisores asignados la **aprueben o rechacen por entrega** y que administradores organicen servicios, trabajos, catálogos y usuarios.
 
-> **Estado:** especificación funcional y técnica para construir la versión 1 (v1). Este repositorio de documentación **no es todavía una aplicación ejecutable**. Los ejemplos de rutas, entidades y parámetros sirven como contrato de implementación; pueden concretarse durante el desarrollo sin cambiar las reglas de negocio aprobadas.
+> **Estado:** implementación v1 en curso (Etapas 0–4 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica y envíos/revisiones). El repositorio ya es una **aplicación ejecutable**; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md). Los ejemplos de rutas, entidades y parámetros pueden concretarse sin cambiar las reglas de negocio aprobadas.
 
 ## Qué resuelve
 
@@ -73,3 +73,68 @@ La autorización es **del servidor**: una URL directa, descarga o búsqueda no c
 La implementación debe incluir `compose.yaml`, `Dockerfile`, `.env.example`, migraciones Drizzle, inicialización del administrador y procedimientos de respaldo/restauración. **No se incluyen aquí credenciales, secretos ni valores de producción.** El despliegue debe estar protegido por HTTPS para el uso correcto de sesiones y Web Push.
 
 Los detalles operativos y las variables previstas se encuentran en [`docs/04-arquitectura.md`](docs/04-arquitectura.md).
+
+## Desarrollo local
+
+**Requisitos:** Docker + Docker Compose, Node.js ≥ 22 y pnpm 9 (o Corepack).
+
+```bash
+git clone https://github.com/MarcosAvg/lumen.git
+cd lumen
+cp .env.example .env          # ajusta POSTGRES_PASSWORD y ORIGIN si lo necesitas
+```
+
+### Aplicación completa con Docker (recomendado para probar el despliegue)
+
+```bash
+docker compose up -d --build   # construye la imagen, aplica migraciones y arranca
+# App en http://localhost:3000  ·  PostgreSQL publicado en 127.0.0.1:5432
+curl http://localhost:3000/health
+```
+
+- El puerto publicado es configurable: `APP_PORT=3080 docker compose up -d`.
+- `ORIGIN` se incorpora al **build** de la imagen; si cambia, reconstruye con `docker compose build`.
+- Primer arranque: abre la app y completa **Configurar Lumen** para crear la cuenta administradora.
+- Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar volúmenes).
+
+### Desarrollo con servidor de Vite (hot reload)
+
+```bash
+docker compose up -d db        # solo PostgreSQL (publicado en 127.0.0.1:5432)
+pnpm install
+pnpm db:migrate                # carga .env automáticamente
+pnpm dev                       # http://localhost:5173
+```
+
+> En desarrollo, `PHOTO_STORAGE_PATH` apunta a `./data/photos` (ignorado por git). En el contenedor
+> de producción se usa el volumen `lumen_photos` en `/data/photos`.
+
+### Comprobaciones y pruebas
+
+```bash
+pnpm check            # svelte-check (tipos)
+pnpm lint             # Prettier + ESLint
+pnpm test             # pruebas unitarias (Vitest)
+pnpm test:integration # pruebas con PostgreSQL real (requiere `docker compose up -d db`)
+pnpm build            # build de producción (adapter-node)
+```
+
+Las pruebas de integración usan `TEST_DATABASE_URL` (por defecto
+`postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`, que se crea y migra
+automáticamente); si no hay PostgreSQL disponible se omiten con un aviso.
+
+### Mantenimiento
+
+```bash
+pnpm maintenance:cleanup   # borra temporales y binarios huérfanos (no toca los referenciados)
+```
+
+### Scripts
+
+| Script                                     | Descripción                                                     |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `dev` / `build` / `start`                  | servidor de desarrollo, build de producción, arranque del build |
+| `check` / `lint` / `format`                | tipos, lint y formateo                                          |
+| `test` / `test:integration`                | pruebas unitarias y con base de datos real                      |
+| `db:generate` / `db:migrate` / `db:studio` | migraciones Drizzle (generar, aplicar, explorar)                |
+| `maintenance:cleanup`                      | limpieza de archivos temporales/huérfanos                       |
