@@ -1,0 +1,13 @@
+node_modules
+.svelte-kit
+build
+coverage
+data
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+docs
+*.md
