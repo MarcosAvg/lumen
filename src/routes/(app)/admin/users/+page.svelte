@@ -5,6 +5,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
 	import type { PageProps } from './$types';
 
@@ -177,6 +178,13 @@
 									<Button type="submit" variant="outline" size="sm">Activar</Button>
 								</form>
 							{/if}
+
+							<DestructiveDelete
+								label="Eliminar"
+								endpoint={`/api/users/${user.id}`}
+								itemName={user.displayName}
+								description="Se elimina la cuenta; su nombre se conserva como firma en el historial (entregas, revisiones y fotos)."
+							/>
 						</div>
 					</Card.Content>
 

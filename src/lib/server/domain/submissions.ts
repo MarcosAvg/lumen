@@ -23,6 +23,28 @@ export interface SubmitResult {
 	version: number;
 }
 
+/** Nombre visible del usuario, o `null` si no existe. */
+async function displayNameOf(db: Database, userId: string | null): Promise<string | null> {
+	if (!userId) return null;
+	const [row] = await db
+		.select({ name: users.displayName })
+		.from(users)
+		.where(eq(users.id, userId))
+		.limit(1);
+	return row?.name ?? null;
+}
+
+/** Mapa `userId -> displayName` para congelar varios autores de una vez. */
+async function displayNamesOf(db: Database, ids: string[]): Promise<Map<string, string>> {
+	const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+	if (unique.length === 0) return new Map();
+	const rows = await db
+		.select({ id: users.id, name: users.displayName })
+		.from(users)
+		.where(inArray(users.id, unique));
+	return new Map(rows.map((row) => [row.id, row.name]));
+}
+
 interface ReadyPhoto {
 	id: string;
 	requirementId: string | null;
@@ -92,6 +114,11 @@ export async function submitEvidence(
 		}
 
 		const context = await getTargetContext(tx, input.targetId);
+		const submitterName = await displayNameOf(tx, input.userId);
+		const authorNames = await displayNamesOf(
+			tx,
+			photoRows.map((photo) => photo.uploadedBy).filter((id): id is string => Boolean(id))
+		);
 
 		const [maxSeq] = await tx
 			.select({ value: sql<number>`coalesce(max(${evidenceSubmissions.sequenceNo}), 0)` })
@@ -105,6 +132,7 @@ export async function submitEvidence(
 				targetId: input.targetId,
 				sequenceNo,
 				submittedBy: input.userId,
+				submittedByName: submitterName,
 				evidenceVersion: locked.version,
 				targetNameSnapshot: context.label,
 				workNameSnapshot: context.workName,
@@ -125,6 +153,9 @@ export async function submitEvidence(
 					groupSortOrder: groupOrder,
 					photoSortOrder: photoOrder,
 					photoUploadedBySnapshot: photo.uploadedBy,
+					photoUploadedByName: photo.uploadedBy
+						? (authorNames.get(photo.uploadedBy) ?? null)
+						: null,
 					photoUploadedAtSnapshot: photo.uploadedAt
 				});
 				photoOrder += 1;
@@ -142,6 +173,7 @@ export async function submitEvidence(
 				groupSortOrder: groupOrder,
 				photoSortOrder: additionalOrder,
 				photoUploadedBySnapshot: photo.uploadedBy,
+				photoUploadedByName: photo.uploadedBy ? (authorNames.get(photo.uploadedBy) ?? null) : null,
 				photoUploadedAtSnapshot: photo.uploadedAt
 			});
 			additionalOrder += 1;
@@ -243,6 +275,7 @@ export async function reviewSubmission(
 				.values({
 					submissionId: submission.id,
 					reviewerId: input.reviewerId,
+					reviewerName: await displayNameOf(tx, input.reviewerId),
 					decision: input.decision,
 					reason: reason.length > 0 ? reason : null
 				})
@@ -325,7 +358,9 @@ export async function getHistory(db: Database, targetId: string): Promise<Histor
 			id: evidenceSubmissions.id,
 			sequenceNo: evidenceSubmissions.sequenceNo,
 			submittedAt: evidenceSubmissions.submittedAt,
-			submittedByName: users.displayName
+			submittedByName: sql<
+				string | null
+			>`coalesce(${evidenceSubmissions.submittedByName}, ${users.displayName})`
 		})
 		.from(evidenceSubmissions)
 		.leftJoin(users, eq(users.id, evidenceSubmissions.submittedBy))
@@ -415,7 +450,9 @@ export async function getSubmissionDetail(
 			targetId: evidenceSubmissions.targetId,
 			sequenceNo: evidenceSubmissions.sequenceNo,
 			submittedAt: evidenceSubmissions.submittedAt,
-			submittedByName: users.displayName,
+			submittedByName: sql<
+				string | null
+			>`coalesce(${evidenceSubmissions.submittedByName}, ${users.displayName})`,
 			targetNameSnapshot: evidenceSubmissions.targetNameSnapshot,
 			workNameSnapshot: evidenceSubmissions.workNameSnapshot,
 			serviceNameSnapshot: evidenceSubmissions.serviceNameSnapshot
@@ -433,7 +470,7 @@ export async function getSubmissionDetail(
 			decision: reviews.decision,
 			reason: reviews.reason,
 			reviewedAt: reviews.reviewedAt,
-			reviewerName: users.displayName
+			reviewerName: sql<string | null>`coalesce(${reviews.reviewerName}, ${users.displayName})`
 		})
 		.from(reviews)
 		.leftJoin(users, eq(users.id, reviews.reviewerId))
@@ -448,7 +485,9 @@ export async function getSubmissionDetail(
 			requirementNameSnapshot: submissionPhotos.requirementNameSnapshot,
 			groupSortOrder: submissionPhotos.groupSortOrder,
 			photoSortOrder: submissionPhotos.photoSortOrder,
-			uploadedByName: users.displayName,
+			uploadedByName: sql<
+				string | null
+			>`coalesce(${submissionPhotos.photoUploadedByName}, ${users.displayName})`,
 			uploadedAt: submissionPhotos.photoUploadedAtSnapshot
 		})
 		.from(submissionPhotos)
@@ -528,7 +567,7 @@ export async function getLatestRejection(
 		.select({
 			reason: reviews.reason,
 			reviewedAt: reviews.reviewedAt,
-			reviewerName: users.displayName
+			reviewerName: sql<string | null>`coalesce(${reviews.reviewerName}, ${users.displayName})`
 		})
 		.from(reviews)
 		.innerJoin(evidenceSubmissions, eq(evidenceSubmissions.id, reviews.submissionId))
@@ -605,7 +644,9 @@ export async function listPendingReviews(
 			targetId: evidenceSubmissions.targetId,
 			sequenceNo: evidenceSubmissions.sequenceNo,
 			submittedAt: evidenceSubmissions.submittedAt,
-			submittedByName: users.displayName
+			submittedByName: sql<
+				string | null
+			>`coalesce(${evidenceSubmissions.submittedByName}, ${users.displayName})`
 		})
 		.from(evidenceSubmissions)
 		.innerJoin(evidenceTargets, eq(evidenceTargets.id, evidenceSubmissions.targetId))

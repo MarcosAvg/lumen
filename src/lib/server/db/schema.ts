@@ -299,8 +299,10 @@ export const photos = pgTable(
 		checksum: text('checksum'),
 		processingStatus: photoProcessingStatus('processing_status').notNull().default('processing'),
 		uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+		uploadedByName: text('uploaded_by_name'),
 		uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
 		removedBy: uuid('removed_by').references(() => users.id, { onDelete: 'set null' }),
+		removedByName: text('removed_by_name'),
 		removedAt: timestamp('removed_at', { withTimezone: true })
 	},
 	(table) => [
@@ -323,6 +325,7 @@ export const evidenceSubmissions = pgTable(
 		// Número 1, 2, 3… por objetivo; asignado serializando con el bloqueo del target.
 		sequenceNo: integer('sequence_no').notNull(),
 		submittedBy: uuid('submitted_by').references(() => users.id, { onDelete: 'set null' }),
+		submittedByName: text('submitted_by_name'),
 		submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
 		evidenceVersion: integer('evidence_version').notNull(),
 		targetNameSnapshot: text('target_name_snapshot'),
@@ -352,6 +355,7 @@ export const submissionPhotos = pgTable(
 		photoUploadedBySnapshot: uuid('photo_uploaded_by_snapshot').references(() => users.id, {
 			onDelete: 'set null'
 		}),
+		photoUploadedByName: text('photo_uploaded_by_name'),
 		photoUploadedAtSnapshot: timestamp('photo_uploaded_at_snapshot', { withTimezone: true })
 	},
 	(table) => [
@@ -372,6 +376,7 @@ export const reviews = pgTable(
 			.notNull()
 			.references(() => evidenceSubmissions.id, { onDelete: 'cascade' }),
 		reviewerId: uuid('reviewer_id').references(() => users.id, { onDelete: 'set null' }),
+		reviewerName: text('reviewer_name'),
 		decision: reviewDecision('decision').notNull(),
 		reason: text('reason'),
 		reviewedAt: timestamp('reviewed_at', { withTimezone: true }).notNull().defaultNow()
@@ -445,6 +450,7 @@ export const auditEvents = pgTable(
 	{
 		id: uuid('id').primaryKey().defaultRandom(),
 		actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+		actorName: text('actor_name'),
 		serviceId: uuid('service_id').references(() => services.id, { onDelete: 'set null' }),
 		entityType: text('entity_type').notNull(),
 		entityId: text('entity_id'),

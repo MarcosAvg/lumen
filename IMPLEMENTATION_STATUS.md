@@ -277,6 +277,13 @@ como **500**. `#lib/server/http.ts` (`toHttpError`/`orHttp`) traduce los errores
 entregas y administración. Además, **eliminar un catálogo redirige** a la lista (evita reejecutar el
 `load` sobre el catálogo borrado). Enlaces antiguos y recursos fuera de ámbito devuelven 404.
 
+**Eliminación de usuarios con firma**: se puede **eliminar** una cuenta (además de desactivarla) y su
+**nombre se conserva** en el historial. La migración `0006_author_snapshots` añade nombres
+congelados (`submitted_by_name`, `reviewer_name`, `photo_uploaded_by_name`, `uploaded_by_name`,
+`removed_by_name`, `actor_name`) que se rellenan al actuar y se leen con `coalesce(snapshot, users)`;
+`deleteUser` protege al último administrador activo. Borrado con **impacto y confirmación** en
+`admin/users` (`/api/users/[userId]`). `docs/01` actualizado.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:

@@ -43,6 +43,13 @@
       "when": 1791988036192,
       "tag": "0005_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792004976639,
+      "tag": "0006_author_snapshots",
+      "breakpoints": true
     }
   ]
 }

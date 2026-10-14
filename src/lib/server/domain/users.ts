@@ -1,6 +1,15 @@
-import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import { serviceAssignments, services, sessions, users } from '#lib/server/db/schema';
+import {
+	auditEvents,
+	evidenceSubmissions,
+	photos,
+	reviews,
+	serviceAssignments,
+	services,
+	sessions,
+	users
+} from '#lib/server/db/schema';
 import type { AssignmentRole, Role } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
@@ -350,4 +359,68 @@ export async function findUserForLogin(
 		.where(sql`lower(${users.username}) = ${normalizeUsername(username)}`)
 		.limit(1);
 	return row ?? null;
+}
+
+export interface UserImpact {
+	submissions: number;
+	reviews: number;
+	photos: number;
+	auditEvents: number;
+	assignments: number;
+}
+
+/** Recuento de lo que un usuario ha dejado en el sistema (para el resumen de borrado). */
+export async function getUserImpact(db: Database, userId: string): Promise<UserImpact> {
+	const [submissions, reviewsCount, photosCount, auditCount, assignments] = await Promise.all([
+		db.$count(evidenceSubmissions, eq(evidenceSubmissions.submittedBy, userId)),
+		db.$count(reviews, eq(reviews.reviewerId, userId)),
+		db.$count(photos, or(eq(photos.uploadedBy, userId), eq(photos.removedBy, userId))),
+		db.$count(auditEvents, eq(auditEvents.actorUserId, userId)),
+		db.$count(serviceAssignments, eq(serviceAssignments.userId, userId))
+	]);
+	return {
+		submissions,
+		reviews: reviewsCount,
+		photos: photosCount,
+		auditEvents: auditCount,
+		assignments
+	};
+}
+
+export interface DeleteUserInput {
+	userId: string;
+	actorId: string;
+}
+
+/**
+ * Elimina físicamente una cuenta. Su **firma histórica** se conserva gracias a
+ * los nombres congelados en entregas, revisiones, fotos y auditoría. Protegido
+ * contra eliminar al último administrador activo.
+ */
+export async function deleteUser(db: Database, input: DeleteUserInput): Promise<void> {
+	await db.transaction(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(${ADMIN_GUARD_LOCK})`);
+
+		const [target] = await tx.select().from(users).where(eq(users.id, input.userId)).limit(1);
+		if (!target) throw new DomainError(404, 'Usuario no encontrado.');
+
+		if (target.role === 'admin' && target.isActive) {
+			const others = await countActiveAdmins(tx, target.id);
+			if (others === 0) {
+				throw new DomainError(409, 'No se puede eliminar al último administrador activo.');
+			}
+		}
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'user',
+			entityId: target.id,
+			action: 'user.deleted',
+			metadata: { username: target.username, role: target.role }
+		});
+
+		// Las cascadas eliminan sesiones, asignaciones, notificaciones y
+		// suscripciones; las FK de autoría quedan NULL pero el nombre persiste.
+		await tx.delete(users).where(eq(users.id, target.id));
+	});
 }

@@ -5,7 +5,8 @@ import {
 	evidenceTargets,
 	photoRequirements,
 	photos,
-	submissionPhotos
+	submissionPhotos,
+	users
 } from '#lib/server/db/schema';
 import { ImageError, processImage } from '#lib/server/storage/images';
 import type { Storage } from '#lib/server/storage/storage';
@@ -13,6 +14,16 @@ import { recordAudit } from './audit';
 import { DomainError } from './errors';
 import { listRequirements, type RequirementRow } from './requirements';
 import { getTargetContext, isEditableStatus, type TargetContext } from './targets';
+
+async function displayNameOf(db: Database, userId: string | null): Promise<string | null> {
+	if (!userId) return null;
+	const [row] = await db
+		.select({ name: users.displayName })
+		.from(users)
+		.where(eq(users.id, userId))
+		.limit(1);
+	return row?.name ?? null;
+}
 
 export type PhotoProcessingStatus = 'processing' | 'ready' | 'failed';
 
@@ -164,7 +175,8 @@ export async function appendPhoto(
 					height: processed.height,
 					checksum: processed.checksum,
 					processingStatus: 'ready',
-					uploadedBy: input.userId
+					uploadedBy: input.userId,
+					uploadedByName: await displayNameOf(tx, input.userId)
 				})
 				.returning({
 					id: photos.id,
@@ -235,7 +247,11 @@ export async function removePhoto(
 
 		const [removed] = await tx
 			.update(photos)
-			.set({ removedAt: new Date(), removedBy: input.userId })
+			.set({
+				removedAt: new Date(),
+				removedBy: input.userId,
+				removedByName: await displayNameOf(tx, input.userId)
+			})
 			.where(
 				and(
 					eq(photos.id, input.photoId),

@@ -457,7 +457,7 @@ export async function getServicesCsv(
 			decision: reviews.decision,
 			reason: reviews.reason,
 			reviewedAt: reviews.reviewedAt,
-			reviewerName: users.displayName
+			reviewerName: sql<string | null>`coalesce(${reviews.reviewerName}, ${users.displayName})`
 		})
 		.from(reviews)
 		.leftJoin(users, eq(users.id, reviews.reviewerId));
