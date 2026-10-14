@@ -167,8 +167,10 @@ export interface NotificationView {
 export async function listNotifications(
 	db: Database,
 	userId: string,
-	limit = 50
+	options: { limit?: number; offset?: number } = {}
 ): Promise<NotificationView[]> {
+	const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+	const offset = Math.max(options.offset ?? 0, 0);
 	const rows = await db
 		.select({
 			id: notifications.id,
@@ -182,9 +184,18 @@ export async function listNotifications(
 		.from(notifications)
 		.where(eq(notifications.recipientUserId, userId))
 		.orderBy(desc(notifications.createdAt))
-		.limit(limit);
+		.limit(limit)
+		.offset(offset);
 
 	return rows.map((row) => ({ ...row, eventType: row.eventType as NotificationEventType }));
+}
+
+export async function countNotifications(db: Database, userId: string): Promise<number> {
+	const [row] = await db
+		.select({ value: sql<number>`cast(count(*) as int)` })
+		.from(notifications)
+		.where(eq(notifications.recipientUserId, userId));
+	return row?.value ?? 0;
 }
 
 export async function unreadNotificationCount(db: Database, userId: string): Promise<number> {

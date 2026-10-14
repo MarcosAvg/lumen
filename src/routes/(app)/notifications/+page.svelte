@@ -20,6 +20,8 @@
 	function formatDate(value: Date | string): string {
 		return new Date(value).toLocaleString();
 	}
+
+	const totalPages = $derived(Math.max(Math.ceil(data.total / data.pageSize), 1));
 </script>
 
 <svelte:head>
@@ -84,4 +86,20 @@
 		¿Quieres recibir avisos en el dispositivo? Configúralo en
 		<a class="underline" href={resolve('/(app)/settings')}>Ajustes</a>.
 	</p>
+
+	{#if totalPages > 1}
+		<div class="flex items-center justify-between gap-3">
+			<span class="text-sm text-muted-foreground">Página {data.page} de {totalPages}</span>
+			<div class="flex gap-2">
+				{#if data.page > 1}
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+					<Button href={`?page=${data.page - 1}`} variant="outline" size="sm">Anterior</Button>
+				{/if}
+				{#if data.page < totalPages}
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+					<Button href={`?page=${data.page + 1}`} variant="outline" size="sm">Siguiente</Button>
+				{/if}
+			</div>
+		</div>
+	{/if}
 </div>

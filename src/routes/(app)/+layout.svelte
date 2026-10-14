@@ -10,7 +10,7 @@
 	let { data, children }: LayoutProps = $props();
 
 	onMount(() => {
-		// El service worker habilita Web Push y el aviso de sin conexión.
+		// El service worker es necesario para Web Push (notificaciones).
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/sw.js').catch(() => {});
 		}
@@ -59,6 +59,20 @@
 					</a>
 				{/each}
 			</nav>
+
+			<form
+				method="GET"
+				action={resolve('/(app)/search')}
+				class="order-last w-full sm:order-none sm:w-auto"
+			>
+				<input
+					type="search"
+					name="q"
+					placeholder="Buscar…"
+					aria-label="Buscar servicios, trabajos y elementos"
+					class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-44"
+				/>
+			</form>
 
 			<div class="flex items-center gap-3">
 				<a

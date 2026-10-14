@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import {
+	countNotifications,
 	listNotifications,
 	markAllNotificationsRead,
 	markNotificationRead
@@ -10,11 +11,20 @@ import {
 import { parseForm } from '#lib/server/forms';
 import type { Actions, PageServerLoad } from './$types';
 
+const PAGE_SIZE = 30;
 const markReadSchema = z.object({ notificationId: z.uuid('Notificación inválida.') });
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const user = requireUser(locals);
-	return { items: await listNotifications(getDatabase().db, user.id) };
+	const page = Math.max(Number(url.searchParams.get('page') ?? '1') || 1, 1);
+	const [items, total] = await Promise.all([
+		listNotifications(getDatabase().db, user.id, {
+			limit: PAGE_SIZE,
+			offset: (page - 1) * PAGE_SIZE
+		}),
+		countNotifications(getDatabase().db, user.id)
+	]);
+	return { items, total, page, pageSize: PAGE_SIZE };
 };
 
 export const actions: Actions = {

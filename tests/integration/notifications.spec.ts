@@ -5,7 +5,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { eq } from 'drizzle-orm';
 import { hashPassword } from '#lib/server/auth/password';
-import { assignUser } from '#lib/server/domain/assignments';
+import { assignUser, revokeAssignment } from '#lib/server/domain/assignments';
 import { DomainError } from '#lib/server/domain/errors';
 import {
 	assertValidSubscription,
@@ -23,7 +23,7 @@ import {
 	unreadNotificationCount
 } from '#lib/server/domain/notifications';
 import { appendPhoto } from '#lib/server/domain/photos';
-import { createService } from '#lib/server/domain/services';
+import { createService, getServiceForUser } from '#lib/server/domain/services';
 import { deleteService } from '#lib/server/domain/structure';
 import { reviewSubmission, submitEvidence } from '#lib/server/domain/submissions';
 import { createFirstAdmin, createUser, setUserActive } from '#lib/server/domain/users';
@@ -304,5 +304,33 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		expect(() =>
 			assertValidSubscription({ endpoint: 'https://ok', p256dh: 'k', auth: 'a' })
 		).not.toThrow();
+	});
+
+	it('NOTIF-02: tras revocar el acceso, el enlace profundo ya no autoriza el recurso', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const { serviceId, targetId } = await seedServiceWithDirectWork(admin);
+		const supervisor = await makeUser('supervisor', 'sup', admin);
+		const { id: assignmentId } = await assignUser(db, {
+			serviceId,
+			userId: supervisor,
+			role: 'supervisor',
+			actorId: admin
+		});
+
+		await submit(storage, targetId, admin);
+		expect(await listNotifications(db, supervisor)).toHaveLength(1);
+
+		// Se revoca la asignación: el recurso enlazado deja de estar autorizado.
+		await revokeAssignment(db, { assignmentId, actorId: admin });
+		const supervisorUser = {
+			id: supervisor,
+			username: 'sup',
+			displayName: 'sup',
+			role: 'supervisor' as const
+		};
+		await expect(getServiceForUser(db, supervisorUser, serviceId)).rejects.toBeInstanceOf(
+			DomainError
+		);
 	});
 });

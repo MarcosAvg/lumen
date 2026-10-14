@@ -65,6 +65,11 @@
 		{:else}
 			<Badge variant="secondary">Pendiente de revisión</Badge>
 		{/if}
+		<Button
+			href={`/api/submissions/${data.detail.submission.id}/export.zip`}
+			variant="outline"
+			size="sm">Descargar ZIP de esta entrega</Button
+		>
 	</div>
 
 	{#if action?.success}

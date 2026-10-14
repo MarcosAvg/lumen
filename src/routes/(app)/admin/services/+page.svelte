@@ -22,12 +22,15 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Servicios</h1>
-		<p class="text-sm text-muted-foreground">
-			Los servicios contienen trabajos y a quién se asigna. La estructura completa llega en la
-			siguiente etapa.
-		</p>
+	<div class="flex flex-wrap items-start justify-between gap-3">
+		<div>
+			<h1 class="text-2xl font-semibold tracking-tight">Servicios</h1>
+			<p class="text-sm text-muted-foreground">
+				Administra los servicios, sus participantes y su estructura de trabajos y elementos.
+			</p>
+		</div>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+		<Button href="/api/admin/exports/services.csv" variant="outline" size="sm">Exportar CSV</Button>
 	</div>
 
 	{#if action?.success}

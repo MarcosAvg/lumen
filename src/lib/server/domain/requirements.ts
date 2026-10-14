@@ -1,6 +1,11 @@
 import { asc, eq, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import { evidenceTargets, photoRequirements, photos } from '#lib/server/db/schema';
+import {
+	evidenceSubmissions,
+	evidenceTargets,
+	photoRequirements,
+	photos
+} from '#lib/server/db/schema';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
 import { getTargetContext, isEditableStatus } from './targets';
@@ -13,26 +18,20 @@ export interface RequirementRow {
 }
 
 /**
- * Comprueba si el objetivo tiene envíos. `evidence_submissions` llega en la
- * Etapa 4; se detecta su existencia con `to_regclass` (que no lanza error, a
- * diferencia de consultar una tabla inexistente dentro de una transacción).
+ * Comprueba si el objetivo tiene envíos (para congelar requisitos tras el primero).
  */
 export async function hasSubmissions(db: Database, targetId: string): Promise<boolean> {
-	const existing = (await db.execute(
-		sql`select to_regclass('public.evidence_submissions') as tbl`
-	)) as unknown as { tbl: string | null }[];
-	if (!existing[0]?.tbl) return false;
-
-	const rows = await db.execute(
-		sql`select 1 from evidence_submissions where target_id = ${targetId} limit 1`
-	);
+	const rows = await db
+		.select({ id: evidenceSubmissions.id })
+		.from(evidenceSubmissions)
+		.where(eq(evidenceSubmissions.targetId, targetId))
+		.limit(1);
 	return rows.length > 0;
 }
 
 /**
  * Los requisitos solo pueden modificarse mientras la evidencia sea editable y el
- * objetivo **nunca se haya enviado** (docs/01 §6). La comprobación real de envíos
- * se activa en la Etapa 4.
+ * objetivo **nunca se haya enviado** (docs/01 §6).
  */
 export async function assertRequirementsEditable(db: Database, targetId: string): Promise<void> {
 	const target = await getTargetContext(db, targetId);

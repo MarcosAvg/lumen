@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	evidenceSubmissions,
@@ -552,14 +552,30 @@ export interface PendingReview {
 	serviceName: string;
 }
 
+export interface PendingReviewFilters {
+	serviceId?: string | null;
+	from?: Date | null;
+	to?: Date | null;
+	q?: string | null;
+	limit?: number;
+	offset?: number;
+}
+
+export interface PendingReviewPage {
+	items: PendingReview[];
+	total: number;
+}
+
 /**
  * Entregas pendientes de revisión dentro del ámbito del usuario: administrador
- * (todas) o supervisor (solo servicios asignados como supervisor).
+ * (todas) o supervisor (solo servicios asignados como supervisor). Admite filtros
+ * por servicio, rango de fechas y texto, con paginación en servidor.
  */
 export async function listPendingReviews(
 	db: Database,
-	user: { id: string; role: string }
-): Promise<PendingReview[]> {
+	user: { id: string; role: string },
+	filters: PendingReviewFilters = {}
+): Promise<PendingReviewPage> {
 	let allowedServiceIds: string[] | null = null;
 	if (user.role !== 'admin') {
 		const rows = await db
@@ -573,8 +589,15 @@ export async function listPendingReviews(
 				)
 			);
 		allowedServiceIds = rows.map((row) => row.serviceId);
-		if (allowedServiceIds.length === 0) return [];
+		if (allowedServiceIds.length === 0) return { items: [], total: 0 };
 	}
+
+	const conditions = [
+		eq(evidenceTargets.currentStatus, 'in_review'),
+		eq(evidenceTargets.latestSubmissionId, evidenceSubmissions.id)
+	];
+	if (filters.from) conditions.push(gte(evidenceSubmissions.submittedAt, filters.from));
+	if (filters.to) conditions.push(lte(evidenceSubmissions.submittedAt, filters.to));
 
 	const submissions = await db
 		.select({
@@ -587,19 +610,20 @@ export async function listPendingReviews(
 		.from(evidenceSubmissions)
 		.innerJoin(evidenceTargets, eq(evidenceTargets.id, evidenceSubmissions.targetId))
 		.leftJoin(users, eq(users.id, evidenceSubmissions.submittedBy))
-		.where(
-			and(
-				eq(evidenceTargets.currentStatus, 'in_review'),
-				eq(evidenceTargets.latestSubmissionId, evidenceSubmissions.id)
-			)
-		)
+		.where(and(...conditions))
 		.orderBy(desc(evidenceSubmissions.submittedAt));
 
-	const result: PendingReview[] = [];
+	const query = filters.q?.trim().toLowerCase() ?? '';
+	const matched: PendingReview[] = [];
 	for (const submission of submissions) {
 		const context = await getTargetContext(db, submission.targetId);
 		if (allowedServiceIds && !allowedServiceIds.includes(context.serviceId)) continue;
-		result.push({
+		if (filters.serviceId && context.serviceId !== filters.serviceId) continue;
+		if (query) {
+			const haystack = `${context.serviceName} ${context.workName} ${context.label}`.toLowerCase();
+			if (!haystack.includes(query)) continue;
+		}
+		matched.push({
 			submissionId: submission.id,
 			sequenceNo: submission.sequenceNo,
 			submittedAt: submission.submittedAt,
@@ -612,5 +636,7 @@ export async function listPendingReviews(
 		});
 	}
 
-	return result;
+	const limit = Math.min(Math.max(filters.limit ?? 20, 1), 100);
+	const offset = Math.max(filters.offset ?? 0, 0);
+	return { items: matched.slice(offset, offset + limit), total: matched.length };
 }

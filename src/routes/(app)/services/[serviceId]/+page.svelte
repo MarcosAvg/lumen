@@ -58,6 +58,15 @@
 		</div>
 	</div>
 
+	<div class="flex flex-wrap items-center gap-3">
+		<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm">
+			Exportar evidencias aprobadas (ZIP)
+		</Button>
+		<span class="text-xs text-muted-foreground">
+			Solo incluye entregas aprobadas; el ZIP lleva un resumen de las pendientes omitidas.
+		</span>
+	</div>
+
 	{#if action?.success}
 		<Alert><AlertDescription>{action.success}</AlertDescription></Alert>
 	{/if}

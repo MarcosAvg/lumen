@@ -1,7 +1,7 @@
 # Estado de implementación de Lumen
 
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
-> Última actualización: **Etapa 6 completada**.
+> Última actualización: **Etapa 7 completada**.
 
 ## Resumen
 
@@ -14,7 +14,7 @@
 | 4 — Envíos, revisiones e historial inmutable      | ✅ Completada |
 | 5 — Cambios estructurales y destrucción explícita | ✅ Completada |
 | 6 — Bandeja interna y Web Push                    | ✅ Completada |
-| 7 — Búsqueda y exportaciones                      | ⏳ Pendiente  |
+| 7 — Búsqueda y exportaciones                      | ✅ Completada |
 | 8 — Calidad, operaciones y publicación            | ⏳ Pendiente  |
 
 ## Stack real en uso
@@ -133,6 +133,40 @@ eliminado y los archivos limpiados.
   **sin caché**) y registro del service worker desde el layout.
 - `pnpm vapid:generate` (`scripts/generate-vapid.mjs`) para generar las claves.
 
+## Etapa 7 — Búsqueda, exportaciones y paginación
+
+### Búsqueda global
+
+- `#lib/server/domain/search.ts` (`searchByName`): nombre visible actual de servicios, trabajos y
+  elementos, `ILIKE` con comillas escapadas y **ámbito resuelto en servidor** (admin todo; resto,
+  asignación vigente). `GET /api/search?q=...` y página `(app)/search` con formulario en el header.
+
+### Exportaciones (`archiver`, streaming)
+
+- `#lib/server/exports/names.ts`: saneado anti-traversal y desambiguación de nombres.
+- `#lib/server/exports/csv.ts`: comillas/escapes, UTF-8 con BOM y **neutralización de fórmulas**.
+- `#lib/server/domain/exports.ts`:
+  - `getSubmissionArchive` → ZIP de entrega desde `submission_photos` (grupos y orden congelados).
+  - `getServiceArchive` → ZIP de servicio con **solo la última entrega aprobada** por objetivo,
+    jerarquía directa/dividida y `resumen.csv` con las unidades omitidas.
+  - `getServicesCsv` → CSV administrativo (una fila por trabajo directo o elemento, sin fotos).
+- `#lib/server/exports/zip.ts`: `ZipArchive` en streaming (`Content-Disposition` seguro).
+- API: `GET /api/submissions/[id]/export.zip`, `GET /api/services/[id]/export.zip`,
+  `GET /api/admin/exports/services.csv` (solo admin). Autorización por ámbito revalidada al descargar.
+- UI: botones «Descargar ZIP de esta entrega», «Exportar evidencias aprobadas (ZIP)» y «Exportar CSV».
+
+### Filtros y paginación
+
+- `listPendingReviews` admite filtros (servicio, rango de fechas, texto) y `limit/offset` con total;
+  la cola de revisión los expone con paginación.
+- `listNotifications`/`countNotifications` con paginación en la bandeja.
+
+### Pendientes menores cerrados
+
+- Secciones **plegables** por grupo en la captura.
+- Prueba dedicada **NOTIF‑02** (tras revocar el acceso, el recurso enlazado deja de autorizarse).
+- `hasSubmissions` simplificado (sin el guard `to_regclass`) y comentario del layout corregido.
+
 ## Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:
@@ -154,12 +188,13 @@ Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integ
 | `pnpm check`                                | ✅ 0 errores, 0 avisos                                                                                                                                                                           |
 | `pnpm lint`                                 | ✅ Limpio                                                                                                                                                                                        |
 | `pnpm test` (unit: `cn` + pipeline `sharp`) | ✅ 6/6                                                                                                                                                                                           |
-| `pnpm test:integration` (PostgreSQL real)   | ✅ 55/55                                                                                                                                                                                         |
+| `pnpm test:integration` (PostgreSQL real)   | ✅ 63/63                                                                                                                                                                                         |
 | `pnpm build`                                | ✅                                                                                                                                                                                               |
 | E2E HTTP (servidor compilado, Etapa 4)      | ✅ entrega, rechazo, segunda decisión `409`, corrección y aprobación                                                                                                                             |
 | E2E HTTP PHOTO‑04                           | ✅ foto retirada de entrega histórica descarga `200`; sin historial, `404`                                                                                                                       |
 | E2E HTTP Etapa 5                            | ✅ conversión `direct→divided` `200`, conversión con entrega `409`, borrado de elemento/trabajo/servicio `200`                                                                                   |
 | E2E HTTP Etapa 6                            | ✅ `/api/push/vapid` (`configured:false`), alta de suscripción `200`, endpoint `http` `400`, bandeja y ajustes `200`, `manifest`/`sw.js`/icono `200`, entrega genera notificación del supervisor |
+| E2E HTTP Etapa 7                            | ✅ ZIP entrega/servicio `200` (contenido y `resumen.csv` verificados con `unzip`), CSV admin con `Entregas` correctas `200`, CSV a técnico `403`, búsqueda filtrada por ámbito                   |
 
 Pruebas de la Etapa 5 (`tests/integration/structural-changes.spec.ts`): WORK‑03 (conversión con
 entrega histórica prohibida), WORK‑04 (reasignación completa o sin cambios), dividido→directo,
@@ -167,8 +202,13 @@ DEL‑01 (borrado de servicio con historial aislado) y limpieza de binarios hué
 
 Pruebas de la Etapa 6 (`tests/integration/notifications.spec.ts`): alcance de destinatarios
 (supervisores/técnicos asignados activos, ajenos e inactivos excluidos), idempotencia, marcado de
-leído propio, cascada al borrar servicio, CRUD de suscripciones con reasignación de endpoint y
-NOTIF‑01 (sin VAPID, el envío se omite y la notificación persiste).
+leído propio, cascada al borrar servicio, CRUD de suscripciones con reasignación de endpoint,
+NOTIF‑01 (sin VAPID, el envío se omite y la notificación persiste) y NOTIF‑02 (tras revocar acceso).
+
+Pruebas de la Etapa 7 (`tests/integration/search-exports.spec.ts`): SEARCH‑01 (ámbito), EXP‑01
+(ZIP de entrega con grupos/orden del snapshot), EXP‑02 (ZIP de servicio solo aprobados + resumen de
+omitidos), saneado de nombres y neutralización de fórmulas en CSV, paginación/filtros de la cola de
+revisión.
 
 ## Decisiones tomadas
 
@@ -176,25 +216,27 @@ NOTIF‑01 (sin VAPID, el envío se omite y la notificación persiste).
   tras el commit, con `maintenance:cleanup` como red de seguridad.
 - **Conversión de modo**: se exige confirmar/mapear el conjunto completo de requisitos y fotos;
   cualquier entrega previa la bloquea.
-- **ZIP por entrega/servicio y CSV administrativo**: diferidos a la Etapa 7.
+- **Exportaciones**: ZIP en **streaming** con `archiver` (sin cargar en memoria); el ZIP de entrega
+  usa el snapshot congelado y el de servicio solo la última entrega aprobada + `resumen.csv`.
+- **CSV administrativo**: solo admin, sin fotos, con BOM y neutralización de fórmulas.
 - **Notificaciones**: internas en la transacción del envío/revisión (idempotentes por
   `recipient_user_id` + `event_key`); push VAPID best-effort tras el commit con `web-push`.
 - **Service worker**: sin caché de respuestas (Lumen es online-only); solo push y `notificationclick`.
-- **Procesado de imágenes síncrono**; limpieza por script y por borrado; sin dependencias externas
-  más allá de `web-push` (canal estándar requerido por Web Push).
+- **Procesado de imágenes síncrono**; limpieza por script y por borrado; dependencias externas
+  limitadas a `web-push` (canal estándar de Web Push) y `archiver` (ZIP).
 
 ## Problemas conocidos / consideraciones
 
 - Sin limitación de tasa en login/subidas (Etapa 8).
-- Búsqueda/ZIP/CSV (Etapa 7); push requiere HTTPS y claves VAPID (opcional).
 - `scripts/cleanup.mjs` debe programarse (cron) para garantizar la purga de huérfanos antiguos.
 - La autorización se evalúa antes que la validación de contenido (p. ej. un revisor no asignado
   recibe `404` aunque el motivo esté vacío), lo que es intencional (no filtra recursos).
 
-## Próximos pasos (Etapa 7)
+## Próximos pasos (Etapa 8)
 
-1. Búsqueda global por nombre visible, filtrada por sesión, rol y asignaciones, con paginación.
-2. Descarga de foto en evidencia actual e histórica (ya disponible por endpoint).
-3. ZIP de entrega desde snapshot (grupos y orden congelados).
-4. ZIP de servicio (última entrega aprobada por objetivo + `resumen.csv` con omitidos).
-5. CSV administrativo (admin) y streaming/temporales acotados; pruebas EXP‑01/02/03 y SEARCH‑01.
+1. Endurecimiento: rate limiting en login/subidas, revisión de CSRF/CSP/XSS y validación de archivos.
+2. Accesibilidad básica y estados sin conexión (online-only, sin prometer envíos offline).
+3. E2E móvil/escritorio de los flujos críticos.
+4. Operaciones: restauración de backup probada, purga de staging y control de disco, cron de
+   `maintenance:cleanup`.
+5. Documentación de despliegue (HTTPS, migraciones, VAPID, GHCR opcional) y publicación de imagen.

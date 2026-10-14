@@ -85,6 +85,12 @@
 	let showSubmit = $state(false);
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
+	// Secciones plegables: por defecto expandidas (`true` = contraída).
+	let collapsedGroups = $state<Record<string, boolean>>({});
+
+	function toggleGroup(key: string) {
+		collapsedGroups = { ...collapsedGroups, [key]: !collapsedGroups[key] };
+	}
 
 	const statusLabel: Record<TargetStatus, string> = {
 		pending: 'Pendiente',
@@ -405,8 +411,16 @@
 							{groupPhotos(requirement.id).length} foto(s)
 						</span>
 					</Card.Title>
-					{#if isAdmin && editable}
-						<div class="flex items-center gap-1">
+					<div class="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							aria-expanded={!collapsedGroups[requirement.id]}
+							onclick={() => toggleGroup(requirement.id)}
+						>
+							{collapsedGroups[requirement.id] ? 'Mostrar' : 'Ocultar'}
+						</Button>
+						{#if isAdmin && editable}
 							<Button variant="ghost" size="sm" onclick={() => toggleRequired(requirement)}>
 								{requirement.isRequired ? 'Hacer opcional' : 'Hacer obligatorio'}
 							</Button>
@@ -417,115 +431,130 @@
 							>
 								Eliminar
 							</Button>
-						</div>
-					{/if}
+						{/if}
+					</div>
 				</Card.Header>
-				<Card.Content class="space-y-3">
-					{#if isAdmin && editable}
-						<form
-							class="flex flex-wrap items-center gap-2"
-							onsubmit={(event) => {
-								event.preventDefault();
-								const input = event.currentTarget.elements.namedItem('reqName');
-								if (input instanceof HTMLInputElement) renameRequirement(requirement, input.value);
-							}}
-						>
-							<Input
-								name="reqName"
-								value={requirement.name}
-								class="h-8 max-w-xs"
-								aria-label="Nombre del requisito"
-							/>
-							<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-						</form>
-					{/if}
-
-					{@render PhotoGrid({
-						editable,
-						group: groupPhotos(requirement.id),
-						onremove: (photo) => (pendingRemove = photo),
-						onmove: (photoId, direction) => movePhoto(requirement.id, photoId, direction),
-						onopen: (photo) => (lightbox = photo)
-					})}
-
-					{#if editable}
-						<div class="flex flex-wrap gap-2">
-							<label class="cursor-pointer">
-								<span class="sr-only">Tomar foto</span>
-								<input
-									type="file"
-									accept="image/*"
-									capture="environment"
-									class="hidden"
-									onchange={(event) => {
-										handleFiles(requirement.id, event.currentTarget.files);
-										event.currentTarget.value = '';
-									}}
+				{#if !collapsedGroups[requirement.id]}
+					<Card.Content class="space-y-3">
+						{#if isAdmin && editable}
+							<form
+								class="flex flex-wrap items-center gap-2"
+								onsubmit={(event) => {
+									event.preventDefault();
+									const input = event.currentTarget.elements.namedItem('reqName');
+									if (input instanceof HTMLInputElement)
+										renameRequirement(requirement, input.value);
+								}}
+							>
+								<Input
+									name="reqName"
+									value={requirement.name}
+									class="h-8 max-w-xs"
+									aria-label="Nombre del requisito"
 								/>
-								<span
-									class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-								>
-									Tomar foto
-								</span>
-							</label>
-							<label class="cursor-pointer">
-								<span class="sr-only">Elegir archivos</span>
-								<input
-									type="file"
-									accept="image/*"
-									multiple
-									class="hidden"
-									onchange={(event) => {
-										handleFiles(requirement.id, event.currentTarget.files);
-										event.currentTarget.value = '';
-									}}
-								/>
-								<span
-									class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-								>
-									Elegir archivos
-								</span>
-							</label>
-						</div>
-					{/if}
-				</Card.Content>
+								<Button type="submit" variant="outline" size="sm">Renombrar</Button>
+							</form>
+						{/if}
+
+						{@render PhotoGrid({
+							editable,
+							group: groupPhotos(requirement.id),
+							onremove: (photo) => (pendingRemove = photo),
+							onmove: (photoId, direction) => movePhoto(requirement.id, photoId, direction),
+							onopen: (photo) => (lightbox = photo)
+						})}
+
+						{#if editable}
+							<div class="flex flex-wrap gap-2">
+								<label class="cursor-pointer">
+									<span class="sr-only">Tomar foto</span>
+									<input
+										type="file"
+										accept="image/*"
+										capture="environment"
+										class="hidden"
+										onchange={(event) => {
+											handleFiles(requirement.id, event.currentTarget.files);
+											event.currentTarget.value = '';
+										}}
+									/>
+									<span
+										class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+									>
+										Tomar foto
+									</span>
+								</label>
+								<label class="cursor-pointer">
+									<span class="sr-only">Elegir archivos</span>
+									<input
+										type="file"
+										accept="image/*"
+										multiple
+										class="hidden"
+										onchange={(event) => {
+											handleFiles(requirement.id, event.currentTarget.files);
+											event.currentTarget.value = '';
+										}}
+									/>
+									<span
+										class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+									>
+										Elegir archivos
+									</span>
+								</label>
+							</div>
+						{/if}
+					</Card.Content>
+				{/if}
 			</Card.Root>
 		{/each}
 
 		<Card.Root>
-			<Card.Header class="flex items-center justify-between">
+			<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 				<Card.Title class="text-base">Adicionales</Card.Title>
-				<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
+				<div class="flex items-center gap-2">
+					<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
+					<Button
+						variant="ghost"
+						size="sm"
+						aria-expanded={!collapsedGroups.additional}
+						onclick={() => toggleGroup('additional')}
+					>
+						{collapsedGroups.additional ? 'Mostrar' : 'Ocultar'}
+					</Button>
+				</div>
 			</Card.Header>
-			<Card.Content class="space-y-3">
-				{@render PhotoGrid({
-					editable,
-					group: additionalPhotos,
-					onremove: (photo) => (pendingRemove = photo),
-					onmove: (photoId, direction) => movePhoto(null, photoId, direction),
-					onopen: (photo) => (lightbox = photo)
-				})}
-				{#if editable}
-					<label class="cursor-pointer">
-						<span class="sr-only">Agregar fotografía</span>
-						<input
-							type="file"
-							accept="image/*"
-							multiple
-							class="hidden"
-							onchange={(event) => {
-								handleFiles(null, event.currentTarget.files);
-								event.currentTarget.value = '';
-							}}
-						/>
-						<span
-							class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-						>
-							Agregar fotografía
-						</span>
-					</label>
-				{/if}
-			</Card.Content>
+			{#if !collapsedGroups.additional}
+				<Card.Content class="space-y-3">
+					{@render PhotoGrid({
+						editable,
+						group: additionalPhotos,
+						onremove: (photo) => (pendingRemove = photo),
+						onmove: (photoId, direction) => movePhoto(null, photoId, direction),
+						onopen: (photo) => (lightbox = photo)
+					})}
+					{#if editable}
+						<label class="cursor-pointer">
+							<span class="sr-only">Agregar fotografía</span>
+							<input
+								type="file"
+								accept="image/*"
+								multiple
+								class="hidden"
+								onchange={(event) => {
+									handleFiles(null, event.currentTarget.files);
+									event.currentTarget.value = '';
+								}}
+							/>
+							<span
+								class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+							>
+								Agregar fotografía
+							</span>
+						</label>
+					{/if}
+				</Card.Content>
+			{/if}
 		</Card.Root>
 
 		{#if isAdmin && editable}
