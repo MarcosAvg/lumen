@@ -41,10 +41,11 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 
 	// Las pestañas separan los tipos y el catálogo aparece en «Requisitos».
 	await page.getByRole('tab', { name: /^Requisitos \(/ }).click();
-	await expect(page.getByText(catalogName)).toBeVisible();
+	await expect(page.getByText(catalogName).filter({ visible: true })).toBeVisible();
 
 	await page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();
@@ -62,7 +63,8 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');

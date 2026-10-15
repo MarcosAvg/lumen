@@ -21,6 +21,7 @@
 - **Estado**: `StatusBadge` mapea `pending / in_progress / in_review / rejected / approved` a los tokens `--state-*` (ámbar, azul de atención, rojo, verde). El color del estado no se escribe a mano en las vistas.
 - **Listado ≠ ficha**: los listados usan `DataTable`; las fichas, breadcrumbs + cabecera de escala única.
 - **Vacíos**: páginas y pestañas usan `EmptyState`; los vacíos dentro de tarjetas/menús quedan como texto atenuado.
+- **Móvil (`< md`)**: navegación por **barra inferior** por rol (zona del pulgar); el buscador de la cabecera se reduce a un icono; controles con área táctil **≥ 44 px**; los listados se muestran como **tarjetas** (en `md+` como tabla); los diálogos abren como **bottom sheet**; y las pantallas de captura usan **barra de acción fija** con la nav inferior oculta. Se respetan las *safe areas* (`viewport-fit=cover` + `env(safe-area-inset-*)`) y el `theme-color` del sistema.
 
 ## 2. Mapa de navegación
 

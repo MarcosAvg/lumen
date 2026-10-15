@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
@@ -77,30 +78,22 @@
 	{#if data.services.length === 0}
 		<EmptyState title="Aún no hay servicios" description="Crea el primero con «Nuevo servicio»." />
 	{:else}
-		<DataTable>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Servicio</Table.Head>
-					<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
-					<Table.Head class="w-px text-right">Acciones</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.services as service (service.id)}
-					<Table.Row>
-						<Table.Cell class="whitespace-normal">
-							<div class="font-medium text-foreground">{service.name}</div>
-							{#if service.description}
-								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
-									{service.description}
-								</p>
-							{/if}
-						</Table.Cell>
-						<Table.Cell class="hidden text-muted-foreground lg:table-cell">
-							{service.buildingName ?? '—'}
-						</Table.Cell>
-						<Table.Cell class="text-right">
-							<div class="flex items-center justify-end gap-2">
+		<ul class="space-y-3 md:hidden">
+			{#each data.services as service (service.id)}
+				<li>
+					<Card.Root>
+						<Card.Content class="space-y-3">
+							<div>
+								<p class="font-medium text-foreground">{service.name}</p>
+								{#if service.description}
+									<p class="text-sm text-muted-foreground">{service.description}</p>
+								{/if}
+							</div>
+							<div class="flex flex-wrap items-center gap-2">
+								<Button
+									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+									size="sm">Ver servicio</Button
+								>
 								<Button
 									href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
 									variant="outline"
@@ -108,11 +101,6 @@
 								>
 									Asignaciones
 								</Button>
-								<Button
-									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-									variant="ghost"
-									size="sm">Ver servicio</Button
-								>
 								<DestructiveDelete
 									label="Eliminar"
 									endpoint={`/api/services/${service.id}`}
@@ -120,10 +108,61 @@
 									description="Se eliminarán sus trabajos, elementos, entregas y fotos."
 								/>
 							</div>
-						</Table.Cell>
+						</Card.Content>
+					</Card.Root>
+				</li>
+			{/each}
+		</ul>
+
+		<div class="hidden md:block">
+			<DataTable>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Servicio</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
+						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</DataTable>
+				</Table.Header>
+				<Table.Body>
+					{#each data.services as service (service.id)}
+						<Table.Row>
+							<Table.Cell class="whitespace-normal">
+								<div class="font-medium text-foreground">{service.name}</div>
+								{#if service.description}
+									<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+										{service.description}
+									</p>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+								{service.buildingName ?? '—'}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<div class="flex items-center justify-end gap-2">
+									<Button
+										href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
+										variant="outline"
+										size="sm"
+									>
+										Asignaciones
+									</Button>
+									<Button
+										href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+										variant="ghost"
+										size="sm">Ver servicio</Button
+									>
+									<DestructiveDelete
+										label="Eliminar"
+										endpoint={`/api/services/${service.id}`}
+										itemName={service.name}
+										description="Se eliminarán sus trabajos, elementos, entregas y fotos."
+									/>
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</DataTable>
+		</div>
 	{/if}
 </div>

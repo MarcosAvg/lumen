@@ -657,8 +657,10 @@
 		{/if}
 
 		{#if editable}
-			<Card.Root>
-				<Card.Content class="flex flex-wrap items-center justify-between gap-2">
+			<div
+				class="sticky bottom-0 z-20 -mx-4 border-t bg-background/95 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+			>
+				<div class="flex flex-wrap items-center justify-between gap-2">
 					{#if submitError}
 						<p class="text-sm text-destructive">{submitError}</p>
 					{:else if !online}
@@ -666,9 +668,11 @@
 							Sin conexión: no puedes enviar evidencia hasta reconectar.
 						</p>
 					{/if}
-					<Button disabled={!online} onclick={() => (showSubmit = true)}>Enviar evidencia</Button>
-				</Card.Content>
-			</Card.Root>
+					<Button class="max-md:w-full" disabled={!online} onclick={() => (showSubmit = true)}
+						>Enviar evidencia</Button
+					>
+				</div>
+			</div>
 		{/if}
 	{:else}
 		{#if history.length === 0}

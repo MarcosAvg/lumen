@@ -3,6 +3,7 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as Table from '#lib/components/ui/table';
@@ -136,46 +137,79 @@
 					: 'No hay catálogos de este tipo.'}
 		/>
 	{:else}
-		<DataTable>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Catálogo</Table.Head>
-					<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
-					<Table.Head class="hidden text-right lg:table-cell">Ítems</Table.Head>
-					<Table.Head class="w-px text-right">Acciones</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each visibleCatalogs as catalog (catalog.id)}
+		<ul class="space-y-3 md:hidden">
+			{#each visibleCatalogs as catalog (catalog.id)}
+				<li>
+					<Card.Root>
+						<Card.Content class="space-y-2">
+							<div class="flex items-start justify-between gap-2">
+								<div class="min-w-0">
+									<p class="font-medium text-foreground">{catalog.name}</p>
+									{#if catalog.description}
+										<p class="text-sm text-muted-foreground">{catalog.description}</p>
+									{/if}
+								</div>
+								{#if catalog.purpose}
+									<Badge variant="secondary" class="shrink-0">{purposeLabel[catalog.purpose]}</Badge
+									>
+								{/if}
+							</div>
+							<div class="flex items-center justify-between gap-2">
+								<span class="tnum text-sm text-muted-foreground">{catalog.itemCount} ítem(s)</span>
+								<Button
+									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
+									variant="outline"
+									size="sm">Ver ítems</Button
+								>
+							</div>
+						</Card.Content>
+					</Card.Root>
+				</li>
+			{/each}
+		</ul>
+
+		<div class="hidden md:block">
+			<DataTable>
+				<Table.Header>
 					<Table.Row>
-						<Table.Cell class="whitespace-normal">
-							<div class="font-medium text-foreground">{catalog.name}</div>
-							{#if catalog.description}
-								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
-									{catalog.description}
-								</p>
-							{/if}
-						</Table.Cell>
-						<Table.Cell>
-							{#if catalog.purpose}
-								<Badge variant="secondary">{purposeLabel[catalog.purpose]}</Badge>
-							{:else}
-								<span class="text-muted-foreground">—</span>
-							{/if}
-						</Table.Cell>
-						<Table.Cell class="tnum hidden text-right text-muted-foreground lg:table-cell">
-							{catalog.itemCount}
-						</Table.Cell>
-						<Table.Cell class="text-right">
-							<Button
-								href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
-								variant="outline"
-								size="sm">Ver ítems</Button
-							>
-						</Table.Cell>
+						<Table.Head>Catálogo</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
+						<Table.Head class="hidden text-right lg:table-cell">Ítems</Table.Head>
+						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</DataTable>
+				</Table.Header>
+				<Table.Body>
+					{#each visibleCatalogs as catalog (catalog.id)}
+						<Table.Row>
+							<Table.Cell class="whitespace-normal">
+								<div class="font-medium text-foreground">{catalog.name}</div>
+								{#if catalog.description}
+									<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+										{catalog.description}
+									</p>
+								{/if}
+							</Table.Cell>
+							<Table.Cell>
+								{#if catalog.purpose}
+									<Badge variant="secondary">{purposeLabel[catalog.purpose]}</Badge>
+								{:else}
+									<span class="text-muted-foreground">—</span>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="tnum hidden text-right text-muted-foreground lg:table-cell">
+								{catalog.itemCount}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<Button
+									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
+									variant="outline"
+									size="sm">Ver ítems</Button
+								>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</DataTable>
+		</div>
 	{/if}
 </div>

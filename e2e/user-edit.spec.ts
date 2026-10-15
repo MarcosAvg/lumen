@@ -38,17 +38,17 @@ test('el administrador edita datos, rol y contraseña en el modal', async ({ pag
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
 	// Editar datos (nombre y usuario).
-	let row = page.getByRole('row').filter({ hasText: displayName });
+	let row = page.locator('tr, li').filter({ visible: true }).filter({ hasText: displayName });
 	await row.getByRole('button', { name: 'Editar' }).click();
 	let dialog = page.getByRole('dialog');
 	await dialog.locator('#edit-displayName').fill(newName);
 	await dialog.locator('#edit-username').fill(`${username}x`);
 	await dialog.getByRole('button', { name: 'Guardar datos' }).click();
 	await expect(page.getByText('Usuario actualizado.')).toBeVisible();
-	await expect(page.getByText(newName)).toBeVisible();
+	await expect(page.getByText(newName).filter({ visible: true })).toBeVisible();
 
 	// Cambiar rol.
-	row = page.getByRole('row').filter({ hasText: newName });
+	row = page.locator('tr, li').filter({ visible: true }).filter({ hasText: newName });
 	await row.getByRole('button', { name: 'Editar' }).click();
 	dialog = page.getByRole('dialog');
 	await dialog.locator('#edit-role').selectOption('supervisor');

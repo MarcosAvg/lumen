@@ -3,6 +3,7 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
@@ -203,34 +204,22 @@
 		</Dialog.Content>
 	</Dialog.Root>
 
-	<DataTable>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>Usuario</Table.Head>
-				<Table.Head>Rol</Table.Head>
-				<Table.Head>Estado</Table.Head>
-				<Table.Head class="w-px text-right">Acciones</Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each data.users as user (user.id)}
-				<Table.Row>
-					<Table.Cell class="whitespace-normal">
-						<div class="font-medium text-foreground">{user.displayName}</div>
-						<p class="truncate text-sm text-muted-foreground">@{user.username}</p>
-					</Table.Cell>
-					<Table.Cell>
-						<Badge variant="secondary">{roleLabel[user.role]}</Badge>
-					</Table.Cell>
-					<Table.Cell>
-						{#if user.isActive}
-							<span class="text-sm text-muted-foreground">Activo</span>
-						{:else}
-							<Badge variant="destructive">Inactivo</Badge>
-						{/if}
-					</Table.Cell>
-					<Table.Cell class="text-right">
-						<div class="flex items-center justify-end gap-2">
+	<ul class="space-y-3 md:hidden">
+		{#each data.users as user (user.id)}
+			<li>
+				<Card.Root>
+					<Card.Content class="space-y-3">
+						<div class="flex items-start justify-between gap-2">
+							<div class="min-w-0">
+								<p class="font-medium text-foreground">{user.displayName}</p>
+								<p class="truncate text-sm text-muted-foreground">@{user.username}</p>
+							</div>
+							<div class="flex shrink-0 items-center gap-1">
+								<Badge variant="secondary">{roleLabel[user.role]}</Badge>
+								{#if !user.isActive}<Badge variant="destructive">Inactivo</Badge>{/if}
+							</div>
+						</div>
+						<div class="flex flex-wrap items-center gap-2">
 							{#if user.isActive}
 								<form method="POST" action="?/deactivate">
 									<input type="hidden" name="userId" value={user.id} />
@@ -242,9 +231,7 @@
 									<Button type="submit" variant="outline" size="sm">Activar</Button>
 								</form>
 							{/if}
-
 							<Button variant="outline" size="sm" onclick={() => openEdit(user)}>Editar</Button>
-
 							<DestructiveDelete
 								label="Eliminar"
 								endpoint={`/api/users/${user.id}`}
@@ -252,11 +239,68 @@
 								description="Se elimina la cuenta; su nombre se conserva como firma en el historial (entregas, revisiones y fotos)."
 							/>
 						</div>
-					</Table.Cell>
+					</Card.Content>
+				</Card.Root>
+			</li>
+		{/each}
+	</ul>
+
+	<div class="hidden md:block">
+		<DataTable>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Usuario</Table.Head>
+					<Table.Head>Rol</Table.Head>
+					<Table.Head>Estado</Table.Head>
+					<Table.Head class="w-px text-right">Acciones</Table.Head>
 				</Table.Row>
-			{/each}
-		</Table.Body>
-	</DataTable>
+			</Table.Header>
+			<Table.Body>
+				{#each data.users as user (user.id)}
+					<Table.Row>
+						<Table.Cell class="whitespace-normal">
+							<div class="font-medium text-foreground">{user.displayName}</div>
+							<p class="truncate text-sm text-muted-foreground">@{user.username}</p>
+						</Table.Cell>
+						<Table.Cell>
+							<Badge variant="secondary">{roleLabel[user.role]}</Badge>
+						</Table.Cell>
+						<Table.Cell>
+							{#if user.isActive}
+								<span class="text-sm text-muted-foreground">Activo</span>
+							{:else}
+								<Badge variant="destructive">Inactivo</Badge>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="text-right">
+							<div class="flex items-center justify-end gap-2">
+								{#if user.isActive}
+									<form method="POST" action="?/deactivate">
+										<input type="hidden" name="userId" value={user.id} />
+										<Button type="submit" variant="destructive" size="sm">Desactivar</Button>
+									</form>
+								{:else}
+									<form method="POST" action="?/activate">
+										<input type="hidden" name="userId" value={user.id} />
+										<Button type="submit" variant="outline" size="sm">Activar</Button>
+									</form>
+								{/if}
+
+								<Button variant="outline" size="sm" onclick={() => openEdit(user)}>Editar</Button>
+
+								<DestructiveDelete
+									label="Eliminar"
+									endpoint={`/api/users/${user.id}`}
+									itemName={user.displayName}
+									description="Se elimina la cuenta; su nombre se conserva como firma en el historial (entregas, revisiones y fotos)."
+								/>
+							</div>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</DataTable>
+	</div>
 
 	<Dialog.Root bind:open={editOpen}>
 		<Dialog.Content class="max-h-[85vh] overflow-y-auto">

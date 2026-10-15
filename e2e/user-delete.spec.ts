@@ -34,10 +34,10 @@ test('el administrador elimina un usuario', async ({ page }, testInfo) => {
 	await createDialog.locator('#new-password').fill('contrasena-segura');
 	await createDialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
-	await expect(page.getByText(displayName)).toBeVisible();
+	await expect(page.getByText(displayName).filter({ visible: true })).toBeVisible();
 
 	// Eliminar con confirmación.
-	const row = page.getByRole('row').filter({ hasText: displayName });
+	const row = page.locator('tr, li').filter({ visible: true }).filter({ hasText: displayName });
 	await row.getByRole('button', { name: 'Eliminar' }).click();
 	const dialog = page.getByRole('alertdialog');
 	await expect(dialog.getByText(`¿Eliminar «${displayName}»?`)).toBeVisible();

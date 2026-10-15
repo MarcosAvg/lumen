@@ -3,6 +3,7 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
@@ -54,47 +55,77 @@
 			description="Aquí verás las entregas y revisiones."
 		/>
 	{:else}
-		<DataTable>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Notificación</Table.Head>
-					<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
-					<Table.Head class="hidden lg:table-cell">Fecha</Table.Head>
-					<Table.Head class="w-px text-right">Acciones</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.items as item (item.id)}
-					<Table.Row class={item.readAt ? 'opacity-60' : ''}>
-						<Table.Cell class="whitespace-normal">
-							<div class="flex items-center gap-2 font-medium text-foreground">
-								{item.title}
-								{#if !item.readAt}<Badge class="lg:hidden">Sin leer</Badge>{/if}
+		<ul class="space-y-3 md:hidden">
+			{#each data.items as item (item.id)}
+				<li>
+					<Card.Root class={item.readAt ? 'opacity-60' : ''}>
+						<Card.Content class="space-y-2">
+							<div class="flex items-start justify-between gap-2">
+								<p class="font-medium text-foreground">{item.title}</p>
+								{#if !item.readAt}<Badge class="shrink-0">Sin leer</Badge>{/if}
 							</div>
-							<p class="line-clamp-1 text-sm text-muted-foreground">{item.body}</p>
-						</Table.Cell>
-						<Table.Cell class="hidden lg:table-cell">
-							<Badge variant="secondary">{eventLabel[item.eventType]}</Badge>
-							{#if !item.readAt}<Badge class="ml-1">Sin leer</Badge>{/if}
-						</Table.Cell>
-						<Table.Cell class="tnum hidden text-muted-foreground lg:table-cell">
-							{formatDate(item.createdAt)}
-						</Table.Cell>
-						<Table.Cell class="text-right">
-							<div class="flex items-center justify-end gap-2">
-								<Button href={item.deepLink} variant="outline" size="sm">Abrir</Button>
-								{#if !item.readAt}
-									<form method="POST" action="?/read">
-										<input type="hidden" name="notificationId" value={item.id} />
-										<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
-									</form>
-								{/if}
+							<p class="line-clamp-2 text-sm text-muted-foreground">{item.body}</p>
+							<div class="flex items-center justify-between gap-2">
+								<span class="tnum text-xs text-muted-foreground">{formatDate(item.createdAt)}</span>
+								<div class="flex items-center gap-2">
+									<Button href={item.deepLink} variant="outline" size="sm">Abrir</Button>
+									{#if !item.readAt}
+										<form method="POST" action="?/read">
+											<input type="hidden" name="notificationId" value={item.id} />
+											<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
+										</form>
+									{/if}
+								</div>
 							</div>
-						</Table.Cell>
+						</Card.Content>
+					</Card.Root>
+				</li>
+			{/each}
+		</ul>
+
+		<div class="hidden md:block">
+			<DataTable>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Notificación</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Fecha</Table.Head>
+						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</DataTable>
+				</Table.Header>
+				<Table.Body>
+					{#each data.items as item (item.id)}
+						<Table.Row class={item.readAt ? 'opacity-60' : ''}>
+							<Table.Cell class="whitespace-normal">
+								<div class="flex items-center gap-2 font-medium text-foreground">
+									{item.title}
+									{#if !item.readAt}<Badge class="lg:hidden">Sin leer</Badge>{/if}
+								</div>
+								<p class="line-clamp-1 text-sm text-muted-foreground">{item.body}</p>
+							</Table.Cell>
+							<Table.Cell class="hidden lg:table-cell">
+								<Badge variant="secondary">{eventLabel[item.eventType]}</Badge>
+								{#if !item.readAt}<Badge class="ml-1">Sin leer</Badge>{/if}
+							</Table.Cell>
+							<Table.Cell class="tnum hidden text-muted-foreground lg:table-cell">
+								{formatDate(item.createdAt)}
+							</Table.Cell>
+							<Table.Cell class="text-right">
+								<div class="flex items-center justify-end gap-2">
+									<Button href={item.deepLink} variant="outline" size="sm">Abrir</Button>
+									{#if !item.readAt}
+										<form method="POST" action="?/read">
+											<input type="hidden" name="notificationId" value={item.id} />
+											<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
+										</form>
+									{/if}
+								</div>
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</DataTable>
+		</div>
 	{/if}
 
 	<p class="text-xs text-muted-foreground">

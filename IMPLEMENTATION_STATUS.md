@@ -315,6 +315,13 @@ Los **14 `<select>` crudos** y los checkboxes ad-hoc se sustituyen por los compo
 cabeceras de ficha (`lg:text-3xl`), los vacíos (`EmptyState`) y el padding de tarjetas (fuera los
 parches `pt-6`). Contrato documentado en `docs/05`.
 
+**UX móvil**: los técnicos estrenan **barra de navegación inferior** (zona del pulgar, ítems por rol:
+técnico/supervisor/admin con «Más»), la cabecera móvil sustituye el buscador por un icono, los
+controles ganan **área táctil ≥ 44 px** y los diálogos pasan a **bottom sheet**. Los listados
+(Servicios, Usuarios, Catálogos, Revisiones, Notificaciones) muestran **tarjetas** en `< md` y tabla
+en escritorio; la captura usa **barra de acción fija** y oculta la nav inferior. Se añaden
+_safe areas_ (`viewport-fit=cover`, `env(safe-area-inset-*)`) y `theme-color` claro/oscuro.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

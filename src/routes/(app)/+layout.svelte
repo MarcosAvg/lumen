@@ -15,6 +15,7 @@
 	import Users from '@lucide/svelte/icons/users';
 	import * as Sidebar from '#lib/components/ui/sidebar';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
+	import BottomNav from '#lib/components/app/bottom-nav.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -62,6 +63,9 @@
 			);
 		return wide ? 'max-w-[1600px]' : 'max-w-[1400px]';
 	});
+
+	/** En las pantallas de captura la acción principal es una barra fija, sin nav inferior. */
+	const hideBottomNav = $derived(/^\/(works|elements)\//.test(page.url.pathname));
 
 	const sections = $derived.by(() => {
 		const general = [
@@ -220,10 +224,16 @@
 			>Saltar al contenido</a
 		>
 		<header
-			class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur lg:h-16 lg:px-8"
+			class="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur lg:min-h-16 lg:px-8"
 		>
-			<Sidebar.Trigger />
-			<form method="GET" action={resolve('/(app)/search')} class="w-full max-w-xs lg:max-w-md">
+			<div class="max-md:hidden">
+				<Sidebar.Trigger />
+			</div>
+			<form
+				method="GET"
+				action={resolve('/(app)/search')}
+				class="hidden w-full max-w-xs md:block lg:max-w-md"
+			>
 				<label class="sr-only" for="global-search">Buscar servicios, trabajos y elementos</label>
 				<input
 					id="global-search"
@@ -234,10 +244,17 @@
 					class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 				/>
 			</form>
-			<div class="ml-auto flex items-center gap-2">
+			<div class="ml-auto flex items-center gap-1">
+				<a
+					href={resolve('/(app)/search')}
+					class="flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden"
+					aria-label="Buscar"
+				>
+					<Search size={18} aria-hidden="true" />
+				</a>
 				<a
 					href={resolve('/(app)/notifications')}
-					class="relative rounded-md p-2 text-muted-foreground hover:bg-muted"
+					class="relative flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:size-9"
 					aria-label={data.unreadCount > 0
 						? `Notificaciones: ${data.unreadCount} sin leer`
 						: 'Notificaciones'}
@@ -257,10 +274,17 @@
 			</div>
 		</header>
 
-		<main id="contenido" class="mx-auto w-full {shellWidth} px-4 py-6 lg:px-8 lg:py-8">
+		<main
+			id="contenido"
+			class="mx-auto w-full {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
+		>
 			{@render children()}
 		</main>
 	</Sidebar.Inset>
+
+	{#if !hideBottomNav}
+		<BottomNav role={data.user.role} />
+	{/if}
 </Sidebar.Provider>
 
 <form bind:this={logoutForm} method="POST" action="/logout" class="hidden"></form>

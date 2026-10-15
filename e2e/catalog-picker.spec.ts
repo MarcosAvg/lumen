@@ -35,7 +35,8 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 
 	await page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();
@@ -58,7 +59,8 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');

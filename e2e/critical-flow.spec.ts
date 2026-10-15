@@ -46,7 +46,8 @@ async function createPendingSubmission(page: Page, unique: string) {
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
@@ -88,7 +89,8 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 	await test.step('revisar y aprobar', async () => {
 		await page.goto('/reviews');
 		const reviewLink = page
-			.getByRole('row')
+			.locator('tr, li')
+			.filter({ visible: true })
 			.filter({ hasText: workName })
 			.getByRole('link', { name: 'Revisar' });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
@@ -99,9 +101,9 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 	});
 
 	await test.step('buscar el trabajo', async () => {
-		const search = page.getByLabel('Buscar servicios, trabajos y elementos');
-		await search.fill(workName);
-		await search.press('Enter');
+		await page.goto('/search');
+		await page.getByPlaceholder('Nombre de servicio, trabajo o elemento').fill(workName);
+		await page.getByRole('button', { name: 'Buscar' }).click();
 		await expect(page.getByRole('heading', { name: 'Buscar' })).toBeVisible();
 		await expect(page.getByText(workName, { exact: false }).first()).toBeVisible();
 	});
@@ -118,7 +120,8 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 	await test.step('rechazar con motivo', async () => {
 		await page.goto('/reviews');
 		const reviewLink = page
-			.getByRole('row')
+			.locator('tr, li')
+			.filter({ visible: true })
 			.filter({ hasText: workName })
 			.getByRole('link', { name: 'Revisar' });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
@@ -137,6 +140,8 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 
 	await test.step('el rechazo desbloquea la corrección', async () => {
 		await page.goto('/reviews');
-		await expect(page.getByRole('row').filter({ hasText: workName })).toHaveCount(0);
+		await expect(
+			page.locator('tr, li').filter({ visible: true }).filter({ hasText: workName })
+		).toHaveCount(0);
 	});
 });

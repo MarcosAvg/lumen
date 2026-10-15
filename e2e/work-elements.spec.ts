@@ -36,7 +36,8 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('row')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
