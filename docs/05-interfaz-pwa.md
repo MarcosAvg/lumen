@@ -261,7 +261,11 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 ## 16. Estados de interfaz y accesibilidad
 
 - **Cargando / vacío / error / sin permiso / conflicto / sin conexión / bloqueado** distinguidos, con acción útil donde corresponda.
-- **Regla de feedback**: el **éxito** de una acción se anuncia con un **toast** (visible y anunciado por lector de pantalla); los **errores de validación** van **junto al campo** y los **errores de acción** con un `Alert` (`role="alert"`); nunca fallar en silencio.
+- **Regla de feedback**: el **resultado de una acción de página** (formulario) se confirma con un
+  aviso **persistente** `Alert role="status"` (visible y anunciado, el usuario puede releerlo); las
+  **acciones rápidas de cliente** (borrado puntual, relaciones por lote, generación) usan **toast**;
+  los **errores de validación** van **junto al campo** y los **errores de acción** con
+  `Alert` (`role="alert"`). Nunca fallar en silencio.
 - **Navegación**: mientras se carga una ruta se muestra un indicador superior con `role="status"`, y el contenedor principal expone `aria-busy`.
 - **Errores de página**: 404/403/500 tienen una vista propia en español, con marca y acción de salida («Ir al inicio») y reintento, en lugar de la página por defecto.
 - Se respeta `prefers-reduced-motion` reduciendo animaciones y transiciones.

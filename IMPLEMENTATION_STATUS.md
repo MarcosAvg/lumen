@@ -224,11 +224,13 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   con motivo** y **borrado destructivo** (con resumen de impacto); formularios de **nuevo servicio**,
   **nuevo trabajo** y **añadir elemento** en diálogos.
 - **Tabs** de componente para «Evidencia actual | Historial».
-- **Toasts** (sonner) en acciones de cliente (p. ej. borrado), manteniendo alertas inline para
-  errores de validación de formularios.
-- **Regla de feedback**: el **éxito** de una acción se anuncia con **toast**; los **errores de
-  validación** quedan inline junto al campo y los **errores de acción** con `Alert`
-  (`role="alert"`). Un `$effect` dispara el toast una vez por resultado nuevo de `form`.
+- **Toasts** (sonner) en acciones rápidas de cliente (p. ej. borrado, relaciones por lote,
+  generación), manteniendo alertas inline para errores de validación de formularios.
+- **Regla de feedback**: el resultado de una **acción de página** (formulario) se confirma con un
+  **aviso persistente** `Alert role="status"` (visible y anunciado por lector de pantalla); el
+  **éxito** de acciones de cliente puede usar **toast**; los **errores de validación** quedan inline
+  junto al campo y los **errores de acción** con `Alert` (`role="alert"`). Evita depender de un
+  toast transitorio (caduca en segundos) para confirmar que una acción se completó.
 - **Páginas de error propias** (`+error.svelte` raíz y `(app)`): 404/403/500 en español, con marca,
   acción «Ir al inicio» y «Reintentar». Antes se mostraba la página por defecto de SvelteKit
   (en inglés y sin salida).

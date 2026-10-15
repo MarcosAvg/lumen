@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
@@ -32,15 +31,6 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
-
-	// Regla de feedback: el éxito de una acción se anuncia con un toast.
-	let shownForm: unknown = null;
-	$effect(() => {
-		if (form && form !== shownForm) {
-			shownForm = form;
-			if (action?.success) toast.success(action.success);
-		}
-	});
 
 	let workOpen = $state(false);
 	let generateOpen = $state(false);
@@ -181,6 +171,11 @@
 		</div>
 	</div>
 
+	{#if action?.success}
+		<Alert role="status">
+			<AlertDescription>{action.success}</AlertDescription>
+		</Alert>
+	{/if}
 	{#if action?.message}
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
