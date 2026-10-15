@@ -65,6 +65,13 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Asignar' }).first().click();
 	await expect(page.getByText('Asignación guardada.')).toBeVisible();
 
+	// Revocar pide confirmación en modal (se cancela para conservar la asignación).
+	await page.getByRole('button', { name: 'Revocar' }).click();
+	const revokeDialog = page.getByRole('alertdialog');
+	await expect(revokeDialog).toBeVisible();
+	await revokeDialog.getByRole('button', { name: 'Cancelar' }).click();
+	await expect(revokeDialog).toBeHidden();
+
 	// Entrar como técnico.
 	await page.context().clearCookies();
 	await page.goto('/');

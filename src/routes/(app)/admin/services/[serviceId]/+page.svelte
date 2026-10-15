@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
@@ -16,6 +17,8 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	const assignmentLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
+
+	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
 </script>
 
 <svelte:head>
@@ -111,10 +114,14 @@
 								{assignment.displayName}
 								<Badge variant="secondary">{assignmentLabel[assignment.assignmentRole]}</Badge>
 							</span>
-							<form method="POST" action="?/revoke">
-								<input type="hidden" name="assignmentId" value={assignment.id} />
-								<Button type="submit" variant="destructive" size="sm">Revocar</Button>
-							</form>
+							<Button
+								variant="destructive"
+								size="sm"
+								onclick={() =>
+									(revokeTarget = { id: assignment.id, displayName: assignment.displayName })}
+							>
+								Revocar
+							</Button>
 						</li>
 					{/each}
 				</ul>
@@ -139,4 +146,29 @@
 			/>
 		</Card.Content>
 	</Card.Root>
+
+	<AlertDialog.Root
+		open={revokeTarget !== null}
+		onOpenChange={(open) => {
+			if (!open) revokeTarget = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title
+					>¿Revocar la asignación de «{revokeTarget?.displayName ?? ''}»?</AlertDialog.Title
+				>
+				<AlertDialog.Description>
+					Dejará de tener acceso a este servicio. Podrás volver a asignarle cuando quieras.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+				<form method="POST" action="?/revoke">
+					<input type="hidden" name="assignmentId" value={revokeTarget?.id ?? ''} />
+					<Button type="submit" variant="destructive">Revocar asignación</Button>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

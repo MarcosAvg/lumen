@@ -6,6 +6,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
@@ -27,6 +28,14 @@
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
+
+	// Confirmaciones destructivas como modales: recordar lo descartado.
+	let dismissedItemDeleteId = $state<string | null>(null);
+	let dismissedCatalogDelete = $state(false);
+	const showItemDelete = $derived(
+		!!action?.pendingDelete && action.pendingDelete.itemId !== dismissedItemDeleteId
+	);
+	const showCatalogDelete = $derived(!!action?.pendingCatalogDelete && !dismissedCatalogDelete);
 
 	const totalPages = $derived(Math.max(Math.ceil(data.total / data.pageSize), 1));
 
@@ -116,38 +125,58 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	{#if action?.pendingCatalogDelete}
-		<Alert variant="destructive">
-			<AlertDescription>
-				<p class="mb-2">
-					¿Eliminar «{action.pendingCatalogDelete.name}»? Sus {action.pendingCatalogDelete
-						.itemCount} ítem(s) se desvincularán y los objetos conservarán su nombre. No se borran evidencias.
-				</p>
+	<AlertDialog.Root
+		open={showCatalogDelete}
+		onOpenChange={(open) => {
+			if (!open) dismissedCatalogDelete = true;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>
+					¿Eliminar «{action?.pendingCatalogDelete?.name ?? ''}»?
+				</AlertDialog.Title>
+				<AlertDialog.Description>
+					Sus {action?.pendingCatalogDelete?.itemCount ?? 0} ítem(s) se desvincularán y los objetos conservarán
+					su nombre. No se borran evidencias.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
 				<form method="POST" action="?/deleteCatalog">
 					<input type="hidden" name="confirm" value="true" />
-					<Button type="submit" variant="destructive" size="sm">Confirmar eliminación</Button>
+					<Button type="submit" variant="destructive">Confirmar eliminación</Button>
 				</form>
-			</AlertDescription>
-		</Alert>
-	{/if}
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
-	{#if action?.pendingDelete}
-		<Alert variant="destructive">
-			<AlertDescription>
-				<p class="mb-2">
-					Eliminar «{action.pendingDelete.name}» desvinculará {action.pendingDelete.impact.works} trabajo(s),
-					{action.pendingDelete.impact.elements} elemento(s), {action.pendingDelete.impact.services} servicio(s)
-					de edificio y {action.pendingDelete.impact.requirements} requisito(s). Conservarán su nombre
-					y sus evidencias no se borran.
-				</p>
+	<AlertDialog.Root
+		open={showItemDelete}
+		onOpenChange={(open) => {
+			if (!open && action?.pendingDelete) dismissedItemDeleteId = action.pendingDelete.itemId;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>¿Eliminar «{action?.pendingDelete?.name ?? ''}»?</AlertDialog.Title>
+				<AlertDialog.Description>
+					Desvinculará {action?.pendingDelete?.impact.works ?? 0} trabajo(s), {action?.pendingDelete
+						?.impact.elements ?? 0} elemento(s), {action?.pendingDelete?.impact.services ?? 0} servicio(s)
+					de edificio y {action?.pendingDelete?.impact.requirements ?? 0} requisito(s). Conservarán su
+					nombre y sus evidencias no se borran.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
 				<form method="POST" action="?/deleteItem">
-					<input type="hidden" name="itemId" value={action.pendingDelete.itemId} />
+					<input type="hidden" name="itemId" value={action?.pendingDelete?.itemId ?? ''} />
 					<input type="hidden" name="confirm" value="true" />
-					<Button type="submit" variant="destructive" size="sm">Confirmar eliminación</Button>
+					<Button type="submit" variant="destructive">Confirmar eliminación</Button>
 				</form>
-			</AlertDescription>
-		</Alert>
-	{/if}
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 
 	<Card.Root>
 		<Card.Header><Card.Title class="text-base">Datos del catálogo</Card.Title></Card.Header>

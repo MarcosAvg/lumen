@@ -108,6 +108,14 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	await expect(page.getByText(antes).first()).toBeVisible();
 	await expect(page.getByText(despues).first()).toBeVisible();
 	await expect(page.getByText('Detalle libre').first()).toBeVisible();
+
+	// Eliminar un requisito pide confirmación en modal (se cancela).
+	await page.getByRole('button', { name: 'Eliminar', exact: true }).first().click();
+	const reqDialog = page.getByRole('alertdialog');
+	await expect(reqDialog).toBeVisible();
+	await expect(reqDialog.getByRole('button', { name: 'Eliminar requisito' })).toBeVisible();
+	await reqDialog.getByRole('button', { name: 'Cancelar' }).click();
+	await expect(reqDialog).toBeHidden();
 });
 
 test('la generación en lote aplica requisitos', async ({ page }, testInfo) => {

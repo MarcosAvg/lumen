@@ -66,6 +66,12 @@ async function createPendingSubmission(page: Page, unique: string) {
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
 	await expect(page.locator('img[alt^="Foto 1 de"]').first()).toBeVisible();
+	// Retirar la foto confirmada en modal; se cancela para continuar el flujo.
+	await page.getByRole('button', { name: 'Retirar fotografía' }).click();
+	const removeDialog = page.getByRole('alertdialog');
+	await expect(removeDialog).toBeVisible();
+	await removeDialog.getByRole('button', { name: 'Cancelar' }).click();
+	await expect(removeDialog).toBeHidden();
 	// Sin requisitos, el grupo se muestra como «Fotografías», no «Adicionales».
 	await expect(page.getByText('Fotografías').first()).toBeVisible();
 	await page.getByRole('button', { name: 'Enviar evidencia' }).click();

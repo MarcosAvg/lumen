@@ -8,6 +8,7 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
@@ -87,6 +88,7 @@
 	let conflict = $state(false);
 	let uploads = $state<Upload[]>([]);
 	let pendingRemove = $state<Photo | null>(null);
+	let pendingRequirement = $state<Req | null>(null);
 	let lightbox = $state<Photo | null>(null);
 	let adminError = $state<string | null>(null);
 	let newRequirement = $state('');
@@ -469,7 +471,7 @@
 							<Button
 								variant="destructive"
 								size="sm"
-								onclick={() => deleteRequirement(requirement)}
+								onclick={() => (pendingRequirement = requirement)}
 							>
 								Eliminar
 							</Button>
@@ -736,50 +738,98 @@
 		</AlertDialog.Content>
 	</AlertDialog.Root>
 
-	{#if pendingRemove}
-		<Alert variant="destructive">
-			<AlertDescription>
-				<p class="mb-2">
-					¿Retirar esta fotografía? Dejará de estar en la evidencia vigente, pero no se borra: las
-					entregas anteriores la conservan.
-				</p>
-				<div class="flex gap-2">
-					<Button
-						variant="destructive"
-						size="sm"
-						onclick={() => removePhoto(pendingRemove as Photo)}
-					>
-						Retirar
-					</Button>
-					<Button variant="outline" size="sm" onclick={() => (pendingRemove = null)}
-						>Cancelar</Button
-					>
-				</div>
-			</AlertDescription>
-		</Alert>
-	{/if}
-
-	{#if lightbox}
-		<div
-			class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 p-4"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			onkeydown={(event) => event.key === 'Escape' && (lightbox = null)}
-		>
-			<img
-				src={`/api/photos/${lightbox.id}/content`}
-				alt="Fotografía de evidencia"
-				class="max-h-[80vh] max-w-full object-contain"
-			/>
-			<div class="flex gap-2">
-				<Button href={`/api/photos/${lightbox.id}/content?download=1`} variant="outline" size="sm">
-					Descargar
+	<AlertDialog.Root
+		open={pendingRemove !== null}
+		onOpenChange={(open) => {
+			if (!open) pendingRemove = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>¿Retirar esta fotografía?</AlertDialog.Title>
+				<AlertDialog.Description>
+					Dejará de estar en la evidencia vigente, pero no se borra: las entregas anteriores la
+					conservan.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					onclick={() => {
+						const photo = pendingRemove;
+						pendingRemove = null;
+						if (photo) removePhoto(photo);
+					}}
+				>
+					Retirar
 				</Button>
-				<Button variant="outline" size="sm" onclick={() => (lightbox = null)}>Cerrar</Button>
-			</div>
-		</div>
-	{/if}
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<AlertDialog.Root
+		open={pendingRequirement !== null}
+		onOpenChange={(open) => {
+			if (!open) pendingRequirement = null;
+		}}
+	>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>¿Eliminar este requisito?</AlertDialog.Title>
+				<AlertDialog.Description>
+					«{pendingRequirement?.name ?? ''}» se elimina de la evidencia; sus fotografías pasan al
+					grupo Adicionales.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+				<Button
+					variant="destructive"
+					onclick={() => {
+						const requirement = pendingRequirement;
+						pendingRequirement = null;
+						if (requirement) deleteRequirement(requirement);
+					}}
+				>
+					Eliminar requisito
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<Dialog.Root
+		open={lightbox !== null}
+		onOpenChange={(open) => {
+			if (!open) lightbox = null;
+		}}
+	>
+		<Dialog.Content class="sm:max-w-2xl">
+			<Dialog.Header>
+				<Dialog.Title class="sr-only">Fotografía de evidencia</Dialog.Title>
+				<Dialog.Description class="sr-only">Vista ampliada de la fotografía.</Dialog.Description>
+			</Dialog.Header>
+			{#if lightbox}
+				<img
+					src={`/api/photos/${lightbox.id}/content`}
+					alt="Fotografía de evidencia"
+					class="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
+				/>
+			{/if}
+			<Dialog.Footer>
+				{#if lightbox}
+					<Button
+						href={`/api/photos/${lightbox.id}/content?download=1`}
+						variant="outline"
+						size="sm"
+					>
+						Descargar
+					</Button>
+				{/if}
+				<Dialog.Close>Cerrar</Dialog.Close>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>
 
 {#snippet PhotoGrid(options: {

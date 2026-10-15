@@ -341,6 +341,11 @@ chequeo de ámbito; los botones «Exportar ZIP»/«Descargar ZIP» se ocultan a 
 de **foto individual** no cambian. `docs/01`, `docs/04` y `docs/05` actualizados; unit de la política y
 E2E con un técnico (403 y sin botón).
 
+**Confirmaciones destructivas en modal**: se convierten en **`AlertDialog`** las confirmaciones que
+estaban **inline**: retirar fotografía, eliminar requisito (antes sin confirmación), eliminar ítem de
+catálogo, eliminar catálogo y revocar asignación. El visor de fotos (lightbox) pasa al componente
+**`Dialog`**. E2E comprueban `role="alertdialog"` en cada caso. Regla documentada en `docs/05`.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

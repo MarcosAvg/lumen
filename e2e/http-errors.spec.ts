@@ -52,7 +52,10 @@ test('eliminar un catálogo redirige a la lista (sin 500)', async ({ page }, tes
 		.getByRole('link', { name: catalogName })
 		.click();
 	await page.getByRole('button', { name: 'Eliminar catálogo' }).click();
-	await page.getByRole('button', { name: 'Confirmar eliminación' }).click();
+	const dialog = page.getByRole('alertdialog');
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByText(catalogName)).toBeVisible();
+	await dialog.getByRole('button', { name: 'Confirmar eliminación' }).click();
 
 	await expect(page.getByRole('heading', { name: 'Catálogos' })).toBeVisible();
 	await expect(page.getByText(catalogName)).toHaveCount(0);
