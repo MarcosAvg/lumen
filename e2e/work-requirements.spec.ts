@@ -30,7 +30,7 @@ async function createCatalog(page: Page, name: string, purpose?: 'requirements')
 async function openCatalog(page: Page, name: string) {
 	await page.goto('/admin/catalogs');
 	await page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: name })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();
@@ -53,7 +53,7 @@ async function createService(page: Page, name: string) {
 async function openService(page: Page, name: string) {
 	await page.goto('/admin/services');
 	const link = page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: name })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await link.getAttribute('href')) ?? '/admin/services');

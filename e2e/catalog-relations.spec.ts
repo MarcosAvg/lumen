@@ -29,7 +29,7 @@ async function createCatalog(page: Page, name: string) {
 async function openCatalog(page: Page, name: string) {
 	await page.goto('/admin/catalogs');
 	await page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: name })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();

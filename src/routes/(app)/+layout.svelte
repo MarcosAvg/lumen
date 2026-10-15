@@ -49,6 +49,20 @@
 		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 	}
 
+	/**
+	 * Ancho del área de contenido según la plantilla de la página: los listados,
+	 * el tablero y la búsqueda usan todo el espacio; las fichas quedan algo más
+	 * contenidas. En móvil no cambia nada (siempre fluido).
+	 */
+	const shellWidth = $derived.by(() => {
+		const path = page.url.pathname;
+		const wide =
+			/^\/(dashboard|search|notifications|reviews)(\/|$)|\/admin\/(services|users|catalogs)$/.test(
+				path
+			);
+		return wide ? 'max-w-[1600px]' : 'max-w-[1400px]';
+	});
+
 	const sections = $derived.by(() => {
 		const general = [
 			{ href: resolve('/(app)/dashboard'), label: 'Inicio', icon: House },
@@ -205,17 +219,19 @@
 			class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
 			>Saltar al contenido</a
 		>
-		<header class="flex h-14 items-center gap-2 border-b px-4">
+		<header
+			class="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-background/85 px-4 backdrop-blur lg:h-16 lg:px-8"
+		>
 			<Sidebar.Trigger />
-			<form method="GET" action={resolve('/(app)/search')} class="w-full max-w-xs">
+			<form method="GET" action={resolve('/(app)/search')} class="w-full max-w-xs lg:max-w-md">
 				<label class="sr-only" for="global-search">Buscar servicios, trabajos y elementos</label>
 				<input
 					id="global-search"
 					type="search"
 					name="q"
-					placeholder="Buscar…"
+					placeholder="Buscar servicios, trabajos y elementos…"
 					aria-label="Buscar servicios, trabajos y elementos"
-					class="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+					class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
 				/>
 			</form>
 			<div class="ml-auto flex items-center gap-2">
@@ -229,7 +245,7 @@
 					<Bell size={18} aria-hidden="true" />
 					{#if data.unreadCount > 0}
 						<span
-							class="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground"
+							class="tnum absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground"
 							>{data.unreadCount > 99 ? '99+' : data.unreadCount}</span
 						>
 					{/if}
@@ -241,7 +257,9 @@
 			</div>
 		</header>
 
-		<main id="contenido" class="mx-auto w-full max-w-6xl px-4 py-6">{@render children()}</main>
+		<main id="contenido" class="mx-auto w-full {shellWidth} px-4 py-6 lg:px-8 lg:py-8">
+			{@render children()}
+		</main>
 	</Sidebar.Inset>
 </Sidebar.Provider>
 

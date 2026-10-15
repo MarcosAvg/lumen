@@ -37,7 +37,7 @@ test('el administrador elimina un usuario', async ({ page }, testInfo) => {
 	await expect(page.getByText(displayName)).toBeVisible();
 
 	// Eliminar con confirmación.
-	const row = page.getByRole('listitem').filter({ hasText: displayName });
+	const row = page.getByRole('row').filter({ hasText: displayName });
 	await row.getByRole('button', { name: 'Eliminar' }).click();
 	const dialog = page.getByRole('alertdialog');
 	await expect(dialog.getByText(`¿Eliminar «${displayName}»?`)).toBeVisible();

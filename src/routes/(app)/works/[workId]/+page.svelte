@@ -101,152 +101,158 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	{#if data.isAdmin}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Editar trabajo</Card.Title></Card.Header>
-			<Card.Content>
-				<form method="POST" action="?/updateWork" class="grid gap-3 sm:grid-cols-3">
-					<input type="hidden" name="workId" value={data.work.id} />
-					<div class="space-y-1">
-						<Label for="work-name">Nombre</Label>
-						<Input id="work-name" name="name" value={data.work.name} required />
-					</div>
-					<div class="space-y-1">
-						<Label for="work-desc">Descripción</Label>
-						<Input id="work-desc" name="description" value={data.work.description ?? ''} />
-					</div>
-					<div class="flex items-end">
-						<Button type="submit" variant="outline" size="sm">Guardar</Button>
-					</div>
-				</form>
-				<p class="mt-2 text-xs text-muted-foreground">
-					Renombrar un trabajo vinculado a catálogo lo desvincula y conserva el nombre propio.
-				</p>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8">
+		<div class="space-y-6">
+			{#if data.work.mode === 'divided'}
+				<Card.Root>
+					<Card.Header class="flex flex-wrap items-center justify-between gap-2">
+						<Card.Title class="text-base">Elementos</Card.Title>
+						{#if data.isAdmin}
+							<Button size="sm" onclick={() => (elementOpen = true)}>Añadir elementos</Button>
+						{/if}
+					</Card.Header>
+					<Card.Content>
+						{#if data.elements.length === 0}
+							<p class="text-sm text-muted-foreground">
+								Sin elementos. Un trabajo dividido sin elementos nunca se considera aprobado.
+							</p>
+						{:else}
+							<ul class="divide-y">
+								{#each data.elements as element (element.id)}
+									<li class="py-3">
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<span class="flex items-center gap-2 text-sm">
+												{element.name}
+												<Badge variant="secondary">{statusLabel[element.status]}</Badge>
+											</span>
+											<Button
+												href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+												variant="outline"
+												size="sm">Abrir evidencia</Button
+											>
+										</div>
+										{#if data.isAdmin}
+											<form
+												method="POST"
+												action="?/updateElement"
+												class="mt-2 flex flex-wrap items-end gap-2"
+											>
+												<input type="hidden" name="elementId" value={element.id} />
+												<Input
+													name="name"
+													value={element.name}
+													class="h-8 max-w-xs"
+													aria-label="Nombre del elemento"
+												/>
+												<Button type="submit" variant="outline" size="sm">Renombrar</Button>
+											</form>
+											<div class="mt-2">
+												<DestructiveDelete
+													label="Eliminar elemento"
+													endpoint={`/api/elements/${element.id}`}
+													itemName={element.name}
+													description="Se eliminarán su evidencia, entregas y fotos."
+												/>
+											</div>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</Card.Content>
+				</Card.Root>
 
-	{#if data.work.mode === 'divided'}
-		<Card.Root>
-			<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-				<Card.Title class="text-base">Elementos</Card.Title>
-				{#if data.isAdmin}
-					<Button size="sm" onclick={() => (elementOpen = true)}>Añadir elementos</Button>
-				{/if}
-			</Card.Header>
-			<Card.Content>
-				{#if data.elements.length === 0}
-					<p class="text-sm text-muted-foreground">
-						Sin elementos. Un trabajo dividido sin elementos nunca se considera aprobado.
-					</p>
-				{:else}
-					<ul class="divide-y">
-						{#each data.elements as element (element.id)}
-							<li class="py-3">
-								<div class="flex flex-wrap items-center justify-between gap-2">
-									<span class="flex items-center gap-2 text-sm">
-										{element.name}
-										<Badge variant="secondary">{statusLabel[element.status]}</Badge>
-									</span>
-									<Button
-										href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
-										variant="outline"
-										size="sm">Abrir evidencia</Button
-									>
-								</div>
-								{#if data.isAdmin}
-									<form
-										method="POST"
-										action="?/updateElement"
-										class="mt-2 flex flex-wrap items-end gap-2"
-									>
-										<input type="hidden" name="elementId" value={element.id} />
-										<Input
-											name="name"
-											value={element.name}
-											class="h-8 max-w-xs"
-											aria-label="Nombre del elemento"
-										/>
-										<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-									</form>
-									<div class="mt-2">
-										<DestructiveDelete
-											label="Eliminar elemento"
-											endpoint={`/api/elements/${element.id}`}
-											itemName={element.name}
-											description="Se eliminarán su evidencia, entregas y fotos."
-										/>
-									</div>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-
-		<Dialog.Root bind:open={elementOpen}>
-			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
-				<form method="POST" action="?/createElements" class="space-y-4">
-					<input type="hidden" name="workId" value={data.work.id} />
-					<input type="hidden" name="elements" value={elementsJson} />
-					<input type="hidden" name="requirements" value={elementRequirementsJson} />
-					<input
-						type="hidden"
-						name="requirementIsRequired"
-						value={elementRequirementsRequired ? 'true' : 'false'}
-					/>
-					<Dialog.Header>
-						<Dialog.Title>Añadir elementos</Dialog.Title>
-						<Dialog.Description>
-							Añade varios ítems de un catálogo o escribe nombres propios.
-						</Dialog.Description>
-					</Dialog.Header>
-					<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
-					{#if requirementCatalogs.length > 0}
-						<div class="space-y-2 rounded-lg border p-3">
-							<Label>Requisitos (opcional)</Label>
-							<p class="text-xs text-muted-foreground">Se aplicarán a cada elemento nuevo.</p>
-							<RequirementsEditor
-								catalogs={requirementCatalogs}
-								bind:value={elementRequirements}
-								bind:required={elementRequirementsRequired}
+				<Dialog.Root bind:open={elementOpen}>
+					<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+						<form method="POST" action="?/createElements" class="space-y-4">
+							<input type="hidden" name="workId" value={data.work.id} />
+							<input type="hidden" name="elements" value={elementsJson} />
+							<input type="hidden" name="requirements" value={elementRequirementsJson} />
+							<input
+								type="hidden"
+								name="requirementIsRequired"
+								value={elementRequirementsRequired ? 'true' : 'false'}
 							/>
-						</div>
-					{/if}
-					{#if action?.elementErrors?._form}
-						<p class="text-sm text-destructive">{action.elementErrors._form}</p>
-					{/if}
-					<Dialog.Footer>
-						<Dialog.Close>Cancelar</Dialog.Close>
-						<Button type="submit" disabled={newElements.length === 0}>Añadir elementos</Button>
-					</Dialog.Footer>
-				</form>
-			</Dialog.Content>
-		</Dialog.Root>
-	{:else if data.evidence}
-		<EvidenceCapture
-			targetId={data.evidence.target.id}
-			label={data.work.name}
-			status={data.evidence.target.status}
-			editable={data.editable}
-			version={data.evidence.target.version}
-			requirements={data.evidence.requirements}
-			photos={data.evidence.photos}
-			history={data.history}
-			rejection={data.rejection}
-			isAdmin={data.isAdmin}
-			{requirementCatalogs}
-		/>
-	{/if}
+							<Dialog.Header>
+								<Dialog.Title>Añadir elementos</Dialog.Title>
+								<Dialog.Description>
+									Añade varios ítems de un catálogo o escribe nombres propios.
+								</Dialog.Description>
+							</Dialog.Header>
+							<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
+							{#if requirementCatalogs.length > 0}
+								<div class="space-y-2 rounded-lg border p-3">
+									<Label>Requisitos (opcional)</Label>
+									<p class="text-xs text-muted-foreground">Se aplicarán a cada elemento nuevo.</p>
+									<RequirementsEditor
+										catalogs={requirementCatalogs}
+										bind:value={elementRequirements}
+										bind:required={elementRequirementsRequired}
+									/>
+								</div>
+							{/if}
+							{#if action?.elementErrors?._form}
+								<p class="text-sm text-destructive">{action.elementErrors._form}</p>
+							{/if}
+							<Dialog.Footer>
+								<Dialog.Close>Cancelar</Dialog.Close>
+								<Button type="submit" disabled={newElements.length === 0}>Añadir elementos</Button>
+							</Dialog.Footer>
+						</form>
+					</Dialog.Content>
+				</Dialog.Root>
+			{:else if data.evidence}
+				<EvidenceCapture
+					targetId={data.evidence.target.id}
+					label={data.work.name}
+					status={data.evidence.target.status}
+					editable={data.editable}
+					version={data.evidence.target.version}
+					requirements={data.evidence.requirements}
+					photos={data.evidence.photos}
+					history={data.history}
+					rejection={data.rejection}
+					isAdmin={data.isAdmin}
+					{requirementCatalogs}
+				/>
+			{/if}
 
-	{#if data.isAdmin && data.conversion}
-		<ConvertWorkMode
-			workId={data.work.id}
-			mode={data.conversion.mode}
-			hasSubmissions={data.conversion.hasSubmissions}
-			direct={data.conversion.direct}
-			elements={data.conversion.elements}
-		/>
-	{/if}
+			{#if data.isAdmin && data.conversion}
+				<ConvertWorkMode
+					workId={data.work.id}
+					mode={data.conversion.mode}
+					hasSubmissions={data.conversion.hasSubmissions}
+					direct={data.conversion.direct}
+					elements={data.conversion.elements}
+				/>
+			{/if}
+		</div>
+
+		<div class="mt-6 space-y-6 lg:mt-0">
+			{#if data.isAdmin}
+				<Card.Root>
+					<Card.Header><Card.Title class="text-base">Editar trabajo</Card.Title></Card.Header>
+					<Card.Content>
+						<form method="POST" action="?/updateWork" class="grid gap-3">
+							<input type="hidden" name="workId" value={data.work.id} />
+							<div class="space-y-1">
+								<Label for="work-name">Nombre</Label>
+								<Input id="work-name" name="name" value={data.work.name} required />
+							</div>
+							<div class="space-y-1">
+								<Label for="work-desc">Descripción</Label>
+								<Input id="work-desc" name="description" value={data.work.description ?? ''} />
+							</div>
+							<div>
+								<Button type="submit" variant="outline" size="sm">Guardar</Button>
+							</div>
+						</form>
+						<p class="mt-2 text-xs text-muted-foreground">
+							Renombrar un trabajo vinculado a catálogo lo desvincula y conserva el nombre propio.
+						</p>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+		</div>
+	</div>
 </div>

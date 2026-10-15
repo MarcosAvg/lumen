@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import * as Card from '#lib/components/ui/card';
 	import { Button } from '#lib/components/ui/button';
+	import * as Table from '#lib/components/ui/table';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -12,47 +15,53 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Hola, {data.user.displayName}</h1>
-		<p class="text-sm text-muted-foreground">Servicios a los que tienes acceso.</p>
-	</div>
+	<PageHeader title="Hola, {data.user.displayName}" description="Servicios a los que tienes acceso."
+	></PageHeader>
 
 	{#if data.services.length === 0}
-		<Card.Root>
-			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				{#if data.user.role === 'admin'}
-					Aún no hay servicios. Créalos desde <a
-						class="underline"
-						href={resolve('/(app)/admin/services')}>Servicios</a
-					>.
-				{:else}
-					No tienes servicios asignados. Contacta con un administrador.
-				{/if}
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			title="Aún no hay servicios"
+			description={data.user.role === 'admin'
+				? 'Crea el primer servicio para empezar a estructurar trabajos y evidencia.'
+				: 'No tienes servicios asignados. Contacta con un administrador.'}
+		>
+			{#if data.user.role === 'admin'}
+				<Button href={resolve('/(app)/admin/services')} size="sm">Ir a Servicios</Button>
+			{/if}
+		</EmptyState>
 	{:else}
-		<ul class="grid gap-3 sm:grid-cols-2">
-			{#each data.services as service (service.id)}
-				<li>
-					<Card.Root>
-						<Card.Header>
-							<Card.Title class="text-base">{service.name}</Card.Title>
+		<DataTable>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Servicio</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
+					<Table.Head class="w-px text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.services as service (service.id)}
+					<Table.Row>
+						<Table.Cell class="whitespace-normal">
+							<div class="font-medium text-foreground">{service.name}</div>
 							{#if service.description}
-								<Card.Description>{service.description}</Card.Description>
+								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+									{service.description}
+								</p>
 							{/if}
-						</Card.Header>
-						<Card.Footer>
+						</Table.Cell>
+						<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+							{service.buildingName ?? '—'}
+						</Table.Cell>
+						<Table.Cell class="text-right">
 							<Button
 								href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
 								variant="outline"
-								size="sm"
+								size="sm">Abrir</Button
 							>
-								Abrir servicio
-							</Button>
-						</Card.Footer>
-					</Card.Root>
-				</li>
-			{/each}
-		</ul>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</DataTable>
 	{/if}
 </div>

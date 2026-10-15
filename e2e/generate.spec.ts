@@ -34,7 +34,7 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 	await page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();
@@ -48,7 +48,7 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 	const serviceLink = page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');

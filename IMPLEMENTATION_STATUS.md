@@ -293,6 +293,15 @@ conjunto de requisitos —de catálogo o libres— **al crear un trabajo** (obje
 elemento), **al añadir elementos** y **al generar en lote** (a cada objetivo creado). El editor
 `requirements-editor` (multi-picker + nombre propio + «Obligatorio») se integra en los tres modales.
 
+**Rediseño de escritorio**: el área de contenido crece según la plantilla (`max-w-[1600px]` en
+listados, tablero, búsqueda y revisiones; `max-w-[1400px]` en fichas) y la cabecera es sticky. Los
+listados (Servicios, Usuarios, Catálogos, Revisiones, Notificaciones, ítems de catálogo, tablero y
+mesa de revisión) pasan a **tablas densas** reutilizando `ui/table` (`DataTable`). Las fichas de
+Servicio, Trabajo y Entrega se reorganizan en **dos columnas** con rail de datos/acciones, y el
+progreso usa un **instrumento medido** (`ProgressMeter`). Se añaden primitivas (`PageHeader`,
+`EmptyState`, `DataTable`, `ProgressMeter`) y una paleta base fría con colores de estado
+(`--state-*`). Todo el escritorio se añade con `lg:`/`xl:`; el móvil conserva su comportamiento.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

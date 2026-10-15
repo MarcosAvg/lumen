@@ -6,6 +6,9 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import * as Table from '#lib/components/ui/table';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -92,47 +95,58 @@
 	</Card.Root>
 
 	{#if data.pending.length === 0}
-		<Card.Root>
-			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				No hay entregas pendientes con estos filtros.
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			title="No hay entregas pendientes"
+			description="No hay entregas en revisión con estos filtros."
+		/>
 	{:else}
-		<ul class="space-y-3">
-			{#each data.pending as item (item.submissionId)}
-				<li>
-					<Card.Root>
-						<Card.Content class="flex flex-wrap items-center justify-between gap-3 pt-6">
-							<div>
-								<p class="flex items-center gap-2 font-medium">
-									{item.serviceName}
-									<Badge variant="secondary">Entrega #{item.sequenceNo}</Badge>
-								</p>
-								<p class="text-sm text-muted-foreground">
-									{item.workName}
-									{#if item.label !== item.workName}
-										· {item.label}
-									{/if}
-								</p>
-								<p class="text-sm text-muted-foreground">
-									{item.submittedByName ?? 'Autor desconocido'} · {formatDate(item.submittedAt)}
-								</p>
+		<DataTable>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Servicio</Table.Head>
+					<Table.Head>Objetivo</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Autor</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Enviada</Table.Head>
+					<Table.Head class="w-px text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.pending as item (item.submissionId)}
+					<Table.Row>
+						<Table.Cell class="whitespace-normal">
+							<div class="flex items-center gap-2 font-medium text-foreground">
+								{item.serviceName}
+								<Badge variant="secondary" class="tnum">#{item.sequenceNo}</Badge>
 							</div>
+						</Table.Cell>
+						<Table.Cell class="whitespace-normal text-muted-foreground">
+							{item.workName}
+							{#if item.label !== item.workName}
+								<span> · {item.label}</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+							{item.submittedByName ?? 'Autor desconocido'}
+						</Table.Cell>
+						<Table.Cell class="tnum hidden text-muted-foreground lg:table-cell">
+							{formatDate(item.submittedAt)}
+						</Table.Cell>
+						<Table.Cell class="text-right">
 							<Button
 								href={resolve('/(app)/submissions/[submissionId]', {
 									submissionId: item.submissionId
 								})}
 								size="sm">Revisar</Button
 							>
-						</Card.Content>
-					</Card.Root>
-				</li>
-			{/each}
-		</ul>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</DataTable>
 
 		{#if totalPages > 1}
 			<div class="flex items-center justify-between gap-3">
-				<span class="text-sm text-muted-foreground">Página {data.page} de {totalPages}</span>
+				<span class="tnum text-sm text-muted-foreground">Página {data.page} de {totalPages}</span>
 				<div class="flex gap-2">
 					{#if data.page > 1}
 						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->

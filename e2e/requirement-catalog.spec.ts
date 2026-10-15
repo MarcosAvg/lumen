@@ -44,7 +44,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await expect(page.getByText(catalogName)).toBeVisible();
 
 	await page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();
@@ -62,7 +62,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');

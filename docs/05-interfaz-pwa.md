@@ -8,6 +8,7 @@
 - Navegación comprensible: `Servicio → Trabajo → Elemento (solo si dividido) → Evidencia`.
 - Controles, enlaces, descargas y resultados nunca muestran recursos fuera del permiso del usuario.
 - Usar shadcn-svelte/Tailwind con contraste adecuado, formularios etiquetados, foco visible, tamaño táctil suficiente y diseño responsivo.
+- **Escritorio**: el área de contenido crece con la plantilla de la página (listados/tablero/búsqueda más anchos que las fichas); los listados usan **tablas** densas y las fichas se organizan en **dos columnas** (contenido + rail de datos/acciones). El progreso se muestra con un **instrumento medido** por objetivos aprobados. En móvil nada de esto cambia: las capas de escritorio se añaden con `lg:`/`xl:` y las tablas permiten desplazamiento horizontal.
 - No imponer flujos complejos de asignación, validación o aprobación. No requerir interacción en tiempo real ni trabajo offline.
 
 ## 2. Mapa de navegación

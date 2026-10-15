@@ -46,7 +46,7 @@ test('eliminar un catálogo redirige a la lista (sin 500)', async ({ page }, tes
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 
 	await page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: 'Ver ítems' })
 		.click();

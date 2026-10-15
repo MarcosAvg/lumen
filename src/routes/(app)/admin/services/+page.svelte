@@ -2,11 +2,13 @@
 	import { resolve } from '$app/paths';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { PageProps } from './$types';
 
@@ -73,45 +75,55 @@
 	</Dialog.Root>
 
 	{#if data.services.length === 0}
-		<Card.Root>
-			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				Aún no hay servicios. Crea el primero con «Nuevo servicio».
-			</Card.Content>
-		</Card.Root>
+		<EmptyState title="Aún no hay servicios" description="Crea el primero con «Nuevo servicio»." />
 	{:else}
-		<ul class="grid gap-3 sm:grid-cols-2">
-			{#each data.services as service (service.id)}
-				<li>
-					<Card.Root class="h-full">
-						<Card.Header>
-							<Card.Title class="text-base">{service.name}</Card.Title>
+		<DataTable>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Servicio</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
+					<Table.Head class="w-px text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.services as service (service.id)}
+					<Table.Row>
+						<Table.Cell class="whitespace-normal">
+							<div class="font-medium text-foreground">{service.name}</div>
 							{#if service.description}
-								<Card.Description>{service.description}</Card.Description>
+								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+									{service.description}
+								</p>
 							{/if}
-						</Card.Header>
-						<Card.Footer class="gap-2">
-							<Button
-								href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
-								variant="outline"
-								size="sm"
-							>
-								Asignaciones
-							</Button>
-							<Button
-								href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-								variant="ghost"
-								size="sm">Ver servicio</Button
-							>
-							<DestructiveDelete
-								label="Eliminar"
-								endpoint={`/api/services/${service.id}`}
-								itemName={service.name}
-								description="Se eliminarán sus trabajos, elementos, entregas y fotos."
-							/>
-						</Card.Footer>
-					</Card.Root>
-				</li>
-			{/each}
-		</ul>
+						</Table.Cell>
+						<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+							{service.buildingName ?? '—'}
+						</Table.Cell>
+						<Table.Cell class="text-right">
+							<div class="flex items-center justify-end gap-2">
+								<Button
+									href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
+									variant="outline"
+									size="sm"
+								>
+									Asignaciones
+								</Button>
+								<Button
+									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+									variant="ghost"
+									size="sm">Ver servicio</Button
+								>
+								<DestructiveDelete
+									label="Eliminar"
+									endpoint={`/api/services/${service.id}`}
+									itemName={service.name}
+									description="Se eliminarán sus trabajos, elementos, entregas y fotos."
+								/>
+							</div>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</DataTable>
 	{/if}
 </div>

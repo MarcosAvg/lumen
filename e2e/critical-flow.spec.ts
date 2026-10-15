@@ -46,7 +46,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
 
 	const serviceLink = page
-		.getByRole('listitem')
+		.getByRole('row')
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: 'Ver servicio' });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
@@ -88,7 +88,7 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 	await test.step('revisar y aprobar', async () => {
 		await page.goto('/reviews');
 		const reviewLink = page
-			.getByRole('listitem')
+			.getByRole('row')
 			.filter({ hasText: workName })
 			.getByRole('link', { name: 'Revisar' });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
@@ -118,7 +118,7 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 	await test.step('rechazar con motivo', async () => {
 		await page.goto('/reviews');
 		const reviewLink = page
-			.getByRole('listitem')
+			.getByRole('row')
 			.filter({ hasText: workName })
 			.getByRole('link', { name: 'Revisar' });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
@@ -137,6 +137,6 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 
 	await test.step('el rechazo desbloquea la corrección', async () => {
 		await page.goto('/reviews');
-		await expect(page.getByRole('listitem').filter({ hasText: workName })).toHaveCount(0);
+		await expect(page.getByRole('row').filter({ hasText: workName })).toHaveCount(0);
 	});
 });

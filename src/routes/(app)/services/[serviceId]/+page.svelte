@@ -15,6 +15,7 @@
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
+	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
 	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
 
@@ -118,33 +119,43 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<AppBreadcrumbs
-			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
-		/>
-		<h1 class="mt-2 text-2xl font-semibold tracking-tight">{data.service.name}</h1>
-		{#if data.service.description}
-			<p class="text-sm text-muted-foreground">{data.service.description}</p>
-		{/if}
-		<div class="mt-2 flex flex-wrap items-center gap-2">
-			{#if data.service.buildingName}
-				<Badge variant="secondary">Edificio: {data.service.buildingName}</Badge>
+	<div class="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
+		<div class="space-y-2">
+			<AppBreadcrumbs
+				items={[
+					{ label: 'Inicio', href: resolve('/(app)/dashboard') },
+					{ label: data.service.name }
+				]}
+			/>
+			<h1 class="text-2xl font-semibold tracking-tight lg:text-3xl">{data.service.name}</h1>
+			{#if data.service.description}
+				<p class="max-w-prose text-sm text-muted-foreground">{data.service.description}</p>
 			{/if}
-			<Badge variant="secondary">Tu acceso: {accessLabel[data.access]}</Badge>
-			<Badge variant={data.progress.completed ? 'default' : 'outline'}>
-				{data.progress.completed ? 'Completado' : 'Incompleto'} · {data.progress
-					.approvedTargets}/{data.progress.totalTargets} ({data.progress.percent}%)
-			</Badge>
+			<div class="flex flex-wrap items-center gap-2">
+				{#if data.service.buildingName}
+					<Badge variant="secondary">Edificio: {data.service.buildingName}</Badge>
+				{/if}
+				<Badge variant="secondary">Tu acceso: {accessLabel[data.access]}</Badge>
+			</div>
+		</div>
+		<div class="flex flex-wrap items-center gap-3 lg:justify-end">
+			<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm">
+				Exportar ZIP
+			</Button>
 		</div>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-3">
-		<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm">
-			Exportar evidencias aprobadas (ZIP)
-		</Button>
-		<span class="text-xs text-muted-foreground">
-			Solo incluye entregas aprobadas; el ZIP lleva un resumen de las pendientes omitidas.
-		</span>
+	<div class="rounded-xl border bg-card p-4">
+		<ProgressMeter
+			approved={data.progress.approvedTargets}
+			total={data.progress.totalTargets}
+			percent={data.progress.percent}
+			completed={data.progress.completed}
+		/>
+		<p class="mt-2 text-xs text-muted-foreground">
+			{data.progress.completed ? 'Completado' : 'Incompleto'} — el ZIP solo incluye entregas aprobadas
+			y un resumen de las pendientes omitidas.
+		</p>
 	</div>
 
 	{#if action?.success}
@@ -154,142 +165,148 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	{#if data.isAdmin}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Datos del servicio</Card.Title></Card.Header>
-			<Card.Content>
-				<form method="POST" action="?/updateService" class="grid gap-4 sm:grid-cols-3">
-					<input type="hidden" name="serviceId" value={data.service.id} />
-					<div class="space-y-2">
-						<Label for="svc-name">Nombre</Label>
-						<Input id="svc-name" name="name" value={data.service.name} required />
-					</div>
-					<div class="space-y-2">
-						<Label for="svc-desc">Descripción</Label>
-						<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
-					</div>
-					<div class="space-y-2">
-						<Label for="svc-building">Edificio</Label>
-						<CatalogItemPicker
-							name="buildingItemId"
-							catalogs={buildingCatalogs}
-							bind:value={buildingItemId}
-							itemPlaceholder="Sin edificio"
-						/>
-					</div>
-					<div class="sm:col-span-3">
-						<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>
-					</div>
-				</form>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+		<div class="space-y-6">
+			<Card.Root>
+				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
+					<Card.Title class="text-base">Trabajos</Card.Title>
+					{#if data.isAdmin}
+						<div class="flex flex-wrap gap-2">
+							<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={catalogsForPicker.length === 0}
+								onclick={() => (generateOpen = true)}>Generar en lote</Button
+							>
+						</div>
+					{/if}
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					{#if data.works.length === 0}
+						<p class="text-sm text-muted-foreground">
+							Sin trabajos. Un servicio sin trabajos nunca se considera completado.
+						</p>
+					{:else}
+						<ul class="divide-y">
+							{#each data.works as work (work.id)}
+								<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+									<div>
+										<p class="flex items-center gap-2 font-medium">
+											{work.name}
+											<Badge variant="secondary"
+												>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
+											>
+											{#if work.approved}
+												<Badge>Aprobado</Badge>
+											{:else if work.mode === 'divided' && work.elementCount === 0}
+												<Badge variant="destructive">Sin elementos</Badge>
+											{/if}
+										</p>
+										{#if work.mode === 'divided'}
+											<p class="text-sm text-muted-foreground">
+												{work.approvedElements}/{work.elementCount} elemento(s) aprobado(s)
+											</p>
+										{:else if work.workStatus}
+											<p class="text-sm text-muted-foreground">
+												Estado: {statusLabel[work.workStatus]}
+											</p>
+										{/if}
+									</div>
+									<div class="flex items-center gap-2">
+										<Button
+											href={resolve('/(app)/works/[workId]', { workId: work.id })}
+											variant="outline"
+											size="sm">Abrir</Button
+										>
+										{#if data.isAdmin}
+											<DestructiveDelete
+												label="Eliminar"
+												endpoint={`/api/works/${work.id}`}
+												itemName={work.name}
+												description="Se eliminarán sus elementos, entregas y fotos."
+											/>
+										{/if}
+									</div>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		</div>
 
-	<Card.Root>
-		<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-			<Card.Title class="text-base">Trabajos</Card.Title>
+		<div class="mt-6 space-y-6 lg:mt-0">
 			{#if data.isAdmin}
-				<div class="flex flex-wrap gap-2">
-					<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={catalogsForPicker.length === 0}
-						onclick={() => (generateOpen = true)}>Generar en lote</Button
-					>
-				</div>
-			{/if}
-		</Card.Header>
-		<Card.Content class="space-y-4">
-			{#if data.works.length === 0}
-				<p class="text-sm text-muted-foreground">
-					Sin trabajos. Un servicio sin trabajos nunca se considera completado.
-				</p>
-			{:else}
-				<ul class="divide-y">
-					{#each data.works as work (work.id)}
-						<li class="flex flex-wrap items-center justify-between gap-2 py-3">
+				<Card.Root>
+					<Card.Header><Card.Title class="text-base">Datos del servicio</Card.Title></Card.Header>
+					<Card.Content>
+						<form method="POST" action="?/updateService" class="grid gap-4">
+							<input type="hidden" name="serviceId" value={data.service.id} />
+							<div class="space-y-2">
+								<Label for="svc-name">Nombre</Label>
+								<Input id="svc-name" name="name" value={data.service.name} required />
+							</div>
+							<div class="space-y-2">
+								<Label for="svc-desc">Descripción</Label>
+								<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
+							</div>
+							<div class="space-y-2">
+								<Label for="svc-building">Edificio</Label>
+								<CatalogItemPicker
+									name="buildingItemId"
+									catalogs={buildingCatalogs}
+									bind:value={buildingItemId}
+									itemPlaceholder="Sin edificio"
+								/>
+							</div>
 							<div>
-								<p class="flex items-center gap-2 font-medium">
-									{work.name}
-									<Badge variant="secondary"
-										>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
-									>
-									{#if work.approved}
-										<Badge>Aprobado</Badge>
-									{:else if work.mode === 'divided' && work.elementCount === 0}
-										<Badge variant="destructive">Sin elementos</Badge>
-									{/if}
-								</p>
-								{#if work.mode === 'divided'}
-									<p class="text-sm text-muted-foreground">
-										{work.approvedElements}/{work.elementCount} elemento(s) aprobado(s)
-									</p>
-								{:else if work.workStatus}
-									<p class="text-sm text-muted-foreground">
-										Estado: {statusLabel[work.workStatus]}
-									</p>
-								{/if}
+								<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>
 							</div>
-							<div class="flex items-center gap-2">
-								<Button
-									href={resolve('/(app)/works/[workId]', { workId: work.id })}
-									variant="outline"
-									size="sm">Abrir</Button
-								>
-								{#if data.isAdmin}
-									<DestructiveDelete
-										label="Eliminar"
-										endpoint={`/api/works/${work.id}`}
-										itemName={work.name}
-										description="Se eliminarán sus elementos, entregas y fotos."
-									/>
-								{/if}
-							</div>
-						</li>
-					{/each}
-				</ul>
+						</form>
+					</Card.Content>
+				</Card.Root>
 			{/if}
-		</Card.Content>
-	</Card.Root>
 
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Participantes</Card.Title></Card.Header>
-		<Card.Content>
-			{#if data.participants.length === 0}
-				<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
-			{:else}
-				<ul class="divide-y">
-					{#each data.participants as participant (participant.userId + participant.assignmentRole)}
-						<li class="flex items-center justify-between gap-3 py-2 text-sm">
-							<span>{participant.displayName}</span>
-							<Badge variant="secondary">{participantLabel[participant.assignmentRole]}</Badge>
-						</li>
-					{/each}
-				</ul>
+			<Card.Root>
+				<Card.Header><Card.Title class="text-base">Participantes</Card.Title></Card.Header>
+				<Card.Content>
+					{#if data.participants.length === 0}
+						<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
+					{:else}
+						<ul class="divide-y">
+							{#each data.participants as participant (participant.userId + participant.assignmentRole)}
+								<li class="flex items-center justify-between gap-3 py-2 text-sm">
+									<span>{participant.displayName}</span>
+									<Badge variant="secondary">{participantLabel[participant.assignmentRole]}</Badge>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+
+			{#if data.isAdmin}
+				<Card.Root>
+					<Card.Header><Card.Title class="text-base">Zona de peligro</Card.Title></Card.Header>
+					<Card.Content class="space-y-2">
+						<p class="text-sm text-muted-foreground">
+							Eliminar el servicio borra de forma permanente sus trabajos, elementos, evidencia,
+							entregas y asignaciones.
+						</p>
+						<DestructiveDelete
+							label="Eliminar servicio"
+							endpoint={`/api/services/${data.service.id}`}
+							itemName={data.service.name}
+							onDeleted={() => {
+								void goto(resolve('/(app)/dashboard'));
+							}}
+						/>
+					</Card.Content>
+				</Card.Root>
 			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	{#if data.isAdmin}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Zona de peligro</Card.Title></Card.Header>
-			<Card.Content class="space-y-2">
-				<p class="text-sm text-muted-foreground">
-					Eliminar el servicio borra de forma permanente sus trabajos, elementos, evidencia,
-					entregas y asignaciones.
-				</p>
-				<DestructiveDelete
-					label="Eliminar servicio"
-					endpoint={`/api/services/${data.service.id}`}
-					itemName={data.service.name}
-					onDeleted={() => {
-						void goto(resolve('/(app)/dashboard'));
-					}}
-				/>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+		</div>
+	</div>
 
 	{#if data.isAdmin}
 		<Dialog.Root bind:open={workOpen}>

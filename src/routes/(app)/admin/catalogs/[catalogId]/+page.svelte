@@ -8,6 +8,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import * as Table from '#lib/components/ui/table';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import CatalogItemRelationsDialog from '#lib/components/catalog/catalog-item-relations-dialog.svelte';
 	import CatalogRelationsBatchDialog from '#lib/components/catalog/catalog-relations-batch-dialog.svelte';
@@ -206,50 +207,85 @@
 					{data.q ? 'Sin ítems que coincidan con la búsqueda.' : 'Sin ítems.'}
 				</p>
 			{:else}
-				<ul class="divide-y">
-					{#each data.items as item (item.id)}
-						<li class="flex flex-wrap items-center justify-between gap-2 py-2">
-							<form method="POST" action="?/renameItem" class="flex items-center gap-2">
-								<input type="hidden" name="itemId" value={item.id} />
-								<Input name="name" value={item.name} aria-label="Nombre del ítem" class="h-8" />
-								<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-							</form>
-							<div class="flex items-center gap-2">
-								<Badge variant="secondary">
-									{item.impact.works} trabajo(s) · {item.impact.elements} elemento(s) · {item.impact
-										.services} edificio(s) · {item.impact.requirements} requisito(s)
-								</Badge>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									onclick={() => openItemRelations(item)}
-								>
-									Relaciones ({relationCountByItem.get(item.id) ?? 0})
-								</Button>
-								<form method="POST" action="?/moveItem">
-									<input type="hidden" name="itemId" value={item.id} />
-									<input type="hidden" name="direction" value="up" />
-									<Button type="submit" variant="ghost" size="sm" aria-label="Subir ítem">↑</Button>
-								</form>
-								<form method="POST" action="?/moveItem">
-									<input type="hidden" name="itemId" value={item.id} />
-									<input type="hidden" name="direction" value="down" />
-									<Button type="submit" variant="ghost" size="sm" aria-label="Bajar ítem">↓</Button>
-								</form>
-								<form method="POST" action="?/deleteItem">
-									<input type="hidden" name="itemId" value={item.id} />
-									<input type="hidden" name="confirm" value="false" />
-									<Button type="submit" variant="destructive" size="sm">Eliminar</Button>
-								</form>
-							</div>
-						</li>
-					{/each}
-				</ul>
+				<div class="overflow-hidden rounded-lg border">
+					<Table.Root
+						class="[&_td]:px-3 [&_td]:py-2 [&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground"
+					>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Ítem</Table.Head>
+								<Table.Head class="hidden lg:table-cell">Usos</Table.Head>
+								<Table.Head class="hidden w-px lg:table-cell">Orden</Table.Head>
+								<Table.Head class="w-px text-right">Acciones</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each data.items as item (item.id)}
+								<Table.Row>
+									<Table.Cell class="whitespace-normal">
+										<form method="POST" action="?/renameItem" class="flex items-center gap-2">
+											<input type="hidden" name="itemId" value={item.id} />
+											<Input
+												name="name"
+												value={item.name}
+												aria-label="Nombre del ítem"
+												class="h-8 max-w-xs"
+											/>
+											<Button type="submit" variant="outline" size="sm">Renombrar</Button>
+										</form>
+									</Table.Cell>
+									<Table.Cell class="hidden lg:table-cell">
+										<Badge variant="secondary" class="tnum font-normal">
+											{item.impact.works} trabajo(s) · {item.impact.elements} elemento(s) · {item
+												.impact.services} edificio(s) · {item.impact.requirements} requisito(s)
+										</Badge>
+									</Table.Cell>
+									<Table.Cell class="hidden lg:table-cell">
+										<div class="flex items-center gap-1">
+											<form method="POST" action="?/moveItem">
+												<input type="hidden" name="itemId" value={item.id} />
+												<input type="hidden" name="direction" value="up" />
+												<Button type="submit" variant="ghost" size="sm" aria-label="Subir ítem"
+													>↑</Button
+												>
+											</form>
+											<form method="POST" action="?/moveItem">
+												<input type="hidden" name="itemId" value={item.id} />
+												<input type="hidden" name="direction" value="down" />
+												<Button type="submit" variant="ghost" size="sm" aria-label="Bajar ítem"
+													>↓</Button
+												>
+											</form>
+										</div>
+									</Table.Cell>
+									<Table.Cell class="text-right">
+										<div class="flex items-center justify-end gap-2">
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												onclick={() => openItemRelations(item)}
+											>
+												Relaciones ({relationCountByItem.get(item.id) ?? 0})
+											</Button>
+											<form method="POST" action="?/deleteItem">
+												<input type="hidden" name="itemId" value={item.id} />
+												<input type="hidden" name="confirm" value="false" />
+												<Button type="submit" variant="destructive" size="sm">Eliminar</Button>
+											</form>
+										</div>
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				</div>
 
 				{#if totalPages > 1}
 					<div class="flex items-center justify-between gap-2">
-						<span class="text-sm text-muted-foreground">Página {data.page} de {totalPages}</span>
+						<span class="tnum text-sm text-muted-foreground"
+							>Página {data.page} de {totalPages}</span
+						>
 						<div class="flex gap-2">
 							{#if data.page > 1}
 								<Button href={pageHref(data.page - 1)} variant="outline" size="sm">Anterior</Button>

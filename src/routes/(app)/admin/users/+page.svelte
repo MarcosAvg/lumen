@@ -3,11 +3,12 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
 	import type { PageProps } from './$types';
@@ -207,23 +208,34 @@
 		</Dialog.Content>
 	</Dialog.Root>
 
-	<ul class="space-y-3">
-		{#each data.users as user (user.id)}
-			<li>
-				<Card.Root>
-					<Card.Content class="flex flex-wrap items-center justify-between gap-4 pt-6">
-						<div class="min-w-0">
-							<p class="flex items-center gap-2 font-medium">
-								{user.displayName}
-								<Badge variant="secondary">{roleLabel[user.role]}</Badge>
-								{#if !user.isActive}
-									<Badge variant="destructive">Inactivo</Badge>
-								{/if}
-							</p>
-							<p class="truncate text-sm text-muted-foreground">@{user.username}</p>
-						</div>
-
-						<div class="flex flex-wrap items-center gap-2">
+	<DataTable>
+		<Table.Header>
+			<Table.Row>
+				<Table.Head>Usuario</Table.Head>
+				<Table.Head>Rol</Table.Head>
+				<Table.Head>Estado</Table.Head>
+				<Table.Head class="w-px text-right">Acciones</Table.Head>
+			</Table.Row>
+		</Table.Header>
+		<Table.Body>
+			{#each data.users as user (user.id)}
+				<Table.Row>
+					<Table.Cell class="whitespace-normal">
+						<div class="font-medium text-foreground">{user.displayName}</div>
+						<p class="truncate text-sm text-muted-foreground">@{user.username}</p>
+					</Table.Cell>
+					<Table.Cell>
+						<Badge variant="secondary">{roleLabel[user.role]}</Badge>
+					</Table.Cell>
+					<Table.Cell>
+						{#if user.isActive}
+							<span class="text-sm text-muted-foreground">Activo</span>
+						{:else}
+							<Badge variant="destructive">Inactivo</Badge>
+						{/if}
+					</Table.Cell>
+					<Table.Cell class="text-right">
+						<div class="flex items-center justify-end gap-2">
 							{#if user.isActive}
 								<form method="POST" action="?/deactivate">
 									<input type="hidden" name="userId" value={user.id} />
@@ -245,11 +257,11 @@
 								description="Se elimina la cuenta; su nombre se conserva como firma en el historial (entregas, revisiones y fotos)."
 							/>
 						</div>
-					</Card.Content>
-				</Card.Root>
-			</li>
-		{/each}
-	</ul>
+					</Table.Cell>
+				</Table.Row>
+			{/each}
+		</Table.Body>
+	</DataTable>
 
 	<Dialog.Root bind:open={editOpen}>
 		<Dialog.Content class="max-h-[85vh] overflow-y-auto">

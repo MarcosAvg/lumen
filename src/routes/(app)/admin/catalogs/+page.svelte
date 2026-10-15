@@ -3,12 +3,14 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Tabs from '#lib/components/ui/tabs';
+	import * as Table from '#lib/components/ui/table';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import PageHeader from '#lib/components/app/page-header.svelte';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -129,42 +131,54 @@
 	</Tabs.Root>
 
 	{#if visibleCatalogs.length === 0}
-		<Card.Root>
-			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				{data.q
-					? 'Sin catálogos que coincidan.'
-					: tab === 'all'
-						? 'Aún no hay catálogos.'
-						: 'No hay catálogos de este tipo.'}
-			</Card.Content>
-		</Card.Root>
+		<EmptyState
+			title={data.q
+				? 'Sin catálogos que coincidan.'
+				: tab === 'all'
+					? 'Aún no hay catálogos.'
+					: 'No hay catálogos de este tipo.'}
+		/>
 	{:else}
-		<ul class="space-y-3">
-			{#each visibleCatalogs as catalog (catalog.id)}
-				<li>
-					<Card.Root>
-						<Card.Header>
-							<Card.Title class="flex items-center gap-2 text-base">
-								{catalog.name}
-								{#if catalog.purpose}
-									<Badge variant="secondary">{purposeLabel[catalog.purpose]}</Badge>
-								{/if}
-							</Card.Title>
+		<DataTable>
+			<Table.Header>
+				<Table.Row>
+					<Table.Head>Catálogo</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
+					<Table.Head class="hidden text-right lg:table-cell">Ítems</Table.Head>
+					<Table.Head class="w-px text-right">Acciones</Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each visibleCatalogs as catalog (catalog.id)}
+					<Table.Row>
+						<Table.Cell class="whitespace-normal">
+							<div class="font-medium text-foreground">{catalog.name}</div>
 							{#if catalog.description}
-								<Card.Description>{catalog.description}</Card.Description>
+								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+									{catalog.description}
+								</p>
 							{/if}
-						</Card.Header>
-						<Card.Footer class="gap-2">
-							<span class="text-sm text-muted-foreground">{catalog.itemCount} ítem(s)</span>
+						</Table.Cell>
+						<Table.Cell>
+							{#if catalog.purpose}
+								<Badge variant="secondary">{purposeLabel[catalog.purpose]}</Badge>
+							{:else}
+								<span class="text-muted-foreground">—</span>
+							{/if}
+						</Table.Cell>
+						<Table.Cell class="tnum hidden text-right text-muted-foreground lg:table-cell">
+							{catalog.itemCount}
+						</Table.Cell>
+						<Table.Cell class="text-right">
 							<Button
 								href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
 								variant="outline"
 								size="sm">Ver ítems</Button
 							>
-						</Card.Footer>
-					</Card.Root>
-				</li>
-			{/each}
-		</ul>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</DataTable>
 	{/if}
 </div>

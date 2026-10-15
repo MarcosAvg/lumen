@@ -62,9 +62,9 @@
 			{ label: `Entrega #${data.detail.submission.sequenceNo}` }
 		]}
 	/>
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">
+	<div class="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
+		<div class="space-y-1">
+			<h1 class="text-2xl font-semibold tracking-tight lg:text-3xl">
 				Entrega #{data.detail.submission.sequenceNo}
 			</h1>
 			<p class="text-sm text-muted-foreground">
@@ -78,20 +78,22 @@
 				{formatDate(data.detail.submission.submittedAt)}
 			</p>
 		</div>
-		{#if data.detail.review}
-			{#if data.detail.review.decision === 'approved'}
-				<Badge>Aprobada</Badge>
+		<div class="flex flex-wrap items-center gap-2 lg:justify-end">
+			{#if data.detail.review}
+				{#if data.detail.review.decision === 'approved'}
+					<Badge>Aprobada</Badge>
+				{:else}
+					<Badge variant="destructive">Rechazada</Badge>
+				{/if}
 			{:else}
-				<Badge variant="destructive">Rechazada</Badge>
+				<Badge variant="secondary">Pendiente de revisión</Badge>
 			{/if}
-		{:else}
-			<Badge variant="secondary">Pendiente de revisión</Badge>
-		{/if}
-		<Button
-			href={`/api/submissions/${data.detail.submission.id}/export.zip`}
-			variant="outline"
-			size="sm">Descargar ZIP de esta entrega</Button
-		>
+			<Button
+				href={`/api/submissions/${data.detail.submission.id}/export.zip`}
+				variant="outline"
+				size="sm">Descargar ZIP</Button
+			>
+		</div>
 	</div>
 
 	{#if action?.success}
@@ -101,109 +103,116 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	{#if data.detail.review}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Revisión</Card.Title></Card.Header>
-			<Card.Content class="space-y-1 text-sm">
-				<p>
-					{data.detail.review.decision === 'approved' ? 'Aprobada' : 'Rechazada'} por
-					{data.detail.review.reviewerName ?? 'Revisor'} el
-					{formatDate(data.detail.review.reviewedAt)}.
-				</p>
-				{#if data.detail.review.reason}
-					<p>Motivo: {data.detail.review.reason}</p>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-	{/if}
+	<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
+		<div class="space-y-6">
+			{#each groups as group (group.order)}
+				<Card.Root>
+					<Card.Header class="flex items-center justify-between">
+						<Card.Title class="text-base">{group.name}</Card.Title>
+						<span class="tnum text-sm text-muted-foreground">{group.photos.length} foto(s)</span>
+					</Card.Header>
+					<Card.Content>
+						<ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+							{#each group.photos as photo, index (photo.id)}
+								<li class="space-y-1">
+									<button
+										type="button"
+										class="block w-full"
+										onclick={() => window.open(`/api/photos/${photo.photoId}/content`, '_blank')}
+										aria-label={`Abrir foto ${index + 1} de ${group.photos.length}`}
+									>
+										<img
+											src={`/api/photos/${photo.photoId}/thumbnail`}
+											alt={`Foto ${index + 1} de ${group.photos.length}`}
+											loading="lazy"
+											class="aspect-[4/3] w-full rounded-md border border-input object-cover"
+										/>
+									</button>
+									{#if photo.uploadedByName}
+										<p class="truncate text-xs text-muted-foreground">{photo.uploadedByName}</p>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</Card.Content>
+				</Card.Root>
+			{/each}
+		</div>
 
-	{#each groups as group (group.order)}
-		<Card.Root>
-			<Card.Header class="flex items-center justify-between">
-				<Card.Title class="text-base">{group.name}</Card.Title>
-				<span class="text-sm text-muted-foreground">{group.photos.length} foto(s)</span>
-			</Card.Header>
-			<Card.Content>
-				<ul class="flex flex-wrap gap-3">
-					{#each group.photos as photo, index (photo.id)}
-						<li class="w-32 space-y-1">
-							<button
-								type="button"
-								onclick={() => window.open(`/api/photos/${photo.photoId}/content`, '_blank')}
-								aria-label={`Abrir foto ${index + 1} de ${group.photos.length}`}
-							>
-								<img
-									src={`/api/photos/${photo.photoId}/thumbnail`}
-									alt={`Foto ${index + 1} de ${group.photos.length}`}
-									loading="lazy"
-									class="h-24 w-32 rounded-md border border-input object-cover"
-								/>
-							</button>
-							{#if photo.uploadedByName}
-								<p class="truncate text-xs text-muted-foreground">{photo.uploadedByName}</p>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			</Card.Content>
-		</Card.Root>
-	{/each}
+		<div class="mt-6 space-y-6 lg:mt-0">
+			{#if data.detail.review}
+				<Card.Root>
+					<Card.Header><Card.Title class="text-base">Revisión</Card.Title></Card.Header>
+					<Card.Content class="space-y-1 text-sm">
+						<p>
+							{data.detail.review.decision === 'approved' ? 'Aprobada' : 'Rechazada'} por
+							{data.detail.review.reviewerName ?? 'Revisor'} el
+							{formatDate(data.detail.review.reviewedAt)}.
+						</p>
+						{#if data.detail.review.reason}
+							<p>Motivo: {data.detail.review.reason}</p>
+						{/if}
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
-	{#if data.canReview}
-		<Card.Root>
-			<Card.Header><Card.Title class="text-base">Decisión</Card.Title></Card.Header>
-			<Card.Content class="flex flex-wrap gap-3">
-				<Button onclick={() => (showApprove = true)}>Aprobar entrega</Button>
-				<Button variant="destructive" onclick={() => (showReject = true)}>Rechazar entrega</Button>
-
-				<AlertDialog.Root bind:open={showApprove}>
-					<AlertDialog.Content>
-						<AlertDialog.Header>
-							<AlertDialog.Title>Confirmar aprobación</AlertDialog.Title>
-							<AlertDialog.Description>
-								¿Confirmas que esta entrega cumple con lo solicitado? Una vez aprobada, la evidencia
-								quedará bloqueada para todos los técnicos.
-							</AlertDialog.Description>
-						</AlertDialog.Header>
-						<AlertDialog.Footer>
-							<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
-							<form method="POST" action="?/approve">
-								<Button type="submit">Confirmar aprobación</Button>
-							</form>
-						</AlertDialog.Footer>
-					</AlertDialog.Content>
-				</AlertDialog.Root>
-
-				<AlertDialog.Root bind:open={showReject}>
-					<AlertDialog.Content>
-						<form method="POST" action="?/reject" class="space-y-4">
-							<AlertDialog.Header>
-								<AlertDialog.Title>Confirmar rechazo</AlertDialog.Title>
-								<AlertDialog.Description>
-									Describe qué deben corregir los técnicos.
-								</AlertDialog.Description>
-							</AlertDialog.Header>
-							<div class="space-y-1">
-								<Label for="reason">Motivo del rechazo (obligatorio)</Label>
-								<Textarea
-									id="reason"
-									name="reason"
-									rows={3}
-									required
-									placeholder="Describe qué deben corregir los técnicos."
-								/>
-								{#if action?.rejectErrors?.reason}
-									<p class="text-sm text-destructive">{action.rejectErrors.reason}</p>
-								{/if}
-							</div>
-							<AlertDialog.Footer>
-								<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
-								<Button type="submit" variant="destructive">Confirmar rechazo</Button>
-							</AlertDialog.Footer>
-						</form>
-					</AlertDialog.Content>
-				</AlertDialog.Root>
-			</Card.Content>
-		</Card.Root>
-	{/if}
+			{#if data.canReview}
+				<Card.Root>
+					<Card.Header><Card.Title class="text-base">Decisión</Card.Title></Card.Header>
+					<Card.Content class="flex flex-wrap gap-3">
+						<Button onclick={() => (showApprove = true)}>Aprobar entrega</Button>
+						<Button variant="destructive" onclick={() => (showReject = true)}
+							>Rechazar entrega</Button
+						>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+		</div>
+	</div>
 </div>
+
+<AlertDialog.Root bind:open={showApprove}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Confirmar aprobación</AlertDialog.Title>
+			<AlertDialog.Description>
+				¿Confirmas que esta entrega cumple con lo solicitado? Una vez aprobada, la evidencia quedará
+				bloqueada para todos los técnicos.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+			<form method="POST" action="?/approve">
+				<Button type="submit">Confirmar aprobación</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={showReject}>
+	<AlertDialog.Content>
+		<form method="POST" action="?/reject" class="space-y-4">
+			<AlertDialog.Header>
+				<AlertDialog.Title>Confirmar rechazo</AlertDialog.Title>
+				<AlertDialog.Description>Describe qué deben corregir los técnicos.</AlertDialog.Description>
+			</AlertDialog.Header>
+			<div class="space-y-1">
+				<Label for="reason">Motivo del rechazo (obligatorio)</Label>
+				<Textarea
+					id="reason"
+					name="reason"
+					rows={3}
+					required
+					placeholder="Describe qué deben corregir los técnicos."
+				/>
+				{#if action?.rejectErrors?.reason}
+					<p class="text-sm text-destructive">{action.rejectErrors.reason}</p>
+				{/if}
+			</div>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+				<Button type="submit" variant="destructive">Confirmar rechazo</Button>
+			</AlertDialog.Footer>
+		</form>
+	</AlertDialog.Content>
+</AlertDialog.Root>
