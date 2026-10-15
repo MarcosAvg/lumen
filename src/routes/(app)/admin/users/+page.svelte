@@ -155,9 +155,20 @@
 
 				<div class="space-y-2">
 					<Label for="new-displayName">Nombre visible</Label>
-					<Input id="new-displayName" name="displayName" bind:value={createName} required />
+					<Input
+						id="new-displayName"
+						name="displayName"
+						bind:value={createName}
+						required
+						aria-invalid={action?.createErrors?.displayName ? true : undefined}
+						aria-describedby={action?.createErrors?.displayName
+							? 'new-displayName-error'
+							: undefined}
+					/>
 					{#if action?.createErrors?.displayName}
-						<p class="text-sm text-destructive">{action.createErrors.displayName}</p>
+						<p id="new-displayName-error" class="text-sm text-destructive">
+							{action.createErrors.displayName}
+						</p>
 					{/if}
 				</div>
 				<div class="space-y-2">
@@ -168,9 +179,13 @@
 						bind:value={createUsername}
 						autocomplete="off"
 						required
+						aria-invalid={action?.createErrors?.username ? true : undefined}
+						aria-describedby={action?.createErrors?.username ? 'new-username-error' : undefined}
 					/>
 					{#if action?.createErrors?.username}
-						<p class="text-sm text-destructive">{action.createErrors.username}</p>
+						<p id="new-username-error" class="text-sm text-destructive">
+							{action.createErrors.username}
+						</p>
 					{/if}
 				</div>
 				<div class="space-y-2">
@@ -182,9 +197,13 @@
 						bind:value={createPassword}
 						autocomplete="new-password"
 						required
+						aria-invalid={action?.createErrors?.password ? true : undefined}
+						aria-describedby={action?.createErrors?.password ? 'new-password-error' : undefined}
 					/>
 					{#if action?.createErrors?.password}
-						<p class="text-sm text-destructive">{action.createErrors.password}</p>
+						<p id="new-password-error" class="text-sm text-destructive">
+							{action.createErrors.password}
+						</p>
 					{/if}
 				</div>
 				<div class="space-y-2">
@@ -322,9 +341,20 @@
 					<h3 class="text-sm font-medium">Datos</h3>
 					<div class="space-y-2">
 						<Label for="edit-displayName">Nombre visible</Label>
-						<Input id="edit-displayName" name="displayName" bind:value={editName} required />
+						<Input
+							id="edit-displayName"
+							name="displayName"
+							bind:value={editName}
+							required
+							aria-invalid={action?.profileErrors?.displayName ? true : undefined}
+							aria-describedby={action?.profileErrors?.displayName
+								? 'edit-displayName-error'
+								: undefined}
+						/>
 						{#if action?.profileErrors?.displayName}
-							<p class="text-sm text-destructive">{action.profileErrors.displayName}</p>
+							<p id="edit-displayName-error" class="text-sm text-destructive">
+								{action.profileErrors.displayName}
+							</p>
 						{/if}
 					</div>
 					<div class="space-y-2">
@@ -335,9 +365,13 @@
 							bind:value={editUsername}
 							autocomplete="off"
 							required
+							aria-invalid={action?.profileErrors?.username ? true : undefined}
+							aria-describedby={action?.profileErrors?.username ? 'edit-username-error' : undefined}
 						/>
 						{#if action?.profileErrors?.username}
-							<p class="text-sm text-destructive">{action.profileErrors.username}</p>
+							<p id="edit-username-error" class="text-sm text-destructive">
+								{action.profileErrors.username}
+							</p>
 						{/if}
 					</div>
 					<Button type="submit" size="sm" disabled={editPending}>Guardar datos</Button>
@@ -401,9 +435,13 @@
 							type="password"
 							autocomplete="new-password"
 							required
+							aria-invalid={action?.resetErrors?.password ? true : undefined}
+							aria-describedby={action?.resetErrors?.password ? 'edit-password-error' : undefined}
 						/>
 						{#if action?.resetErrors?.password}
-							<p class="text-sm text-destructive">{action.resetErrors.password}</p>
+							<p id="edit-password-error" class="text-sm text-destructive">
+								{action.resetErrors.password}
+							</p>
 						{/if}
 					</div>
 					<p class="text-xs text-muted-foreground">Al restablecerla se cierran sus sesiones.</p>

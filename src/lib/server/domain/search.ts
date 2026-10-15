@@ -23,6 +23,10 @@ export interface SearchResult {
 export interface SearchOptions {
 	limit?: number;
 	offset?: number;
+	/** Tipos a incluir; vacío/undefined = todos. */
+	types?: SearchResultType[];
+	/** Restringe a un servicio concreto (debe estar en ámbito). */
+	serviceId?: string | null;
 }
 
 /** `%`/`_`/`\` literales no deben actuar como comodines. */
@@ -57,65 +61,82 @@ export async function searchByName(
 	const allowed = await allowedServiceIds(db, user);
 	if (allowed && allowed.length === 0) return [];
 
+	const wanted = options.types && options.types.length > 0 ? options.types : null;
+	const serviceFilter = options.serviceId ?? null;
+	// Un servicio fuera de ámbito se trata como inexistente (no filtra existencia).
+	if (serviceFilter && allowed && !allowed.includes(serviceFilter)) return [];
+
 	const workCatalog = alias(catalogItems, 'work_catalog');
 	const elementCatalog = alias(catalogItems, 'element_catalog');
 
-	const serviceRows = await db
-		.select({
-			id: services.id,
-			label: services.name,
-			context: sql<string>`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot}, '')`
-		})
-		.from(services)
-		.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
-		.where(
-			and(
-				sql`${services.name} ilike ${pattern} escape '\\'`,
-				allowed ? inArray(services.id, allowed) : undefined
-			)
-		)
-		.orderBy(asc(services.name))
-		.limit(fetch);
+	const serviceRows =
+		!wanted || wanted.includes('service')
+			? await db
+					.select({
+						id: services.id,
+						label: services.name,
+						context: sql<string>`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot}, '')`
+					})
+					.from(services)
+					.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
+					.where(
+						and(
+							sql`${services.name} ilike ${pattern} escape '\\'`,
+							allowed ? inArray(services.id, allowed) : undefined,
+							serviceFilter ? eq(services.id, serviceFilter) : undefined
+						)
+					)
+					.orderBy(asc(services.name))
+					.limit(fetch)
+			: [];
 
-	const workRows = await db
-		.select({
-			id: works.id,
-			label: sql<string>`coalesce(${catalogItems.name}, ${works.customName})`,
-			serviceId: services.id,
-			serviceName: services.name
-		})
-		.from(works)
-		.innerJoin(services, eq(services.id, works.serviceId))
-		.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
-		.where(
-			and(
-				sql`coalesce(${catalogItems.name}, ${works.customName}) ilike ${pattern} escape '\\'`,
-				allowed ? inArray(services.id, allowed) : undefined
-			)
-		)
-		.orderBy(asc(sql`coalesce(${catalogItems.name}, ${works.customName})`))
-		.limit(fetch);
+	const workRows =
+		!wanted || wanted.includes('work')
+			? await db
+					.select({
+						id: works.id,
+						label: sql<string>`coalesce(${catalogItems.name}, ${works.customName})`,
+						serviceId: services.id,
+						serviceName: services.name
+					})
+					.from(works)
+					.innerJoin(services, eq(services.id, works.serviceId))
+					.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
+					.where(
+						and(
+							sql`coalesce(${catalogItems.name}, ${works.customName}) ilike ${pattern} escape '\\'`,
+							allowed ? inArray(services.id, allowed) : undefined,
+							serviceFilter ? eq(services.id, serviceFilter) : undefined
+						)
+					)
+					.orderBy(asc(sql`coalesce(${catalogItems.name}, ${works.customName})`))
+					.limit(fetch)
+			: [];
 
-	const elementRows = await db
-		.select({
-			id: elements.id,
-			label: sql<string>`coalesce(${elementCatalog.name}, ${elements.customName})`,
-			serviceName: services.name,
-			workName: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
-		})
-		.from(elements)
-		.innerJoin(works, eq(works.id, elements.workId))
-		.innerJoin(services, eq(services.id, works.serviceId))
-		.leftJoin(elementCatalog, eq(elementCatalog.id, elements.catalogItemId))
-		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
-		.where(
-			and(
-				sql`coalesce(${elementCatalog.name}, ${elements.customName}) ilike ${pattern} escape '\\'`,
-				allowed ? inArray(services.id, allowed) : undefined
-			)
-		)
-		.orderBy(asc(sql`coalesce(${elementCatalog.name}, ${elements.customName})`))
-		.limit(fetch);
+	const elementRows =
+		!wanted || wanted.includes('element')
+			? await db
+					.select({
+						id: elements.id,
+						label: sql<string>`coalesce(${elementCatalog.name}, ${elements.customName})`,
+						serviceName: services.name,
+						workName: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
+					})
+					.from(elements)
+					.innerJoin(works, eq(works.id, elements.workId))
+					.innerJoin(services, eq(services.id, works.serviceId))
+					.leftJoin(elementCatalog, eq(elementCatalog.id, elements.catalogItemId))
+					.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
+					.where(
+						and(
+							sql`coalesce(${elementCatalog.name}, ${elements.customName}) ilike ${pattern} escape '\\'`,
+							allowed ? inArray(services.id, allowed) : undefined,
+							serviceFilter ? eq(services.id, serviceFilter) : undefined
+						)
+					)
+					.orderBy(asc(sql`coalesce(${elementCatalog.name}, ${elements.customName})`))
+					.limit(fetch)
+			: [];
 
 	const results: SearchResult[] = [
 		...serviceRows.map((row) => ({

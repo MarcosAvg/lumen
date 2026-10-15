@@ -192,7 +192,7 @@
 								</div>
 							{/if}
 							{#if action?.elementErrors?._form}
-								<p class="text-sm text-destructive">{action.elementErrors._form}</p>
+								<p role="alert" class="text-sm text-destructive">{action.elementErrors._form}</p>
 							{/if}
 							<Dialog.Footer>
 								<Dialog.Close>Cancelar</Dialog.Close>

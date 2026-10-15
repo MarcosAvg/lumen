@@ -12,11 +12,22 @@
 	import type { Role } from '#lib/types';
 
 	/** Barra de navegación inferior (solo móvil), pensada para el pulgar. */
-	let { role }: { role: Role } = $props();
+	let {
+		role,
+		unreadCount = 0,
+		reviewsCount = 0
+	}: { role: Role; unreadCount?: number; reviewsCount?: number } = $props();
 
 	const sidebar = useSidebar();
 
-	type Item = { key: string; label: string; icon: typeof House; href?: string; more?: boolean };
+	type Item = {
+		key: string;
+		label: string;
+		icon: typeof House;
+		href?: string;
+		more?: boolean;
+		badge?: number;
+	};
 
 	const items = $derived.by<Item[]>(() => {
 		const home = {
@@ -35,13 +46,15 @@
 			key: 'notifications',
 			label: 'Avisos',
 			icon: Bell,
-			href: resolve('/(app)/notifications')
+			href: resolve('/(app)/notifications'),
+			badge: unreadCount
 		};
 		const reviews = {
 			key: 'reviews',
 			label: 'Revisiones',
 			icon: ClipboardCheck,
-			href: resolve('/(app)/reviews')
+			href: resolve('/(app)/reviews'),
+			badge: reviewsCount
 		};
 		const profile = {
 			key: 'profile',
@@ -95,11 +108,20 @@
 					<a
 						href={item.href}
 						aria-current={current ? 'page' : undefined}
+						aria-label={(item.badge ?? 0) > 0 ? `${item.label}: ${item.badge}` : undefined}
 						class="flex w-full flex-col items-center gap-0.5 py-2 text-[11px] {current
 							? 'font-medium text-foreground'
 							: 'text-muted-foreground'}"
 					>
-						<item.icon class="size-6" aria-hidden="true" />
+						<span class="relative">
+							<item.icon class="size-6" aria-hidden="true" />
+							{#if (item.badge ?? 0) > 0}
+								<span
+									class="tnum absolute -top-1 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground"
+									>{(item.badge ?? 0) > 99 ? '99+' : item.badge}</span
+								>
+							{/if}
+						</span>
 						<span>{item.label}</span>
 					</a>
 					<!-- eslint-enable svelte/no-navigation-without-resolve -->

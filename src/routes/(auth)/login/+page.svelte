@@ -30,9 +30,16 @@
 			<form method="POST" class="space-y-4">
 				<div class="space-y-2">
 					<Label for="username">Usuario</Label>
-					<Input id="username" name="username" autocomplete="username" required />
+					<Input
+						id="username"
+						name="username"
+						autocomplete="username"
+						required
+						aria-invalid={form?.errors?.username ? true : undefined}
+						aria-describedby={form?.errors?.username ? 'username-error' : undefined}
+					/>
 					{#if form?.errors?.username}
-						<p class="text-sm text-destructive">{form.errors.username}</p>
+						<p id="username-error" class="text-sm text-destructive">{form.errors.username}</p>
 					{/if}
 				</div>
 
@@ -44,9 +51,11 @@
 						type="password"
 						autocomplete="current-password"
 						required
+						aria-invalid={form?.errors?.password ? true : undefined}
+						aria-describedby={form?.errors?.password ? 'password-error' : undefined}
 					/>
 					{#if form?.errors?.password}
-						<p class="text-sm text-destructive">{form.errors.password}</p>
+						<p id="password-error" class="text-sm text-destructive">{form.errors.password}</p>
 					{/if}
 				</div>
 

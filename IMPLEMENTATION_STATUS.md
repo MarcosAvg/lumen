@@ -242,6 +242,24 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.
 
+## Tablero por rol, checklist de envío y accesibilidad
+
+- **Tablero por rol** (`docs/05 §4`): el técnico ve «Requiere tu atención» (rechazados, con motivo y
+  «Corregir») y «Pendientes» (avance `X/Y` requisitos); el supervisor, «Entregas por revisar» y
+  totales; el administrador, resumen global (servicios, objetivos aprobados, revisiones pendientes).
+  Se calcula en servidor acotado por ámbito (`#lib/server/domain/dashboard.ts`, sin N+1).
+- **Contador de revisiones** en la navegación (sidebar y barra inferior) para admin/supervisor,
+  acotado por asignación (`countPendingReviews`).
+- **Checklist de envío**: regla compartida servidor/UI (`#lib/evidence/submit-readiness.ts`). El
+  servidor la usa como validación autoritativa y la UI avisa antes de enviar (chip «Falta evidencia»
+  por requisito, resumen junto al botón y «Confirmar envío» deshabilitado).
+- **Accesibilidad de formularios**: `aria-invalid` + `aria-describedby` en los errores de campo;
+  `role="alert"` en avisos y subidas.
+- **i18n de componentes base**: textos accesibles traducidos (cerrar, alternar menú, paleta).
+- **Búsqueda**: filtros por tipo y por servicio, resueltos en servidor y acotados al ámbito.
+- Pruebas: unit del checklist; integración `tests/integration/dashboard.spec.ts` (ámbito, rechazos,
+  contador, filtros); E2E `dashboard-roles`, `submit-checklist`, `form-a11y`, `search-filters`.
+
 ## Catálogos: selección en dos pasos y usos
 
 Se eliminó el volcado plano de catálogos en selectores:

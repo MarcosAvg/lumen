@@ -32,17 +32,33 @@
 			<form method="POST" class="space-y-4">
 				<div class="space-y-2">
 					<Label for="displayName">Nombre visible</Label>
-					<Input id="displayName" name="displayName" autocomplete="name" required />
+					<Input
+						id="displayName"
+						name="displayName"
+						autocomplete="name"
+						required
+						aria-invalid={form?.errors?.displayName ? true : undefined}
+						aria-describedby={form?.errors?.displayName ? 'displayName-error' : undefined}
+					/>
 					{#if form?.errors?.displayName}
-						<p class="text-sm text-destructive">{form.errors.displayName}</p>
+						<p id="displayName-error" class="text-sm text-destructive">
+							{form.errors.displayName}
+						</p>
 					{/if}
 				</div>
 
 				<div class="space-y-2">
 					<Label for="username">Usuario</Label>
-					<Input id="username" name="username" autocomplete="username" required />
+					<Input
+						id="username"
+						name="username"
+						autocomplete="username"
+						required
+						aria-invalid={form?.errors?.username ? true : undefined}
+						aria-describedby={form?.errors?.username ? 'username-error' : undefined}
+					/>
 					{#if form?.errors?.username}
-						<p class="text-sm text-destructive">{form.errors.username}</p>
+						<p id="username-error" class="text-sm text-destructive">{form.errors.username}</p>
 					{/if}
 				</div>
 
@@ -54,9 +70,11 @@
 						type="password"
 						autocomplete="new-password"
 						required
+						aria-invalid={form?.errors?.password ? true : undefined}
+						aria-describedby={form?.errors?.password ? 'password-error' : undefined}
 					/>
 					{#if form?.errors?.password}
-						<p class="text-sm text-destructive">{form.errors.password}</p>
+						<p id="password-error" class="text-sm text-destructive">{form.errors.password}</p>
 					{/if}
 				</div>
 
@@ -68,9 +86,13 @@
 						type="password"
 						autocomplete="new-password"
 						required
+						aria-invalid={form?.errors?.confirmPassword ? true : undefined}
+						aria-describedby={form?.errors?.confirmPassword ? 'confirmPassword-error' : undefined}
 					/>
 					{#if form?.errors?.confirmPassword}
-						<p class="text-sm text-destructive">{form.errors.confirmPassword}</p>
+						<p id="confirmPassword-error" class="text-sm text-destructive">
+							{form.errors.confirmPassword}
+						</p>
 					{/if}
 				</div>
 

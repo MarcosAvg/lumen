@@ -11,11 +11,13 @@
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import Chip from '#lib/components/app/chip.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { TargetStatus } from '#lib/types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
+	import { submitReadiness } from '#lib/evidence/submit-readiness';
 
 	interface Req {
 		id: string;
@@ -133,6 +135,9 @@
 	}
 
 	const additionalPhotos = $derived(groupPhotos(null));
+
+	// Checklist de envío: avisa de lo que falta antes de enviar (el servidor manda).
+	const readiness = $derived(submitReadiness(requirements, photos));
 
 	function markConflict() {
 		conflict = true;
@@ -437,7 +442,7 @@
 								<span>{upload.state === 'error' ? 'Error' : `${upload.progress}%`}</span>
 							</div>
 							{#if upload.state === 'error' && upload.message}
-								<p class="text-xs text-destructive">{upload.message}</p>
+								<p role="alert" class="text-xs text-destructive">{upload.message}</p>
 							{/if}
 						</div>
 					{/each}
@@ -451,6 +456,9 @@
 					<Card.Title class="flex items-center gap-2 text-base">
 						{requirement.name}
 						{#if requirement.isRequired}<Badge variant="secondary">Obligatorio</Badge>{/if}
+						{#if editable && requirement.isRequired && groupPhotos(requirement.id).length === 0}
+							<Chip tone="attention">Falta evidencia</Chip>
+						{/if}
 						<span class="text-sm font-normal text-muted-foreground">
 							{groupPhotos(requirement.id).length} foto(s)
 						</span>
@@ -664,10 +672,16 @@
 			>
 				<div class="flex flex-wrap items-center justify-between gap-2">
 					{#if submitError}
-						<p class="text-sm text-destructive">{submitError}</p>
+						<p role="alert" class="text-sm text-destructive">{submitError}</p>
 					{:else if !online}
 						<p class="text-sm text-destructive">
 							Sin conexión: no puedes enviar evidencia hasta reconectar.
+						</p>
+					{:else if !readiness.ready}
+						<p class="text-sm text-muted-foreground">
+							{readiness.needsAnyPhoto
+								? 'Añade al menos una fotografía para poder enviar.'
+								: `Falta evidencia obligatoria en: ${readiness.missingNames.join(', ')}.`}
 						</p>
 					{/if}
 					<Button class="max-md:w-full" disabled={!online} onclick={() => (showSubmit = true)}
@@ -726,12 +740,19 @@
 					hasta que sea revisada.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
+			{#if !readiness.ready}
+				<p class="text-sm text-destructive">
+					{readiness.needsAnyPhoto
+						? 'Añade al menos una fotografía antes de enviar.'
+						: `Falta evidencia obligatoria en: ${readiness.missingNames.join(', ')}.`}
+				</p>
+			{/if}
 			{#if submitError}
-				<p class="text-sm text-destructive">{submitError}</p>
+				<p role="alert" class="text-sm text-destructive">{submitError}</p>
 			{/if}
 			<AlertDialog.Footer>
 				<AlertDialog.Cancel disabled={submitting}>Cancelar</AlertDialog.Cancel>
-				<Button disabled={submitting} onclick={submitEvidence}>
+				<Button disabled={submitting || !readiness.ready} onclick={submitEvidence}>
 					{submitting ? 'Enviando…' : 'Confirmar envío'}
 				</Button>
 			</AlertDialog.Footer>

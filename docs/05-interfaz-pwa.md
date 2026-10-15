@@ -29,6 +29,8 @@
 - **Tarjeta enlazada (sin botones «Abrir»/«Ver»)**: el **nombre del recurso es el enlace** y, en móvil, un *enlace estirado* (`after:absolute after:inset-0` sobre un `<li class="relative">`) hace que **toda la tarjeta** navegue. Las acciones secundarias/destructivas quedan dentro con `relative z-10`.
 - **Fila clicable**: en las **tablas** de escritorio el enlace principal también se **estira sobre toda la fila** (fila `relative`) y las celdas de acciones van en `relative z-10`; en las **listas internas** (trabajos, elementos) la lista va en un **contenedor con borde y divisores** (`divide-y overflow-hidden rounded-lg border`) y cada fila es clicable con `hover:bg-muted/50` y `active:bg-muted/70`. Las tarjetas móviles añaden feedback táctil (`active:bg-muted/50`).
 - **Título + badges**: los badges van **fuera del `h1`**, en un contenedor hermano `flex items-center gap-3` con el título **`min-w-0 truncate`** y los badges **`shrink-0`** (`h-5`, `whitespace-nowrap`), alineados a la línea del título.
+- **Errores de campo**: cada mensaje de error se asocia a su control con `aria-invalid` y `aria-describedby` (el `<p>` lleva `id`); los avisos de formulario usan `Alert` (`role="alert"`) y las confirmaciones de acción `Alert role="status"`.
+- **Componentes base en español**: los textos accesibles de los componentes de shadcn-svelte (cerrar diálogo/hoja, alternar menú, paleta de comandos) se traducen en su sitio; divergen de upstream y hay que reevaluarlos al actualizar.
 
 ## 2. Mapa de navegación
 
@@ -65,7 +67,7 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 ### Móvil
 
-- Barra superior con nombre/pantalla actual, menú o navegación sencilla y **campana** con contador de no leídas.
+- Barra superior con nombre/pantalla actual, menú o navegación sencilla y **campana** con contador de no leídas. La navegación (sidebar y barra inferior) muestra **contador de revisiones pendientes** en «Revisiones» (solo admin/supervisor), acotado por ámbito.
 - Buscador global accesible desde el menú superior o inicio.
 - Cards de servicios/trabajos con estado legible y progreso; objetivo táctil amplio.
 - Acción primaria de captura/envío claramente accesible sin tapar galerías; respetar safe area del teléfono.
@@ -163,7 +165,7 @@ No mostrar contador «todos los servicios» a supervisores si incluye los no asi
 ## 8. Enviar evidencia
 
 1. Mostrar botón principal solo si es editable y usuario puede enviar.
-2. Validación cliente orientativa de grupos requeridos para UX rápida, **sin sustituir validación servidor**.
+2. Validación cliente orientativa de grupos requeridos para UX rápida, **sin sustituir validación servidor**. El **checklist de envío** (regla compartida servidor/UI) marca cada requisito obligatorio sin evidencia («Falta evidencia») y resume junto al botón lo que falta («Falta evidencia obligatoria en: …»); si nada está completo, el diálogo lo explica y deshabilita «Confirmar envío». El servidor sigue siendo la única fuente autoritativa.
 3. Abrir diálogo:
    - «¿Enviar esta evidencia a revisión?»
    - «Se enviarán **N fotografías**.»
@@ -240,6 +242,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Resultados separados o etiquetados por tipo, con rutas contextuales como «UMA 03 — Mantenimiento / Piso 34».
 - Búsqueda con debounce moderado, estado cargando, sin resultados, errores y opción abrir resultado mediante teclado.
 - Resultados filtrados en servidor por roles/asignaciones, incluso si se consulta API sin UI.
+- **Filtros de búsqueda**: por **tipo** (servicios/trabajos/elementos) y por **servicio**; se aplican en servidor y el selector de servicio solo ofrece los servicios del ámbito del usuario.
 - Las listas locales conservan filtros por estado y nombre para navegación detallada.
 
 ## 14. Notificaciones y ajustes

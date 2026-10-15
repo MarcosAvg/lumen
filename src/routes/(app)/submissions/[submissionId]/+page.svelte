@@ -208,9 +208,11 @@
 					rows={3}
 					required
 					placeholder="Describe qué deben corregir los técnicos."
+					aria-invalid={action?.rejectErrors?.reason ? true : undefined}
+					aria-describedby={action?.rejectErrors?.reason ? 'reason-error' : undefined}
 				/>
 				{#if action?.rejectErrors?.reason}
-					<p class="text-sm text-destructive">{action.rejectErrors.reason}</p>
+					<p id="reason-error" class="text-sm text-destructive">{action.rejectErrors.reason}</p>
 				{/if}
 			</div>
 			<AlertDialog.Footer>

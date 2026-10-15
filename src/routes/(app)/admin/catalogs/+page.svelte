@@ -91,9 +91,15 @@
 				</Dialog.Header>
 				<div class="space-y-2">
 					<Label for="name">Nombre</Label>
-					<Input id="name" name="name" required />
+					<Input
+						id="name"
+						name="name"
+						required
+						aria-invalid={action?.createErrors?.name ? true : undefined}
+						aria-describedby={action?.createErrors?.name ? 'name-error' : undefined}
+					/>
 					{#if action?.createErrors?.name}
-						<p class="text-sm text-destructive">{action.createErrors.name}</p>
+						<p id="name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
 					{/if}
 				</div>
 				<div class="space-y-2">

@@ -10,6 +10,7 @@ import {
 	users
 } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
+import { missingRequirementMessage, submitReadiness } from '#lib/evidence/submit-readiness';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
 import { createReviewNotifications, createSubmissionNotifications } from './notifications';
@@ -102,15 +103,9 @@ export async function submitEvidence(
 			byRequirement.set(photo.requirementId, list);
 		}
 
-		const required = requirements.filter((requirement) => requirement.isRequired);
-		if (required.length > 0) {
-			for (const requirement of required) {
-				if ((byRequirement.get(requirement.id) ?? []).length === 0) {
-					throw new DomainError(409, `Falta al menos una fotografía en «${requirement.name}».`);
-				}
-			}
-		} else if (photoRows.length === 0) {
-			throw new DomainError(409, 'Añade al menos una fotografía para enviar.');
+		const readiness = submitReadiness(requirements, photoRows);
+		if (!readiness.ready) {
+			throw new DomainError(409, missingRequirementMessage(readiness));
 		}
 
 		const context = await getTargetContext(tx, input.targetId);

@@ -221,9 +221,15 @@
 				<input type="hidden" name="catalogId" value={data.catalog.id} />
 				<div class="space-y-1">
 					<Label for="item-name">Nuevo ítem</Label>
-					<Input id="item-name" name="name" required />
+					<Input
+						id="item-name"
+						name="name"
+						required
+						aria-invalid={action?.createErrors?.name ? true : undefined}
+						aria-describedby={action?.createErrors?.name ? 'item-name-error' : undefined}
+					/>
 					{#if action?.createErrors?.name}
-						<p class="text-sm text-destructive">{action.createErrors.name}</p>
+						<p id="item-name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
 					{/if}
 				</div>
 				<Button type="submit">Añadir</Button>

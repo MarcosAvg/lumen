@@ -66,28 +66,36 @@
 
 	const sections = $derived.by(() => {
 		const general = [
-			{ href: resolve('/(app)/dashboard'), label: 'Inicio', icon: House },
-			{ href: resolve('/(app)/search'), label: 'Buscar', icon: Search },
-			{ href: resolve('/(app)/notifications'), label: 'Notificaciones', icon: Bell }
+			{ href: resolve('/(app)/dashboard'), label: 'Inicio', icon: House, badge: 0 },
+			{ href: resolve('/(app)/search'), label: 'Buscar', icon: Search, badge: 0 },
+			{
+				href: resolve('/(app)/notifications'),
+				label: 'Notificaciones',
+				icon: Bell,
+				badge: data.unreadCount
+			}
 		];
 		if (data.user.role !== 'technician') {
 			general.splice(2, 0, {
 				href: resolve('/(app)/reviews'),
 				label: 'Revisiones',
-				icon: ClipboardCheck
+				icon: ClipboardCheck,
+				badge: data.reviewsCount
 			});
 		}
 
-		const list: { label: string; items: { href: string; label: string; icon: typeof House }[] }[] =
-			[{ label: 'General', items: general }];
+		const list: {
+			label: string;
+			items: { href: string; label: string; icon: typeof House; badge: number }[];
+		}[] = [{ label: 'General', items: general }];
 
 		if (data.user.role === 'admin') {
 			list.push({
 				label: 'Administración',
 				items: [
-					{ href: resolve('/(app)/admin/services'), label: 'Servicios', icon: Building2 },
-					{ href: resolve('/(app)/admin/users'), label: 'Usuarios', icon: Users },
-					{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos', icon: Tags }
+					{ href: resolve('/(app)/admin/services'), label: 'Servicios', icon: Building2, badge: 0 },
+					{ href: resolve('/(app)/admin/users'), label: 'Usuarios', icon: Users, badge: 0 },
+					{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos', icon: Tags, badge: 0 }
 				]
 			});
 		}
@@ -153,6 +161,13 @@
 											>
 												<item.icon aria-hidden="true" />
 												<span>{item.label}</span>
+												{#if item.badge > 0}
+													<span
+														class="tnum ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground"
+													>
+														{item.badge > 99 ? '99+' : item.badge}
+													</span>
+												{/if}
 											</a>
 											<!-- eslint-enable svelte/no-navigation-without-resolve -->
 										{/snippet}
@@ -290,7 +305,11 @@
 		</main>
 	</Sidebar.Inset>
 
-	<BottomNav role={data.user.role} />
+	<BottomNav
+		role={data.user.role}
+		unreadCount={data.unreadCount}
+		reviewsCount={data.reviewsCount}
+	/>
 </Sidebar.Provider>
 
 <form bind:this={logoutForm} method="POST" action="/logout" class="hidden"></form>

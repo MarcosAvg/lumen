@@ -374,9 +374,17 @@
 						{:else}
 							<div class="space-y-1 pt-2">
 								<Label for="work-name">Nombre propio</Label>
-								<Input id="work-name" name="name" required />
+								<Input
+									id="work-name"
+									name="name"
+									required
+									aria-invalid={action?.workErrors?.name ? true : undefined}
+									aria-describedby={action?.workErrors?.name ? 'work-name-error' : undefined}
+								/>
 								{#if action?.workErrors?.name}
-									<p class="text-sm text-destructive">{action.workErrors.name}</p>
+									<p id="work-name-error" class="text-sm text-destructive">
+										{action.workErrors.name}
+									</p>
 								{/if}
 							</div>
 						{/if}

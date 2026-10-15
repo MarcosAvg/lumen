@@ -106,7 +106,10 @@ test('catálogo: relacionar por lote y gestionar por ítem', async ({ page }, te
 
 	await itemDialog.getByRole('button', { name: 'Quitar' }).click();
 	await expect(itemDialog.getByText('Sin relaciones.').first()).toBeVisible();
-	await itemDialog.getByRole('button', { name: 'Cerrar' }).click();
+	await itemDialog
+		.locator('[data-slot="dialog-footer"]')
+		.getByRole('button', { name: 'Cerrar' })
+		.click();
 
 	// Quedan dos relaciones.
 	await expect(page.getByRole('listitem').filter({ hasText: edificio })).toHaveCount(2);

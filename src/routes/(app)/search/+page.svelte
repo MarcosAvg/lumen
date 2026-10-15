@@ -3,6 +3,8 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
+	import { Label } from '#lib/components/ui/label';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
@@ -48,19 +50,43 @@
 		description="Solo se muestran servicios, trabajos y elementos dentro de tu ámbito autorizado."
 	/>
 
-	<form
-		method="GET"
-		action={resolve('/(app)/search')}
-		class="flex items-center gap-2 border-y py-4"
-	>
-		<Input
-			name="q"
-			value={data.q}
-			placeholder="Nombre de servicio, trabajo o elemento"
-			autofocus
-			class="max-w-xl"
-		/>
-		<Button type="submit">Buscar</Button>
+	<form method="GET" action={resolve('/(app)/search')} class="space-y-3 border-y py-4">
+		<div class="flex items-center gap-2">
+			<Input
+				name="q"
+				value={data.q}
+				placeholder="Nombre de servicio, trabajo o elemento"
+				autofocus
+				class="max-w-xl"
+			/>
+			<Button type="submit">Buscar</Button>
+		</div>
+		<div class="flex flex-wrap items-end gap-3">
+			<div class="space-y-1">
+				<Label for="filter-type">Tipo</Label>
+				<NativeSelect id="filter-type" name="type" value={data.filters.type} class="w-40">
+					<option value="">Todos</option>
+					<option value="service">Servicios</option>
+					<option value="work">Trabajos</option>
+					<option value="element">Elementos</option>
+				</NativeSelect>
+			</div>
+			<div class="space-y-1">
+				<Label for="filter-service">Servicio</Label>
+				<NativeSelect
+					id="filter-service"
+					name="serviceId"
+					value={data.filters.serviceId}
+					class="w-56"
+				>
+					<option value="">Todos los servicios</option>
+					{#each data.services as service (service.id)}
+						<option value={service.id}>{service.name}</option>
+					{/each}
+				</NativeSelect>
+			</div>
+			<Button type="submit" variant="outline">Aplicar filtros</Button>
+		</div>
 	</form>
 
 	{#if data.q.trim().length === 0}
