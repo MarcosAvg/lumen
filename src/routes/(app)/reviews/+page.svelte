@@ -80,7 +80,7 @@
 			<Input id="to" name="to" type="date" value={data.filters.to} />
 		</div>
 		<div class="flex items-center gap-2 pb-0.5">
-			<Button type="submit" size="sm">Filtrar</Button>
+			<Button type="submit">Filtrar</Button>
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a href={resolve('/(app)/reviews')} class="text-sm text-muted-foreground underline">Limpiar</a
 			>
@@ -96,41 +96,37 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.pending as item (item.submissionId)}
 				{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
-				<li>
+				<li class="relative">
 					<Card.Root>
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
+									<p class="text-sm text-muted-foreground">{item.serviceName}</p>
+									<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 									<a
-										class="font-medium text-foreground underline-offset-4 hover:underline"
-										href={resolve('/(app)/services/[serviceId]', { serviceId: item.serviceId })}
+										class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+										href={resolve('/(app)/submissions/[submissionId]', {
+											submissionId: item.submissionId
+										})}
 									>
-										{item.serviceName}
-									</a>
-									<p class="text-sm text-muted-foreground">
 										{item.workName}
 										{#if item.label !== item.workName}
 											<span> · {item.label}</span>
 										{/if}
-									</p>
+									</a>
 								</div>
 								<span class="tnum shrink-0 text-xs text-muted-foreground">#{item.sequenceNo}</span>
 							</div>
-							<div class="flex items-center justify-between gap-2">
+							<div class="flex items-center justify-between gap-2 text-xs">
+								<span class="text-muted-foreground">
+									{item.submittedByName ?? 'Autor desconocido'}
+								</span>
 								<span
-									class="text-sm {stale
-										? 'font-medium text-state-attention'
-										: 'text-muted-foreground'}"
+									class={stale ? 'font-medium text-state-attention' : 'text-muted-foreground'}
 									title={formatDate(item.submittedAt)}
 								>
 									{formatRelativeAge(item.submittedAt, now)}
 								</span>
-								<Button
-									href={resolve('/(app)/submissions/[submissionId]', {
-										submissionId: item.submissionId
-									})}
-									size="sm">Revisar</Button
-								>
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -148,7 +144,6 @@
 						<Table.Head class="hidden lg:table-cell">Autor</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Enviada</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Antigüedad</Table.Head>
-						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -158,19 +153,22 @@
 							<Table.Cell class="tnum text-right font-medium text-muted-foreground">
 								{item.sequenceNo}
 							</Table.Cell>
+							<Table.Cell class="whitespace-normal text-muted-foreground">
+								{item.serviceName}
+							</Table.Cell>
 							<Table.Cell class="whitespace-normal">
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 								<a
 									class="font-medium text-foreground underline-offset-4 hover:underline"
-									href={resolve('/(app)/services/[serviceId]', { serviceId: item.serviceId })}
+									href={resolve('/(app)/submissions/[submissionId]', {
+										submissionId: item.submissionId
+									})}
 								>
-									{item.serviceName}
+									{item.workName}
+									{#if item.label !== item.workName}
+										<span> · {item.label}</span>
+									{/if}
 								</a>
-							</Table.Cell>
-							<Table.Cell class="whitespace-normal text-muted-foreground">
-								{item.workName}
-								{#if item.label !== item.workName}
-									<span> · {item.label}</span>
-								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
 								{item.submittedByName ?? 'Autor desconocido'}
@@ -191,14 +189,6 @@
 									{/if}
 									{formatRelativeAge(item.submittedAt, now)}
 								</span>
-							</Table.Cell>
-							<Table.Cell class="text-right">
-								<Button
-									href={resolve('/(app)/submissions/[submissionId]', {
-										submissionId: item.submissionId
-									})}
-									size="sm">Revisar</Button
-								>
 							</Table.Cell>
 						</Table.Row>
 					{/each}

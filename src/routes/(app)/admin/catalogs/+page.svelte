@@ -139,12 +139,18 @@
 	{:else}
 		<ul class="space-y-3 md:hidden">
 			{#each visibleCatalogs as catalog (catalog.id)}
-				<li>
+				<li class="relative">
 					<Card.Root>
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
-									<p class="font-medium text-foreground">{catalog.name}</p>
+									<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+									<a
+										class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+										href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
+									>
+										{catalog.name}
+									</a>
 									{#if catalog.description}
 										<p class="text-sm text-muted-foreground">{catalog.description}</p>
 									{/if}
@@ -154,14 +160,7 @@
 									>
 								{/if}
 							</div>
-							<div class="flex items-center justify-between gap-2">
-								<span class="tnum text-sm text-muted-foreground">{catalog.itemCount} ítem(s)</span>
-								<Button
-									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
-									variant="outline"
-									size="sm">Ver ítems</Button
-								>
-							</div>
+							<span class="tnum text-sm text-muted-foreground">{catalog.itemCount} ítem(s)</span>
 						</Card.Content>
 					</Card.Root>
 				</li>
@@ -175,14 +174,18 @@
 						<Table.Head>Catálogo</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
 						<Table.Head class="hidden text-right lg:table-cell">Ítems</Table.Head>
-						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each visibleCatalogs as catalog (catalog.id)}
 						<Table.Row>
 							<Table.Cell class="whitespace-normal">
-								<div class="font-medium text-foreground">{catalog.name}</div>
+								<a
+									class="font-medium text-foreground underline-offset-4 hover:underline"
+									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
+								>
+									{catalog.name}
+								</a>
 								{#if catalog.description}
 									<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
 										{catalog.description}
@@ -198,13 +201,6 @@
 							</Table.Cell>
 							<Table.Cell class="tnum hidden text-right text-muted-foreground lg:table-cell">
 								{catalog.itemCount}
-							</Table.Cell>
-							<Table.Cell class="text-right">
-								<Button
-									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
-									variant="outline"
-									size="sm">Ver ítems</Button
-								>
 							</Table.Cell>
 						</Table.Row>
 					{/each}

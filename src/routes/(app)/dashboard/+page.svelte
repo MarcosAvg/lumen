@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
@@ -30,38 +31,62 @@
 			{/if}
 		</EmptyState>
 	{:else}
-		<DataTable>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Servicio</Table.Head>
-					<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
-					<Table.Head class="w-px text-right">Acciones</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each data.services as service (service.id)}
-					<Table.Row>
-						<Table.Cell class="whitespace-normal">
-							<div class="font-medium text-foreground">{service.name}</div>
+		<ul class="space-y-3 md:hidden">
+			{#each data.services as service (service.id)}
+				<li class="relative">
+					<Card.Root>
+						<Card.Content>
+							<a
+								class="font-medium text-foreground after:absolute after:inset-0"
+								href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+							>
+								{service.name}
+							</a>
 							{#if service.description}
-								<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+								<p class="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
 									{service.description}
 								</p>
 							{/if}
-						</Table.Cell>
-						<Table.Cell class="hidden text-muted-foreground lg:table-cell">
-							{service.buildingName ?? '—'}
-						</Table.Cell>
-						<Table.Cell class="text-right">
-							<Button
-								href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-								variant="outline"
-								size="sm">Abrir</Button
-							>
-						</Table.Cell>
+							{#if service.buildingName}
+								<p class="mt-1 text-xs text-muted-foreground">Edificio: {service.buildingName}</p>
+							{/if}
+						</Card.Content>
+					</Card.Root>
+				</li>
+			{/each}
+		</ul>
+
+		<div class="hidden md:block">
+			<DataTable>
+				<Table.Header>
+					<Table.Row>
+						<Table.Head>Servicio</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
 					</Table.Row>
-				{/each}
-			</Table.Body>
-		</DataTable>
+				</Table.Header>
+				<Table.Body>
+					{#each data.services as service (service.id)}
+						<Table.Row>
+							<Table.Cell class="whitespace-normal">
+								<a
+									class="font-medium text-foreground underline-offset-4 hover:underline"
+									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+								>
+									{service.name}
+								</a>
+								{#if service.description}
+									<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+										{service.description}
+									</p>
+								{/if}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+								{service.buildingName ?? '—'}
+							</Table.Cell>
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</DataTable>
+		</div>
 	{/if}
 </div>

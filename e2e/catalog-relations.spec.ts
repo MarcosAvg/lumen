@@ -32,7 +32,7 @@ async function openCatalog(page: Page, name: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: name })
-		.getByRole('link', { name: 'Ver ítems' })
+		.getByRole('link', { name: name })
 		.click();
 }
 

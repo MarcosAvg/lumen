@@ -33,7 +33,7 @@ async function openCatalog(page: Page, name: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: name })
-		.getByRole('link', { name: 'Ver ítems' })
+		.getByRole('link', { name: name })
 		.click();
 }
 
@@ -57,7 +57,7 @@ async function openService(page: Page, name: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: name })
-		.getByRole('link', { name: 'Ver servicio' });
+		.getByRole('link', { name: name });
 	await page.goto((await link.getAttribute('href')) ?? '/admin/services');
 }
 
@@ -103,7 +103,7 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	const workLink = page
 		.getByRole('listitem')
 		.filter({ hasText: work })
-		.getByRole('link', { name: 'Abrir' });
+		.getByRole('link', { name: work });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByText(antes).first()).toBeVisible();
 	await expect(page.getByText(despues).first()).toBeVisible();
@@ -150,7 +150,7 @@ test('la generación en lote aplica requisitos', async ({ page }, testInfo) => {
 	const workLink = page
 		.getByRole('listitem')
 		.filter({ hasText: workItem })
-		.getByRole('link', { name: 'Abrir' });
+		.getByRole('link', { name: workItem });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByText(reqItem).first()).toBeVisible();
 });

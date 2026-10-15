@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { Button } from '#lib/components/ui/button';
+	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import * as Table from '#lib/components/ui/table';
 	import PageHeader from '#lib/components/app/page-header.svelte';
@@ -75,28 +76,50 @@
 				<h2 class="tnum text-sm font-medium text-muted-foreground">
 					{group.label} ({group.items.length})
 				</h2>
-				<DataTable>
-					<Table.Body>
-						{#each group.items as result (result.type + result.id)}
-							<Table.Row>
-								<Table.Cell class="whitespace-normal">
+
+				<ul class="space-y-3 md:hidden">
+					{#each group.items as result (result.type + result.id)}
+						<li class="relative">
+							<Card.Root>
+								<Card.Content>
 									<!-- eslint-disable svelte/no-navigation-without-resolve -->
 									<a
-										class="font-medium text-foreground underline-offset-4 hover:underline"
+										class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 										href={hrefFor(result)}>{result.label}</a
 									>
 									<!-- eslint-enable svelte/no-navigation-without-resolve -->
-								</Table.Cell>
-								<Table.Cell class="hidden whitespace-normal text-muted-foreground lg:table-cell">
-									{result.context || '—'}
-								</Table.Cell>
-								<Table.Cell class="w-px text-right">
-									<Button href={hrefFor(result)} variant="outline" size="sm">Abrir</Button>
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</DataTable>
+									{#if result.context}
+										<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
+											{result.context}
+										</p>
+									{/if}
+								</Card.Content>
+							</Card.Root>
+						</li>
+					{/each}
+				</ul>
+
+				<div class="hidden md:block">
+					<DataTable>
+						<Table.Body>
+							{#each group.items as result (result.type + result.id)}
+								<Table.Row>
+									<Table.Cell class="whitespace-normal">
+										<!-- eslint-disable svelte/no-navigation-without-resolve -->
+										<a
+											class="font-medium text-foreground underline-offset-4 hover:underline"
+											href={hrefFor(result)}>{result.label}</a
+										>
+										<!-- eslint-enable svelte/no-navigation-without-resolve -->
+									</Table.Cell>
+									<Table.Cell class="hidden whitespace-normal text-muted-foreground lg:table-cell">
+										{result.context || '—'}
+									</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</DataTable>
+				</div>
 			</section>
 		{/each}
 	{/if}

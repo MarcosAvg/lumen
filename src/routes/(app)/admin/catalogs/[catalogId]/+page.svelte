@@ -195,7 +195,7 @@
 						<p class="text-sm text-destructive">{action.createErrors.name}</p>
 					{/if}
 				</div>
-				<Button type="submit" size="sm">Añadir</Button>
+				<Button type="submit">Añadir</Button>
 			</form>
 
 			{#if data.items.length === 0}

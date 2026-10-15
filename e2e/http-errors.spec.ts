@@ -49,7 +49,7 @@ test('eliminar un catálogo redirige a la lista (sin 500)', async ({ page }, tes
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: catalogName })
-		.getByRole('link', { name: 'Ver ítems' })
+		.getByRole('link', { name: catalogName })
 		.click();
 	await page.getByRole('button', { name: 'Eliminar catálogo' }).click();
 	await page.getByRole('button', { name: 'Confirmar eliminación' }).click();

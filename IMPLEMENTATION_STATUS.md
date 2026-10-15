@@ -322,6 +322,12 @@ controles ganan **área táctil ≥ 44 px** y los diálogos pasan a **bottom she
 en escritorio; la captura usa **barra de acción fija** y oculta la nav inferior. Se añaden
 _safe areas_ (`viewport-fit=cover`, `env(safe-area-inset-*)`) y `theme-color` claro/oscuro.
 
+**Móvil minimalista y tarjeta enlazada**: se **ocultan los breadcrumbs** en `< md` (basta el `h1` y la
+barra inferior); Tablero y Buscar también usan **tarjetas** en móvil (ningún listado con scroll
+horizontal); y se elimina la navegación duplicada: el **nombre del recurso es el enlace** y, en móvil,
+un **enlace estirado** hace que **toda la tarjeta** navegue (acciones secundarias en `z-10`). Se alinean
+los botones de las barras a la altura de los campos (`h-9`).
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

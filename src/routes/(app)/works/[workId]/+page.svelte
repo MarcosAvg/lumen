@@ -113,16 +113,17 @@
 							<ul class="divide-y">
 								{#each data.elements as element (element.id)}
 									<li class="py-3">
-										<div class="flex flex-wrap items-center justify-between gap-2">
+										<div class="relative flex flex-wrap items-center justify-between gap-2">
 											<span class="flex items-center gap-2 text-sm">
-												{element.name}
+												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+												<a
+													class="underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
+													href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+												>
+													{element.name}
+												</a>
 												<StatusBadge status={element.status} />
 											</span>
-											<Button
-												href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
-												variant="outline"
-												size="sm">Abrir evidencia</Button
-											>
 										</div>
 										{#if data.isAdmin}
 											<form

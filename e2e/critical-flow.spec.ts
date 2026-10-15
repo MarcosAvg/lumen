@@ -49,7 +49,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: 'Ver servicio' });
+		.getByRole('link', { name: serviceName });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
@@ -61,7 +61,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 	const workLink = page
 		.getByRole('listitem')
 		.filter({ hasText: workName })
-		.getByRole('link', { name: 'Abrir' });
+		.getByRole('link', { name: workName });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
@@ -92,7 +92,7 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 			.locator('tr, li')
 			.filter({ visible: true })
 			.filter({ hasText: workName })
-			.getByRole('link', { name: 'Revisar' });
+			.getByRole('link', { name: workName });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
 		await page.getByRole('button', { name: 'Aprobar entrega' }).click();
@@ -105,7 +105,9 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 		await page.getByPlaceholder('Nombre de servicio, trabajo o elemento').fill(workName);
 		await page.getByRole('button', { name: 'Buscar' }).click();
 		await expect(page.getByRole('heading', { name: 'Buscar' })).toBeVisible();
-		await expect(page.getByText(workName, { exact: false }).first()).toBeVisible();
+		await expect(
+			page.getByText(workName, { exact: false }).filter({ visible: true }).first()
+		).toBeVisible();
 	});
 });
 
@@ -123,7 +125,7 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 			.locator('tr, li')
 			.filter({ visible: true })
 			.filter({ hasText: workName })
-			.getByRole('link', { name: 'Revisar' });
+			.getByRole('link', { name: workName });
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
 

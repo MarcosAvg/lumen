@@ -80,20 +80,22 @@
 	{:else}
 		<ul class="space-y-3 md:hidden">
 			{#each data.services as service (service.id)}
-				<li>
+				<li class="relative">
 					<Card.Root>
 						<Card.Content class="space-y-3">
 							<div>
-								<p class="font-medium text-foreground">{service.name}</p>
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+								>
+									{service.name}
+								</a>
 								{#if service.description}
 									<p class="text-sm text-muted-foreground">{service.description}</p>
 								{/if}
 							</div>
-							<div class="flex flex-wrap items-center gap-2">
-								<Button
-									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-									size="sm">Ver servicio</Button
-								>
+							<div class="relative z-10 flex flex-wrap items-center gap-2">
 								<Button
 									href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
 									variant="outline"
@@ -127,7 +129,12 @@
 					{#each data.services as service (service.id)}
 						<Table.Row>
 							<Table.Cell class="whitespace-normal">
-								<div class="font-medium text-foreground">{service.name}</div>
+								<a
+									class="font-medium text-foreground underline-offset-4 hover:underline"
+									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
+								>
+									{service.name}
+								</a>
 								{#if service.description}
 									<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
 										{service.description}
@@ -146,11 +153,6 @@
 									>
 										Asignaciones
 									</Button>
-									<Button
-										href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-										variant="ghost"
-										size="sm">Ver servicio</Button
-									>
 									<DestructiveDelete
 										label="Eliminar"
 										endpoint={`/api/services/${service.id}`}

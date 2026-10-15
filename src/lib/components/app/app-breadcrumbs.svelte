@@ -4,7 +4,7 @@
 	let { items }: { items: { label: string; href?: string }[] } = $props();
 </script>
 
-<Breadcrumb.Root>
+<Breadcrumb.Root class="hidden md:block">
 	<Breadcrumb.List>
 		{#each items as item, index (index)}
 			<Breadcrumb.Item>

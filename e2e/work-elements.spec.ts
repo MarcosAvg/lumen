@@ -39,7 +39,7 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: 'Ver servicio' });
+		.getByRole('link', { name: serviceName });
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 
 	// Crear trabajo dividido con dos elementos (por nombre propio).
@@ -68,7 +68,7 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	const workLink = page
 		.getByRole('listitem')
 		.filter({ hasText: workName })
-		.getByRole('link', { name: 'Abrir' });
+		.getByRole('link', { name: workName });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByText('UMA 1')).toBeVisible();
 	await expect(page.getByText('UMA 2')).toBeVisible();

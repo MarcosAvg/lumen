@@ -185,10 +185,16 @@
 					{:else}
 						<ul class="divide-y">
 							{#each data.works as work (work.id)}
-								<li class="flex flex-wrap items-center justify-between gap-2 py-3">
-									<div>
+								<li class="relative flex flex-wrap items-center justify-between gap-2 py-3">
+									<div class="min-w-0">
 										<p class="flex items-center gap-2 font-medium">
-											{work.name}
+											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+											<a
+												class="underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
+												href={resolve('/(app)/works/[workId]', { workId: work.id })}
+											>
+												{work.name}
+											</a>
 											<Badge variant="secondary"
 												>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
 											>
@@ -208,21 +214,16 @@
 											</div>
 										{/if}
 									</div>
-									<div class="flex items-center gap-2">
-										<Button
-											href={resolve('/(app)/works/[workId]', { workId: work.id })}
-											variant="outline"
-											size="sm">Abrir</Button
-										>
-										{#if data.isAdmin}
+									{#if data.isAdmin}
+										<div class="relative z-10">
 											<DestructiveDelete
 												label="Eliminar"
 												endpoint={`/api/works/${work.id}`}
 												itemName={work.name}
 												description="Se eliminarán sus elementos, entregas y fotos."
 											/>
-										{/if}
-									</div>
+										</div>
+									{/if}
 								</li>
 							{/each}
 						</ul>

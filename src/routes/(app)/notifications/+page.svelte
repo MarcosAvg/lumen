@@ -57,25 +57,27 @@
 	{:else}
 		<ul class="space-y-3 md:hidden">
 			{#each data.items as item (item.id)}
-				<li>
+				<li class="relative">
 					<Card.Root class={item.readAt ? 'opacity-60' : ''}>
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
-								<p class="font-medium text-foreground">{item.title}</p>
+								<!-- eslint-disable svelte/no-navigation-without-resolve -->
+								<a
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+									href={item.deepLink}>{item.title}</a
+								>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 								{#if !item.readAt}<Badge class="shrink-0">Sin leer</Badge>{/if}
 							</div>
 							<p class="line-clamp-2 text-sm text-muted-foreground">{item.body}</p>
 							<div class="flex items-center justify-between gap-2">
 								<span class="tnum text-xs text-muted-foreground">{formatDate(item.createdAt)}</span>
-								<div class="flex items-center gap-2">
-									<Button href={item.deepLink} variant="outline" size="sm">Abrir</Button>
-									{#if !item.readAt}
-										<form method="POST" action="?/read">
-											<input type="hidden" name="notificationId" value={item.id} />
-											<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
-										</form>
-									{/if}
-								</div>
+								{#if !item.readAt}
+									<form method="POST" action="?/read" class="relative z-10">
+										<input type="hidden" name="notificationId" value={item.id} />
+										<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
+									</form>
+								{/if}
 							</div>
 						</Card.Content>
 					</Card.Root>
@@ -97,8 +99,13 @@
 					{#each data.items as item (item.id)}
 						<Table.Row class={item.readAt ? 'opacity-60' : ''}>
 							<Table.Cell class="whitespace-normal">
-								<div class="flex items-center gap-2 font-medium text-foreground">
-									{item.title}
+								<div class="flex items-center gap-2">
+									<!-- eslint-disable svelte/no-navigation-without-resolve -->
+									<a
+										class="font-medium text-foreground underline-offset-4 hover:underline"
+										href={item.deepLink}>{item.title}</a
+									>
+									<!-- eslint-enable svelte/no-navigation-without-resolve -->
 									{#if !item.readAt}<Badge class="lg:hidden">Sin leer</Badge>{/if}
 								</div>
 								<p class="line-clamp-1 text-sm text-muted-foreground">{item.body}</p>
@@ -111,15 +118,12 @@
 								{formatDate(item.createdAt)}
 							</Table.Cell>
 							<Table.Cell class="text-right">
-								<div class="flex items-center justify-end gap-2">
-									<Button href={item.deepLink} variant="outline" size="sm">Abrir</Button>
-									{#if !item.readAt}
-										<form method="POST" action="?/read">
-											<input type="hidden" name="notificationId" value={item.id} />
-											<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
-										</form>
-									{/if}
-								</div>
+								{#if !item.readAt}
+									<form method="POST" action="?/read" class="inline">
+										<input type="hidden" name="notificationId" value={item.id} />
+										<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
+									</form>
+								{/if}
 							</Table.Cell>
 						</Table.Row>
 					{/each}
