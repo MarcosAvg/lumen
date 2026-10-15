@@ -13,7 +13,8 @@
 
 ## Sistema de UI (contrato)
 
-- **Tipo**: ficha/página `text-2xl lg:text-3xl` (vía `PageHeader` o cabecera de ficha); sección `text-base font-medium`; cuerpo `text-sm`; meta `text-xs text-muted-foreground`. Nada fuera de esa escala.
+- **Título de vista en la cabecera**: el `h1` de cada página vive en la barra superior (`#page-title`, `text-sm font-medium md:text-base`, `truncate`) y lo aporta el `load` de cada ruta (`title`). El contenido usa `PageIntro` (descripción, solo escritorio, + acciones) y **no repite el `h1`**; el `<title>` de la pestaña se mantiene aparte. Ventaja: un único `h1` por vista y cabecera siempre contextual.
+- **Tipo**: secciones `text-base font-medium`; cuerpo `text-sm`; meta `text-xs text-muted-foreground`.
 - **Altura de control**: `h-9` en `Input`, `NativeSelect` y botón `default`; `h-8` en botón `sm` (acciones de tabla/toolbar).
 - **Radios**: superficies `rounded-xl`; controles `rounded-lg`; badges tipo pill.
 - **Espaciado**: página `space-y-6`; interior `space-y-3/4`; gaps `gap-2/3`.
@@ -75,7 +76,7 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 ### Escritorio
 
-- Sidebar de navegación persistente o adaptable, contenido principal con ancho cómodo, filtros y tablas de administración.
+- Sidebar de navegación persistente o adaptable; la barra superior muestra el **título de la vista** y el buscador global; el contenido principal, con ancho cómodo, filtros y tablas de administración.
 - Supervisores: cola de revisión con filtros de servicio, estado y fecha.
 - Administradores: acciones de catálogo, asignaciones, exportación y configuración con paneles de detalle.
 

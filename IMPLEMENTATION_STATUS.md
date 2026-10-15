@@ -238,6 +238,10 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   `aria-busy` en el contenedor principal y respeto de `prefers-reduced-motion`.
 - **Contraste corregido** en el banner de sin conexión: se define `--destructive-foreground` en el
   tema (antes el texto quedaba sin color sobre fondo rojo).
+- **Título de vista en la cabecera**: el `h1` de cada ruta se declara en su `load` (`title`) y se pinta en la
+  barra superior (`#page-title`); el contenido usa `PageIntro` (descripción + acciones) y ya no repite el
+  `h1`. Se retiran de la barra el badge de rol y el botón «Ajustes» (ya en el menú de usuario) y el
+  `Sidebar.Inset` deja de anidar dos `<main>`.
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

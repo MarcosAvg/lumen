@@ -107,7 +107,6 @@
 
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<h1 class="text-xl font-semibold tracking-tight lg:text-3xl">{data.catalog.name}</h1>
 			{#if data.catalog.description}
 				<p class="text-sm text-muted-foreground">{data.catalog.description}</p>
 			{/if}

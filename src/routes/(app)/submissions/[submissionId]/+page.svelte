@@ -64,9 +64,6 @@
 	/>
 	<div class="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
 		<div class="space-y-1">
-			<h1 class="text-xl font-semibold tracking-tight lg:text-3xl">
-				Entrega #{data.detail.submission.sequenceNo}
-			</h1>
 			<p class="text-sm text-muted-foreground">
 				{data.detail.context.serviceName} · {data.detail.submission.workNameSnapshot ?? ''}
 				{#if data.detail.submission.targetNameSnapshot && data.detail.submission.targetNameSnapshot !== data.detail.submission.workNameSnapshot}

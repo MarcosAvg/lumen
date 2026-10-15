@@ -8,7 +8,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
@@ -123,9 +123,9 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<PageHeader title="Usuarios" description="Crea cuentas, cambia roles y controla el acceso.">
+	<PageIntro description="Crea cuentas, cambia roles y controla el acceso.">
 		<Button onclick={openCreate}>Nuevo usuario</Button>
-	</PageHeader>
+	</PageIntro>
 
 	{#if action?.success}
 		<Alert role="status">

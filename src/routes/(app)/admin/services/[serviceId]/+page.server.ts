@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	return {
+		title: service.name,
 		service,
 		assignments,
 		technicians: assignable.filter((user) => user.role === 'technician'),

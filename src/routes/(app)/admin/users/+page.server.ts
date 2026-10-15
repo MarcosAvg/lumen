@@ -22,7 +22,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals);
-	return { users: await listUsers(getDatabase().db) };
+	return { title: 'Usuarios', users: await listUsers(getDatabase().db) };
 };
 
 export const actions: Actions = {

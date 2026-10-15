@@ -6,7 +6,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import { formatRelativeAge } from '#lib/utils';
@@ -46,8 +46,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<PageHeader
-		title="Revisiones"
+	<PageIntro
 		description="Entregas en revisión de los servicios que puedes revisar ({data.total} en total)."
 	/>
 

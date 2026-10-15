@@ -78,12 +78,7 @@
 				]}
 			/>
 			<div class="mt-2 flex items-center gap-2">
-				<h1 class="min-w-0 truncate text-xl font-semibold tracking-tight lg:text-3xl">
-					{data.work.name}
-				</h1>
-				<span class="flex shrink-0 items-center gap-2">
-					<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
-				</span>
+				<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
 			</div>
 			{#if data.work.description}
 				<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>

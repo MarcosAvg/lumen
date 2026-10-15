@@ -37,6 +37,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	return {
+		title: service.name,
 		service,
 		access,
 		participants,

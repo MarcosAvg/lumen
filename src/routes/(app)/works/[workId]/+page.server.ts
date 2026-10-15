@@ -41,6 +41,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		// Solo se usan para el selector de requisitos (trabajo directo).
 		const catalogs = user.role === 'admin' ? await listCatalogsWithItems(db) : [];
 		return {
+			title: work.name,
 			work,
 			elements: [],
 			evidence,
@@ -59,6 +60,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
 	]);
 	return {
+		title: work.name,
 		work,
 		elements,
 		evidence: null,

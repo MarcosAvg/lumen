@@ -3,7 +3,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Table from '#lib/components/ui/table';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -69,14 +69,13 @@
 {/snippet}
 
 <div class="space-y-6">
-	<PageHeader
-		title="Hola, {data.user.displayName}"
+	<PageIntro
 		description={role === 'technician'
 			? 'Tu evidencia pendiente y los servicios asignados.'
 			: role === 'supervisor'
 				? 'Entregas por revisar y servicios asignados.'
 				: 'Resumen global y servicios.'}
-	></PageHeader>
+	></PageIntro>
 
 	{#if role === 'technician'}
 		{#if rejected.length > 0}

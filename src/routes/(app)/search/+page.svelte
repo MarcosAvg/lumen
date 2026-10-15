@@ -6,7 +6,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import { NativeSelect } from '#lib/components/ui/native-select';
 	import * as Table from '#lib/components/ui/table';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
@@ -45,8 +45,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<PageHeader
-		title="Buscar"
+	<PageIntro
 		description="Solo se muestran servicios, trabajos y elementos dentro de tu ámbito autorizado."
 	/>
 

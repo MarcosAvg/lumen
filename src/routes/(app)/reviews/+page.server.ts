@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	]);
 
 	return {
+		title: 'Revisiones',
 		pending: items,
 		total,
 		page,

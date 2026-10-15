@@ -45,6 +45,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	]);
 
 	return {
+		title: catalog.name,
 		catalog,
 		items: itemsPage.items,
 		total: itemsPage.total,

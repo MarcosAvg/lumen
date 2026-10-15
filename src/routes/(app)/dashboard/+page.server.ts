@@ -21,6 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			: await listPendingReviews(db, user, { limit: 5 });
 
 	return {
+		title: `Hola, ${user.displayName}`,
 		services,
 		summary,
 		attention,

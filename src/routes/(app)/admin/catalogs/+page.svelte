@@ -9,7 +9,7 @@
 	import * as Table from '#lib/components/ui/table';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
@@ -64,12 +64,11 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<PageHeader
-		title="Catálogos"
+	<PageIntro
 		description="Listas reutilizables (edificios, pisos, equipos…) para nombrar trabajos y elementos."
 	>
 		<Button onclick={() => (createOpen = true)}>Nuevo catálogo</Button>
-	</PageHeader>
+	</PageIntro>
 
 	{#if action?.success}
 		<Alert role="status">

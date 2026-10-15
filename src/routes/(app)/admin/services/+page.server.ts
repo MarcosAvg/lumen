@@ -8,7 +8,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const admin = requireAdmin(locals);
-	return { services: await listServicesForUser(getDatabase().db, admin) };
+	return { title: 'Servicios', services: await listServicesForUser(getDatabase().db, admin) };
 };
 
 export const actions: Actions = {

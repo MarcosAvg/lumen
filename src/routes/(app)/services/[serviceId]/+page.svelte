@@ -125,11 +125,13 @@
 		<AppBreadcrumbs
 			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
 		/>
-		<div class="flex items-start justify-between gap-3">
-			<h1 class="min-w-0 text-xl font-semibold tracking-tight lg:text-3xl">
-				{data.service.name}
-			</h1>
-			<div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+		<div class="flex flex-wrap items-start gap-3">
+			{#if data.service.description}
+				<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
+					{data.service.description}
+				</p>
+			{/if}
+			<div class="ml-auto flex shrink-0 flex-wrap items-center gap-2">
 				{#if data.isAdmin}
 					<Button href={assignmentHref} variant="outline" size="sm">Gestionar asignaciones</Button>
 				{/if}
@@ -140,11 +142,6 @@
 				{/if}
 			</div>
 		</div>
-		{#if data.service.description}
-			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
-				{data.service.description}
-			</p>
-		{/if}
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
 			{#if data.service.buildingName}
 				<span class="flex items-baseline gap-1.5">

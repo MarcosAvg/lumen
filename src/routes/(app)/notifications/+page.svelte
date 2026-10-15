@@ -5,7 +5,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as Table from '#lib/components/ui/table';
-	import PageHeader from '#lib/components/app/page-header.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
@@ -34,12 +34,12 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<PageHeader title="Notificaciones" description="Avisos de entregas y revisiones."
+	<PageIntro description="Avisos de entregas y revisiones."
 		>{#if unread}
 			<form method="POST" action="?/readAll">
 				<Button type="submit" variant="outline" size="sm">Marcar todas como leídas</Button>
 			</form>
-		{/if}</PageHeader
+		{/if}</PageIntro
 	>
 
 	{#if action?.success}

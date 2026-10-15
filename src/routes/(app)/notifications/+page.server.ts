@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}),
 		countNotifications(getDatabase().db, user.id)
 	]);
-	return { items, total, page, pageSize: PAGE_SIZE };
+	return { title: 'Notificaciones', items, total, page, pageSize: PAGE_SIZE };
 };
 
 export const actions: Actions = {

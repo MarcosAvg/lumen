@@ -27,6 +27,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	return {
+		title: element.name,
 		element,
 		evidence,
 		history,

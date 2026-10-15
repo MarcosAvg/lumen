@@ -21,5 +21,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		listServicesForUser(db, user)
 	]);
 
-	return { q, results, services, filters: { type: rawType, serviceId } };
+	return { title: 'Buscar', q, results, services, filters: { type: rawType, serviceId } };
 };

@@ -9,7 +9,7 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals, url }) => {
 	requireAdmin(locals);
 	const q = url.searchParams.get('q') ?? '';
-	return { catalogs: await listCatalogs(getDatabase().db, q), q };
+	return { title: 'Catálogos', catalogs: await listCatalogs(getDatabase().db, q), q };
 };
 
 export const actions: Actions = {

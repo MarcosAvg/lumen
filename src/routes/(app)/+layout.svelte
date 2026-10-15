@@ -17,8 +17,6 @@
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
 	import BottomNav from '#lib/components/app/bottom-nav.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
-	import { Badge } from '#lib/components/ui/badge';
-	import { Button } from '#lib/components/ui/button';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -251,6 +249,17 @@
 			<div class="max-md:hidden">
 				<Sidebar.Trigger />
 			</div>
+			{#if page.data.title}
+				<h1
+					id="page-title"
+					class="min-w-0 flex-1 truncate text-sm font-medium md:text-base"
+					title={page.data.title}
+				>
+					{page.data.title}
+				</h1>
+			{:else}
+				<div class="flex-1"></div>
+			{/if}
 			<form
 				method="GET"
 				action={resolve('/(app)/search')}
@@ -289,20 +298,16 @@
 						>
 					{/if}
 				</a>
-				<Badge variant="secondary" class="hidden sm:inline">{roleLabel[data.user.role]}</Badge>
-				<Button href={resolve('/(app)/settings')} variant="ghost" size="sm" class="hidden sm:inline"
-					>Ajustes</Button
-				>
 			</div>
 		</header>
 
-		<main
+		<div
 			id="contenido"
 			aria-busy={navigating.to !== null}
 			class="mx-auto w-full {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
 		>
 			{@render children()}
-		</main>
+		</div>
 	</Sidebar.Inset>
 
 	<BottomNav
