@@ -93,7 +93,7 @@ test('catálogo: relacionar por lote y gestionar por ítem', async ({ page }, te
 	await expect(page.getByRole('button', { name: 'Relaciones (1)' })).toHaveCount(3);
 
 	// Gestionar por ítem: abrir el modal del primer piso y quitar su relación.
-	const pisoRow = page.locator('tr').filter({ visible: true }).filter({ hasText: piso1 });
+	const pisoRow = page.locator('tr, li').filter({ visible: true }).filter({ hasText: piso1 });
 	await pisoRow.getByRole('button', { name: 'Relaciones (1)' }).click();
 	const itemDialog = page.getByRole('dialog');
 	await expect(itemDialog.getByRole('heading', { name: `Relaciones de «${piso1}»` })).toBeVisible();

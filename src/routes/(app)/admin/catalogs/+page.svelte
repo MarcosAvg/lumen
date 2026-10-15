@@ -127,7 +127,7 @@
 	</form>
 
 	<Tabs.Root bind:value={tab}>
-		<Tabs.List>
+		<Tabs.List class="no-scrollbar max-w-full overflow-x-auto">
 			<Tabs.Trigger value="all">Todos ({counts.all})</Tabs.Trigger>
 			<Tabs.Trigger value="general">Generales ({counts.general})</Tabs.Trigger>
 			<Tabs.Trigger value="buildings">Edificios ({counts.buildings})</Tabs.Trigger>

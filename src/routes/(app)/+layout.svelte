@@ -244,7 +244,7 @@
 		<Sidebar.Rail />
 	</Sidebar.Root>
 
-	<Sidebar.Inset>
+	<Sidebar.Inset class="min-w-0">
 		<a
 			href="#contenido"
 			class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
@@ -311,7 +311,7 @@
 		<div
 			id="contenido"
 			aria-busy={navigating.to !== null}
-			class="mx-auto w-full {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
+			class="mx-auto w-full min-w-0 {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
 		>
 			{@render children()}
 		</div>

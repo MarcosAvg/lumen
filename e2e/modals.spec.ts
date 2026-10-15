@@ -95,7 +95,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
 	await page.locator('#item-name').fill(item);
 	await page.getByRole('button', { name: 'Añadir' }).click();
-	const itemRow = page.locator('tr').filter({ visible: true }).filter({ hasText: item });
+	const itemRow = page.locator('tr, li').filter({ visible: true }).filter({ hasText: item });
 	await expect(itemRow).toBeVisible();
 
 	await itemRow.getByRole('button', { name: 'Renombrar' }).click();

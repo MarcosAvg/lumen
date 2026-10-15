@@ -284,7 +284,54 @@
 					{data.q ? 'Sin ítems que coincidan con la búsqueda.' : 'Sin ítems.'}
 				</p>
 			{:else}
-				<div class="overflow-hidden rounded-lg border">
+				<ul class="space-y-2 md:hidden">
+					{#each data.items as item (item.id)}
+						<li class="space-y-2 rounded-lg border p-3">
+							<div class="flex flex-wrap items-center justify-between gap-2">
+								<span class="font-medium">{item.name}</span>
+								<Badge variant="secondary" class="tnum font-normal">
+									{item.impact.works +
+										item.impact.elements +
+										item.impact.services +
+										item.impact.requirements} uso(s)
+								</Badge>
+							</div>
+							<div class="flex flex-wrap items-center gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onclick={() => openItemRelations(item)}
+								>
+									Relaciones ({relationCountByItem.get(item.id) ?? 0})
+								</Button>
+								<RenameDialog
+									action="?/renameItem"
+									hiddenName="itemId"
+									id={item.id}
+									currentName={item.name}
+								/>
+								<form method="POST" action="?/moveItem">
+									<input type="hidden" name="itemId" value={item.id} />
+									<input type="hidden" name="direction" value="up" />
+									<Button type="submit" variant="ghost" size="sm" aria-label="Subir ítem">↑</Button>
+								</form>
+								<form method="POST" action="?/moveItem">
+									<input type="hidden" name="itemId" value={item.id} />
+									<input type="hidden" name="direction" value="down" />
+									<Button type="submit" variant="ghost" size="sm" aria-label="Bajar ítem">↓</Button>
+								</form>
+								<form method="POST" action="?/deleteItem">
+									<input type="hidden" name="itemId" value={item.id} />
+									<input type="hidden" name="confirm" value="false" />
+									<Button type="submit" variant="destructive" size="sm">Eliminar</Button>
+								</form>
+							</div>
+						</li>
+					{/each}
+				</ul>
+
+				<div class="hidden overflow-x-auto rounded-lg border md:block">
 					<Table.Root
 						class="[&_td]:px-3 [&_td]:py-2 [&_th]:h-10 [&_th]:px-3 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground"
 					>

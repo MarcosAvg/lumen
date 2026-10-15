@@ -160,6 +160,14 @@
 	.animate-progress {
 		animation: progress-slide 1.1s ease-in-out infinite;
 	}
+	/* Oculta la barra de scroll conservando la capacidad de desplazar. */
+	.no-scrollbar {
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+	.no-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
 }
 
 /* Respetar la preferencia de movimiento reducido. */
