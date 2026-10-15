@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -33,6 +34,15 @@
 	let { data, form }: PageProps = $props();
 
 	const action = $derived((form ?? null) as ActionData | null);
+
+	// Regla de feedback: el éxito de una acción se anuncia con un toast.
+	let shownForm: unknown = null;
+	$effect(() => {
+		if (form && form !== shownForm) {
+			shownForm = form;
+			if (action?.success) toast.success(action.success);
+		}
+	});
 	const conflict = $derived(
 		action?.details && typeof action.details === 'object' && 'userId' in action.details
 			? action.details
@@ -126,12 +136,6 @@
 	<PageHeader title="Usuarios" description="Crea cuentas, cambia roles y controla el acceso.">
 		<Button onclick={openCreate}>Nuevo usuario</Button>
 	</PageHeader>
-
-	{#if action?.success}
-		<Alert>
-			<AlertDescription>{action.success}</AlertDescription>
-		</Alert>
-	{/if}
 
 	{#if action?.message && activeForm === null}
 		<Alert variant="destructive">

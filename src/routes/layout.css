@@ -21,6 +21,7 @@
 	--accent: oklch(0.955 0.006 255);
 	--accent-foreground: oklch(0.28 0.02 258);
 	--destructive: oklch(0.55 0.19 27);
+	--destructive-foreground: oklch(0.985 0.003 255);
 	--border: oklch(0.922 0.008 255);
 	--input: oklch(0.922 0.008 255);
 	--ring: oklch(0.44 0.1 256);
@@ -60,6 +61,7 @@
 	--accent: oklch(0.3 0.014 258);
 	--accent-foreground: oklch(0.96 0.004 255);
 	--destructive: oklch(0.66 0.17 25);
+	--destructive-foreground: oklch(0.985 0.003 255);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.62 0.11 256);
@@ -105,6 +107,7 @@
 	--color-input: var(--input);
 	--color-border: var(--border);
 	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-accent: var(--accent);
 	--color-muted-foreground: var(--muted-foreground);
@@ -141,5 +144,32 @@
 	/* Datos tabulares (tablas, contadores, fechas, secuencias). */
 	.tnum {
 		font-variant-numeric: tabular-nums;
+	}
+}
+
+/* Indicador de navegación (barra superior). */
+@keyframes progress-slide {
+	0% {
+		transform: translateX(-100%);
+	}
+	100% {
+		transform: translateX(400%);
+	}
+}
+@layer utilities {
+	.animate-progress {
+		animation: progress-slide 1.1s ease-in-out infinite;
+	}
+}
+
+/* Respetar la preferencia de movimiento reducido. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
 	}
 }

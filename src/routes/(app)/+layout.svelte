@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Building2 from '@lucide/svelte/icons/building-2';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
@@ -100,6 +100,16 @@
 </script>
 
 <Sidebar.Provider>
+	{#if navigating.to}
+		<div
+			class="fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/20"
+			role="status"
+			aria-live="polite"
+			aria-label="Cargando"
+		>
+			<div class="animate-progress h-full w-1/3 bg-primary"></div>
+		</div>
+	{/if}
 	<Sidebar.Root collapsible="icon">
 		<Sidebar.Header>
 			<Sidebar.Menu>
@@ -273,6 +283,7 @@
 
 		<main
 			id="contenido"
+			aria-busy={navigating.to !== null}
 			class="mx-auto w-full {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
 		>
 			{@render children()}

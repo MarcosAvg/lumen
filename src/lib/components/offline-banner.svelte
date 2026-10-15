@@ -24,7 +24,7 @@
 {#if offline}
 	<div
 		role="status"
-		class="text-destructive-foreground bg-destructive px-4 py-2 text-center text-sm"
+		class="bg-destructive px-4 py-2 text-center text-sm text-destructive-foreground"
 	>
 		Sin conexión. Lumen necesita red; los cambios no se guardarán hasta que vuelvas a conectarte.
 	</div>

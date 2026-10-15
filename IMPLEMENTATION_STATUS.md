@@ -226,6 +226,16 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 - **Tabs** de componente para «Evidencia actual | Historial».
 - **Toasts** (sonner) en acciones de cliente (p. ej. borrado), manteniendo alertas inline para
   errores de validación de formularios.
+- **Regla de feedback**: el **éxito** de una acción se anuncia con **toast**; los **errores de
+  validación** quedan inline junto al campo y los **errores de acción** con `Alert`
+  (`role="alert"`). Un `$effect` dispara el toast una vez por resultado nuevo de `form`.
+- **Páginas de error propias** (`+error.svelte` raíz y `(app)`): 404/403/500 en español, con marca,
+  acción «Ir al inicio» y «Reintentar». Antes se mostraba la página por defecto de SvelteKit
+  (en inglés y sin salida).
+- **Estados de carga**: barra superior durante la navegación (`navigating.to`) con `role="status"`,
+  `aria-busy` en el contenedor principal y respeto de `prefers-reduced-motion`.
+- **Contraste corregido** en el banner de sin conexión: se define `--destructive-foreground` en el
+  tema (antes el texto quedaba sin color sobre fondo rojo).
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

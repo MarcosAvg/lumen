@@ -35,6 +35,20 @@ test('recursos inexistentes devuelven 404 (no 500)', async ({ page }) => {
 	}
 });
 
+test('los errores muestran una vista propia en español', async ({ page }) => {
+	await ensureAdmin(page);
+
+	// 404 dentro de la app (recurso fuera de ámbito o inexistente).
+	await page.goto(`/services/${MISSING}`);
+	await expect(page.getByRole('heading', { name: 'No encontrado' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Ir al inicio' })).toBeVisible();
+
+	// 404 fuera del shell (ruta desconocida).
+	await page.goto('/ruta-que-no-existe');
+	await expect(page.getByRole('heading', { name: 'No encontrado' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+});
+
 test('eliminar un catálogo redirige a la lista (sin 500)', async ({ page }, testInfo) => {
 	const catalogName = `Catálogo borrar ${testInfo.project.name}-${Date.now()}`;
 	await ensureAdmin(page);

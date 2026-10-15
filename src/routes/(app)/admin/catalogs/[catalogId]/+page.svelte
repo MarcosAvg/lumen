@@ -29,6 +29,15 @@
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
 
+	// Regla de feedback: el éxito de una acción se anuncia con un toast.
+	let shownForm: unknown = null;
+	$effect(() => {
+		if (form && form !== shownForm) {
+			shownForm = form;
+			if (action?.success) toast.success(action.success);
+		}
+	});
+
 	// Confirmaciones destructivas como modales: recordar lo descartado.
 	let dismissedItemDeleteId = $state<string | null>(null);
 	let dismissedCatalogDelete = $state(false);
@@ -118,9 +127,6 @@
 		</form>
 	</div>
 
-	{#if action?.success}
-		<Alert><AlertDescription>{action.success}</AlertDescription></Alert>
-	{/if}
 	{#if action?.message}
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
