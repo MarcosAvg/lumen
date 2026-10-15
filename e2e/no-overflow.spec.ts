@@ -1,6 +1,16 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
+const JPEG_BASE64 =
+	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';
+
+function photoFile() {
+	return {
+		name: 'foto.jpg',
+		mimeType: 'image/jpeg',
+		buffer: Buffer.from(JPEG_BASE64, 'base64')
+	};
+}
 
 async function ensureAdmin(page: Page) {
 	await page.goto('/');
@@ -18,7 +28,18 @@ async function ensureAdmin(page: Page) {
 	await expect(page.locator('#page-title')).toContainText('Hola,');
 }
 
-const ROUTES = [
+/** Comprueba que la ruta no desborda horizontalmente en el ancho indicado. */
+async function expectNoOverflow(page: Page, route: string, width: number) {
+	await page.setViewportSize({ width, height: 900 });
+	await page.goto(route);
+	await page.waitForTimeout(120);
+	const overflow = await page.evaluate(
+		() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+	);
+	expect(overflow, `${route} desborda a ${width}px (+${overflow})`).toBeLessThanOrEqual(2);
+}
+
+const LIST_ROUTES = [
 	'/dashboard',
 	'/services',
 	'/admin/services',
@@ -30,19 +51,114 @@ const ROUTES = [
 	'/search'
 ];
 
-test('ninguna página de admin desborda horizontalmente', async ({ page }) => {
+test('ninguna página de listado desborda horizontalmente', async ({ page }) => {
 	test.setTimeout(90_000);
 	await ensureAdmin(page);
 
-	for (const width of [360, 390, 768, 1280]) {
-		await page.setViewportSize({ width, height: 900 });
-		for (const route of ROUTES) {
-			await page.goto(route);
-			await page.waitForTimeout(100);
-			const overflow = await page.evaluate(
-				() => document.documentElement.scrollWidth - document.documentElement.clientWidth
-			);
-			expect(overflow, `${route} desborda a ${width}px (+${overflow})`).toBeLessThanOrEqual(2);
+	for (const width of [320, 360, 390, 768, 1280]) {
+		for (const route of LIST_ROUTES) {
+			await expectNoOverflow(page, route, width);
+		}
+	}
+});
+
+test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
+	page
+}, testInfo) => {
+	test.setTimeout(150_000);
+	const stamp = Date.now();
+	const serviceName = `Mantenimiento Preventivo Edificio Central ${testInfo.project.name} ${stamp}`;
+	const workName = `Trabajo UMA de climatización ${stamp}`;
+
+	await ensureAdmin(page);
+
+	// Servicio con descripción larga (estresa la cabecera con acciones).
+	await page.goto('/admin/services');
+	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	const serviceDialog = page.getByRole('dialog');
+	await serviceDialog.locator('#name').fill(serviceName);
+	await serviceDialog
+		.locator('#description')
+		.fill(
+			'Descripción larga de servicio para comprobar que las acciones de la cabecera no desbordan.'
+		);
+	await serviceDialog.getByRole('button', { name: 'Crear servicio' }).click();
+	await expect(page.getByText('Servicio creado.')).toBeVisible();
+
+	const serviceHref = await page
+		.locator('tr, li')
+		.filter({ visible: true })
+		.filter({ hasText: serviceName })
+		.getByRole('link', { name: serviceName })
+		.getAttribute('href');
+	const servicePath = new URL(serviceHref ?? '/admin/services', 'http://x/').pathname;
+	await page.goto(servicePath);
+
+	// Trabajo dividido con un elemento (para tener también la ficha de elemento).
+	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
+	const workDialog = page.getByRole('dialog');
+	await workDialog.locator('#work-mode').selectOption('divided');
+	await workDialog.getByRole('tab', { name: 'Nombre propio' }).click();
+	await workDialog.locator('#work-name').fill(workName);
+	await workDialog.locator('#element-name-draft').fill('UMA 1');
+	await workDialog
+		.locator('#element-name-draft')
+		.locator('xpath=../..')
+		.getByRole('button', { name: 'Agregar', exact: true })
+		.click();
+	await workDialog.getByRole('button', { name: 'Crear trabajo' }).click();
+	await expect(page.getByText('Trabajo creado.')).toBeVisible();
+
+	const workPath = new URL(
+		(await page
+			.getByRole('listitem')
+			.filter({ hasText: workName })
+			.getByRole('link', { name: workName })
+			.getAttribute('href')) ?? '/dashboard',
+		'http://x/'
+	).pathname;
+	await page.goto(workPath);
+	const elementPath = new URL(
+		(await page.getByRole('link', { name: 'UMA 1' }).getAttribute('href')) ?? '/dashboard',
+		'http://x/'
+	).pathname;
+
+	// Entrega: crear un trabajo directo, subir foto y enviar.
+	await page.goto(servicePath);
+	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
+	const directDialog = page.getByRole('dialog');
+	await directDialog.getByRole('tab', { name: 'Nombre propio' }).click();
+	await directDialog.locator('#work-mode').selectOption('direct');
+	await directDialog.locator('#work-name').fill(`${workName} directo`);
+	await directDialog.getByRole('button', { name: 'Crear trabajo' }).click();
+	await expect(page.getByText('Trabajo creado.')).toBeVisible();
+	const directPath = new URL(
+		(await page
+			.getByRole('listitem')
+			.filter({ hasText: `${workName} directo` })
+			.getByRole('link', { name: `${workName} directo` })
+			.getAttribute('href')) ?? '/dashboard',
+		'http://x/'
+	).pathname;
+	await page.goto(directPath);
+	await page.locator('input[type="file"]').first().setInputFiles(photoFile());
+	await page.getByRole('button', { name: 'Enviar evidencia' }).click();
+	await page.getByRole('button', { name: 'Confirmar envío' }).click();
+	await expect(page.getByText('En revisión').first()).toBeVisible();
+
+	await page.goto('/reviews');
+	const submissionHref = await page
+		.locator('tr, li')
+		.filter({ visible: true })
+		.filter({ hasText: `${workName} directo` })
+		.getByRole('link')
+		.first()
+		.getAttribute('href');
+	const submissionPath = new URL(submissionHref ?? '/reviews', 'http://x/').pathname;
+
+	for (const width of [320, 360, 390, 768]) {
+		for (const route of [servicePath, workPath, elementPath, submissionPath]) {
+			await expectNoOverflow(page, route, width);
 		}
 	}
 });

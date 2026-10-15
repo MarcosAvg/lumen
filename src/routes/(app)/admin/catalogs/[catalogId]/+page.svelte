@@ -124,13 +124,13 @@
 		items={[{ label: 'Catálogos', href: '/admin/catalogs' }, { label: data.catalog.name }]}
 	/>
 
-	<div class="flex flex-wrap items-start justify-between gap-3">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 		<div>
 			{#if data.catalog.description}
 				<p class="text-sm text-muted-foreground">{data.catalog.description}</p>
 			{/if}
 		</div>
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
 			<Button variant="outline" size="sm" onclick={() => (editOpen = true)}>Editar catálogo</Button>
 			<form method="POST" action="?/deleteCatalog">
 				<input type="hidden" name="confirm" value="false" />

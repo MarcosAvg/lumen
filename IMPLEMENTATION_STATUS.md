@@ -254,8 +254,10 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
   servicio (`/admin/services/[serviceId]` redirige a la ficha).
 - **Sin scroll horizontal**: `#contenido`/inset con `min-w-0`, `DataTable` con `overflow-x-auto`, filas de
-  pestañas con `overflow-x-auto no-scrollbar` (utilidad `no-scrollbar` añadida) y el detalle de catálogo
-  como **tarjetas en móvil** (antes la tabla recortaba las acciones). E2E `no-overflow` (360/390/768/1280 px).
+  pestañas con `overflow-x-auto no-scrollbar` (utilidad `no-scrollbar` añadida), detalle de catálogo como
+  **tarjetas en móvil** y **acciones de cabecera** en columna/envueltas sin `shrink-0` (antes la ficha de
+  servicio desbordaba +42px a 360px con «Editar servicio/Gestionar asignaciones/Exportar ZIP»). E2E
+  `no-overflow` sobre listados **y fichas** (servicio/trabajo/elemento/entrega) a 320/360/390/768/1280px.
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

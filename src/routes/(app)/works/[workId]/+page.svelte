@@ -76,7 +76,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-wrap items-start justify-between gap-3">
+	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 		<div class="min-w-0">
 			<AppBreadcrumbs
 				items={[
@@ -96,7 +96,9 @@
 			{/if}
 		</div>
 		{#if data.isAdmin}
-			<Button variant="outline" size="sm" onclick={() => (editOpen = true)}>Editar trabajo</Button>
+			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (editOpen = true)}
+				>Editar trabajo</Button
+			>
 		{/if}
 	</div>
 

@@ -147,13 +147,13 @@
 		<AppBreadcrumbs
 			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
 		/>
-		<div class="flex flex-wrap items-start gap-3">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
 			{#if data.service.description}
 				<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
 					{data.service.description}
 				</p>
 			{/if}
-			<div class="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+			<div class="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
 				{#if data.isAdmin}
 					<Button variant="outline" size="sm" onclick={() => (editServiceOpen = true)}
 						>Editar servicio</Button
