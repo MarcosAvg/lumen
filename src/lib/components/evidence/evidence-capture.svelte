@@ -376,9 +376,9 @@
 
 <div class="space-y-4">
 	<header class="flex flex-wrap items-center justify-between gap-2">
-		<div class="flex items-center gap-2">
-			<h2 class="text-lg font-semibold">{label}</h2>
-			<StatusBadge {status} />
+		<div class="flex min-w-0 items-center gap-2">
+			<h2 class="min-w-0 truncate text-lg font-semibold">{label}</h2>
+			<span class="shrink-0"><StatusBadge {status} /></span>
 		</div>
 		{#if status === 'in_review'}
 			<span class="text-sm text-muted-foreground">
@@ -658,7 +658,7 @@
 
 		{#if editable}
 			<div
-				class="sticky bottom-0 z-20 -mx-4 border-t bg-background/95 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+				class="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-4 border-t bg-background/95 px-4 pt-2 pb-2 backdrop-blur md:static md:bottom-auto md:mx-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
 			>
 				<div class="flex flex-wrap items-center justify-between gap-2">
 					{#if submitError}

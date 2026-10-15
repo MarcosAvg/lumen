@@ -66,7 +66,7 @@
 
 <div class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
-		<div>
+		<div class="min-w-0">
 			<AppBreadcrumbs
 				items={[
 					{ label: 'Inicio', href: resolve('/(app)/dashboard') },
@@ -77,12 +77,16 @@
 					{ label: data.work.name }
 				]}
 			/>
-			<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight lg:text-3xl">
-				{data.work.name}
-				<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
-			</h1>
+			<div class="mt-2 flex items-center gap-2">
+				<h1 class="min-w-0 truncate text-xl font-semibold tracking-tight lg:text-3xl">
+					{data.work.name}
+				</h1>
+				<span class="flex shrink-0 items-center gap-2">
+					<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
+				</span>
+			</div>
 			{#if data.work.description}
-				<p class="text-sm text-muted-foreground">{data.work.description}</p>
+				<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>
 			{/if}
 		</div>
 	</div>
@@ -114,15 +118,15 @@
 								{#each data.elements as element (element.id)}
 									<li class="py-3">
 										<div class="relative flex flex-wrap items-center justify-between gap-2">
-											<span class="flex items-center gap-2 text-sm">
+											<span class="flex min-w-0 items-center gap-2 text-sm">
 												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 												<a
-													class="underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
+													class="min-w-0 truncate underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
 													href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
 												>
 													{element.name}
 												</a>
-												<StatusBadge status={element.status} />
+												<span class="shrink-0"><StatusBadge status={element.status} /></span>
 											</span>
 										</div>
 										{#if data.isAdmin}

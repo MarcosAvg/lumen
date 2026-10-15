@@ -64,9 +64,6 @@
 		return wide ? 'max-w-[1600px]' : 'max-w-[1400px]';
 	});
 
-	/** En las pantallas de captura la acción principal es una barra fija, sin nav inferior. */
-	const hideBottomNav = $derived(/^\/(works|elements)\//.test(page.url.pathname));
-
 	const sections = $derived.by(() => {
 		const general = [
 			{ href: resolve('/(app)/dashboard'), label: 'Inicio', icon: House },
@@ -282,9 +279,7 @@
 		</main>
 	</Sidebar.Inset>
 
-	{#if !hideBottomNav}
-		<BottomNav role={data.user.role} />
-	{/if}
+	<BottomNav role={data.user.role} />
 </Sidebar.Provider>
 
 <form bind:this={logoutForm} method="POST" action="/logout" class="hidden"></form>

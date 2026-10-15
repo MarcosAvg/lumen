@@ -38,9 +38,9 @@
 <div class="space-y-6">
 	<div>
 		<AppBreadcrumbs items={crumbs} />
-		<h1 class="mt-2 text-2xl font-semibold tracking-tight lg:text-3xl">{data.element.name}</h1>
+		<h1 class="mt-2 text-xl font-semibold tracking-tight lg:text-3xl">{data.element.name}</h1>
 		{#if data.element.description}
-			<p class="text-sm text-muted-foreground">{data.element.description}</p>
+			<p class="line-clamp-2 text-sm text-muted-foreground">{data.element.description}</p>
 		{/if}
 	</div>
 

@@ -328,6 +328,12 @@ horizontal); y se elimina la navegación duplicada: el **nombre del recurso es e
 un **enlace estirado** hace que **toda la tarjeta** navegue (acciones secundarias en `z-10`). Se alinean
 los botones de las barras a la altura de los campos (`h-9`).
 
+**Cabecera compacta, nav siempre y badges alineados**: la **barra inferior se muestra siempre**
+(incluida la captura, con la barra de acción fija **por encima**); el título baja a `text-xl` en móvil
+(`lg:text-3xl`) y la descripción se **oculta en listados** y se **limita a 2 líneas** en fichas. Los
+badges pasan **fuera del `h1`**, alineados con un patrón `flex items-center gap-3` (título
+`min-w-0 truncate` + badges `shrink-0`).
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

@@ -114,33 +114,35 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
-		<div class="space-y-2">
-			<AppBreadcrumbs
-				items={[
-					{ label: 'Inicio', href: resolve('/(app)/dashboard') },
-					{ label: data.service.name }
-				]}
-			/>
-			<h1 class="text-2xl font-semibold tracking-tight lg:text-3xl">{data.service.name}</h1>
-			{#if data.service.description}
-				<p class="max-w-prose text-sm text-muted-foreground">{data.service.description}</p>
-			{/if}
-			<div class="flex flex-wrap items-center gap-2">
-				{#if data.service.buildingName}
-					<Badge variant="secondary">Edificio: {data.service.buildingName}</Badge>
-				{/if}
-				<Badge variant="secondary">Tu acceso: {accessLabel[data.access]}</Badge>
-			</div>
+	<div class="space-y-2 border-b pb-4 lg:pb-5">
+		<AppBreadcrumbs
+			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
+		/>
+		<div class="flex items-start justify-between gap-3">
+			<h1 class="min-w-0 text-xl font-semibold tracking-tight lg:text-3xl">
+				{data.service.name}
+			</h1>
+			<Button
+				class="shrink-0"
+				href={`/api/services/${data.service.id}/export.zip`}
+				variant="outline"
+				size="sm">Exportar ZIP</Button
+			>
 		</div>
-		<div class="flex flex-wrap items-center gap-3 lg:justify-end">
-			<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm">
-				Exportar ZIP
-			</Button>
+		{#if data.service.description}
+			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
+				{data.service.description}
+			</p>
+		{/if}
+		<div class="flex flex-wrap items-center gap-2">
+			{#if data.service.buildingName}
+				<Badge variant="secondary">Edificio: {data.service.buildingName}</Badge>
+			{/if}
+			<Badge variant="secondary">Tu acceso: {accessLabel[data.access]}</Badge>
 		</div>
 	</div>
 
-	<div class="rounded-xl border bg-card p-4">
+	<div class="rounded-xl border bg-card p-3 lg:p-4">
 		<ProgressMeter
 			approved={data.progress.approvedTargets}
 			total={data.progress.totalTargets}
@@ -187,23 +189,25 @@
 							{#each data.works as work (work.id)}
 								<li class="relative flex flex-wrap items-center justify-between gap-2 py-3">
 									<div class="min-w-0">
-										<p class="flex items-center gap-2 font-medium">
+										<div class="flex items-center gap-2">
 											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 											<a
-												class="underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
+												class="min-w-0 truncate font-medium underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
 												href={resolve('/(app)/works/[workId]', { workId: work.id })}
 											>
 												{work.name}
 											</a>
-											<Badge variant="secondary"
-												>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
-											>
-											{#if work.approved}
-												<Badge>Aprobado</Badge>
-											{:else if work.mode === 'divided' && work.elementCount === 0}
-												<Badge variant="destructive">Sin elementos</Badge>
-											{/if}
-										</p>
+											<span class="flex shrink-0 items-center gap-2">
+												<Badge variant="secondary"
+													>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
+												>
+												{#if work.approved}
+													<Badge>Aprobado</Badge>
+												{:else if work.mode === 'divided' && work.elementCount === 0}
+													<Badge variant="destructive">Sin elementos</Badge>
+												{/if}
+											</span>
+										</div>
 										{#if work.mode === 'divided'}
 											<p class="text-sm text-muted-foreground">
 												{work.approvedElements}/{work.elementCount} elemento(s) aprobado(s)
