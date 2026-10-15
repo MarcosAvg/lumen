@@ -120,16 +120,14 @@
 										<div
 											class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
 										>
-											<span class="flex min-w-0 items-center gap-2 text-sm">
-												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-												<a
-													class="min-w-0 truncate underline-offset-4 after:absolute after:inset-0 hover:underline"
-													href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
-												>
-													{element.name}
-												</a>
-												<span class="shrink-0"><StatusBadge status={element.status} /></span>
-											</span>
+											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+											<a
+												class="min-w-0 truncate text-sm underline-offset-4 after:absolute after:inset-0 hover:underline"
+												href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+											>
+												{element.name}
+											</a>
+											<span class="shrink-0"><StatusBadge status={element.status} /></span>
 										</div>
 										{#if data.isAdmin}
 											<form

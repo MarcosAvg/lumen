@@ -16,6 +16,8 @@
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
+	import MiniMeter from '#lib/components/app/mini-meter.svelte';
+	import Chip from '#lib/components/app/chip.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
@@ -114,7 +116,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="space-y-2 border-b pb-4 lg:pb-5">
+	<div class="space-y-3 border-b pb-4 lg:pb-5">
 		<AppBreadcrumbs
 			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
 		/>
@@ -136,25 +138,30 @@
 				{data.service.description}
 			</p>
 		{/if}
-		<div class="flex flex-wrap items-center gap-2">
+		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
 			{#if data.service.buildingName}
-				<Badge variant="secondary">Edificio: {data.service.buildingName}</Badge>
+				<span class="flex items-baseline gap-1.5">
+					<span class="text-muted-foreground">Edificio</span>
+					<span class="font-medium text-foreground">{data.service.buildingName}</span>
+				</span>
 			{/if}
-			<Badge variant="secondary">Tu acceso: {accessLabel[data.access]}</Badge>
+			<span class="flex items-baseline gap-1.5">
+				<span class="text-muted-foreground">Tu acceso</span>
+				<span class="font-medium text-foreground">{accessLabel[data.access]}</span>
+			</span>
+			<StatusBadge
+				status={data.progress.completed ? 'approved' : 'in_progress'}
+				label={data.progress.completed ? 'Completado' : 'Incompleto'}
+			/>
 		</div>
-	</div>
-
-	<div class="rounded-xl border bg-card p-3 lg:p-4">
-		<ProgressMeter
-			approved={data.progress.approvedTargets}
-			total={data.progress.totalTargets}
-			percent={data.progress.percent}
-			completed={data.progress.completed}
-		/>
-		<p class="mt-2 text-xs text-muted-foreground">
-			{data.progress.completed ? 'Completado' : 'Incompleto'} — el ZIP solo incluye entregas aprobadas
-			y un resumen de las pendientes omitidas.
-		</p>
+		<div class="max-w-md">
+			<ProgressMeter
+				approved={data.progress.approvedTargets}
+				total={data.progress.totalTargets}
+				percent={data.progress.percent}
+				completed={data.progress.completed}
+			/>
+		</div>
 	</div>
 
 	{#if action?.success}
@@ -193,45 +200,39 @@
 									class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
 								>
 									<div class="min-w-0">
-										<div class="flex items-center gap-2">
-											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-											<a
-												class="min-w-0 truncate font-medium underline-offset-4 after:absolute after:inset-0 hover:underline"
-												href={resolve('/(app)/works/[workId]', { workId: work.id })}
-											>
-												{work.name}
-											</a>
-											<span class="flex shrink-0 items-center gap-2">
-												<Badge variant="secondary"
-													>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge
-												>
-												{#if work.approved}
-													<Badge>Aprobado</Badge>
-												{:else if work.mode === 'divided' && work.elementCount === 0}
-													<Badge variant="destructive">Sin elementos</Badge>
-												{/if}
-											</span>
-										</div>
+										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+										<a
+											class="block min-w-0 truncate font-medium underline-offset-4 after:absolute after:inset-0 hover:underline"
+											href={resolve('/(app)/works/[workId]', { workId: work.id })}
+										>
+											{work.name}
+										</a>
 										{#if work.mode === 'divided'}
-											<p class="text-sm text-muted-foreground">
-												{work.approvedElements}/{work.elementCount} elemento(s) aprobado(s)
-											</p>
-										{:else if work.workStatus}
 											<div class="mt-1">
-												<StatusBadge status={work.workStatus} />
+												<MiniMeter value={work.approvedElements} total={work.elementCount} />
 											</div>
 										{/if}
 									</div>
-									{#if data.isAdmin}
-										<div class="relative z-10">
-											<DestructiveDelete
-												label="Eliminar"
-												endpoint={`/api/works/${work.id}`}
-												itemName={work.name}
-												description="Se eliminarán sus elementos, entregas y fotos."
-											/>
-										</div>
-									{/if}
+									<div class="flex shrink-0 items-center gap-2">
+										<Chip tone="neutral">{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Chip>
+										{#if work.approved}
+											<Chip tone="approved">Aprobado</Chip>
+										{:else if work.mode === 'divided' && work.elementCount === 0}
+											<Chip tone="rejected">Sin elementos</Chip>
+										{:else if work.mode === 'direct' && work.workStatus}
+											<StatusBadge status={work.workStatus} />
+										{/if}
+										{#if data.isAdmin}
+											<div class="relative z-10">
+												<DestructiveDelete
+													label="Eliminar"
+													endpoint={`/api/works/${work.id}`}
+													itemName={work.name}
+													description="Se eliminarán sus elementos, entregas y fotos."
+												/>
+											</div>
+										{/if}
+									</div>
 								</li>
 							{/each}
 						</ul>

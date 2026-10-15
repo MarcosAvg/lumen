@@ -353,6 +353,12 @@ rounded-lg border`) con filas clicables (`hover:bg-muted/50`, `active:bg-muted/7
 móviles** ganan feedback táctil (`active:bg-muted/50`). E2E nuevo `row-click` pulsa fuera del nombre y
 verifica la navegación.
 
+**Chips, medidores y cabecera de servicio**: se añade `Chip` (fondo tenue + texto del color, sin borde)
+y `StatusBadge` lo reutiliza; el modo Directo/Dividido va en chip neutro y los chips van **alineados al
+final** de cada fila. `ProgressMeter` deja de mostrar la etiqueta «objetivos aprobados» (barra + `X/Y` +
+`%`) y aparece `MiniMeter` para el progreso de elementos. La cabecera del servicio integra los
+metadatos (Edificio/acceso) como etiqueta tenue + valor y el medidor como firma, sin la tarjeta aparte.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 
