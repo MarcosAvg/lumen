@@ -359,6 +359,11 @@ final** de cada fila. `ProgressMeter` deja de mostrar la etiqueta «objetivos ap
 `%`) y aparece `MiniMeter` para el progreso de elementos. La cabecera del servicio integra los
 metadatos (Edificio/acceso) como etiqueta tenue + valor y el medidor como firma, sin la tarjeta aparte.
 
+**Acceso a asignaciones desde la ficha**: la ficha del servicio gana (solo admin) un botón
+**«Gestionar asignaciones»** en la cabecera y un enlace **«Asignar»** en la tarjeta de Participantes,
+que llevan a `/admin/services/[serviceId]` (asignar/revocar). Antes solo se llegaba desde el listado de
+Servicios. E2E extendido: el admin ve el acceso y navega; el técnico no lo ve.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

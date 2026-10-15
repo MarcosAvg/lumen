@@ -44,10 +44,14 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.getAttribute('href');
 	const serviceId = (serviceHref ?? '').split('/').pop() ?? '';
 
-	// Admin: ve el botón y el endpoint no responde 403.
+	// Admin: ve el botón, el acceso a asignaciones y el endpoint no responde 403.
 	await page.goto(serviceHref ?? '/admin/services');
 	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toBeVisible();
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).not.toBe(403);
+
+	// Desde la ficha se accede a la pantalla de asignaciones.
+	await page.getByRole('link', { name: 'Gestionar asignaciones' }).click();
+	await expect(page).toHaveURL(new RegExp(`/admin/services/${serviceId}$`));
 
 	// Crear un técnico y asignarlo al servicio.
 	await page.goto('/admin/users');
@@ -80,10 +84,11 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
 
-	// El técnico ve el servicio pero no puede exportar.
+	// El técnico ve el servicio pero no puede exportar ni asignar.
 	await page.goto(serviceHref ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: serviceName })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'Gestionar asignaciones' })).toHaveCount(0);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(403);
 	expect((await page.request.get(`/api/submissions/${DUMMY_UUID}/export.zip`)).status()).toBe(403);
 });

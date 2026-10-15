@@ -59,6 +59,11 @@
 	const elementsJson = $derived(JSON.stringify(workElements));
 	const requirementsJson = $derived(JSON.stringify(workRequirements));
 
+	// Pantalla de asignar/revocar participantes (solo admin).
+	const assignmentHref = $derived(
+		resolve('/(app)/admin/services/[serviceId]', { serviceId: data.service.id })
+	);
+
 	const accessLabel = {
 		admin: 'Administrador',
 		supervisor: 'Supervisor',
@@ -124,14 +129,16 @@
 			<h1 class="min-w-0 text-xl font-semibold tracking-tight lg:text-3xl">
 				{data.service.name}
 			</h1>
-			{#if data.access !== 'technician'}
-				<Button
-					class="shrink-0"
-					href={`/api/services/${data.service.id}/export.zip`}
-					variant="outline"
-					size="sm">Exportar ZIP</Button
-				>
-			{/if}
+			<div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+				{#if data.isAdmin}
+					<Button href={assignmentHref} variant="outline" size="sm">Gestionar asignaciones</Button>
+				{/if}
+				{#if data.access !== 'technician'}
+					<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm"
+						>Exportar ZIP</Button
+					>
+				{/if}
+			</div>
 		</div>
 		{#if data.service.description}
 			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
@@ -274,10 +281,21 @@
 			{/if}
 
 			<Card.Root>
-				<Card.Header><Card.Title class="text-base">Participantes</Card.Title></Card.Header>
+				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
+					<Card.Title class="text-base">Participantes</Card.Title>
+					{#if data.isAdmin}
+						<Button href={assignmentHref} variant="outline" size="sm">Asignar</Button>
+					{/if}
+				</Card.Header>
 				<Card.Content>
 					{#if data.participants.length === 0}
-						<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
+						<p class="text-sm text-muted-foreground">
+							Sin participantes asignados.{#if data.isAdmin}
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a class="underline underline-offset-4" href={assignmentHref}
+									>Asignar participantes</a
+								>.{/if}
+						</p>
 					{:else}
 						<ul class="divide-y">
 							{#each data.participants as participant (participant.userId + participant.assignmentRole)}

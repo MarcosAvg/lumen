@@ -21,6 +21,7 @@
 - **Estado**: `StatusBadge` mapea `pending / in_progress / in_review / rejected / approved` a los tokens `--state-*` (ámbar, azul de atención, rojo, verde). El color del estado no se escribe a mano en las vistas.
 - **Chips unificados** (`Chip`): fondo tenue + texto del color, sin borde; `StatusBadge` los reutiliza y el **modo** (Directo/Dividido) va en chip neutro. En las filas, los chips van **alineados al final**.
 - **Medidor**: `ProgressMeter` sin etiqueta (barra + `X/Y` + `%`); `MiniMeter` (barra compacta + `X/Y`) para el progreso de elementos de un trabajo dividido. La cabecera de servicio integra metadatos (Edificio/acceso) como etiqueta tenue + valor y el medidor como firma.
+- **Asignaciones**: el administrador asigna/revoca participantes en `/admin/services/[serviceId]`, accesible desde el listado de Servicios y desde la **ficha del servicio** (botón «Gestionar asignaciones» y enlace «Asignar» en Participantes). Los supervisores y técnicos no asignan.
 - **Listado ≠ ficha**: los listados usan `DataTable`; las fichas, breadcrumbs + cabecera de escala única.
 - **Vacíos**: páginas y pestañas usan `EmptyState`; los vacíos dentro de tarjetas/menús quedan como texto atenuado.
 - **Confirmaciones destructivas en modal**: toda acción que borra/retira/revoca algo (retirar foto, eliminar requisito, eliminar ítem o catálogo, revocar asignación, eliminar servicio/trabajo/elemento/usuario, aprobar/rechazar) confirma en un **`AlertDialog`** (no en avisos inline), mostrando el resumen de impacto cuando aplique.
