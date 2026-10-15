@@ -88,11 +88,13 @@
 			{:else}
 				<StatusBadge status="in_review" label="Pendiente de revisión" />
 			{/if}
-			<Button
-				href={`/api/submissions/${data.detail.submission.id}/export.zip`}
-				variant="outline"
-				size="sm">Descargar ZIP</Button
-			>
+			{#if data.canExport}
+				<Button
+					href={`/api/submissions/${data.detail.submission.id}/export.zip`}
+					variant="outline"
+					size="sm">Descargar ZIP</Button
+				>
+			{/if}
 		</div>
 	</div>
 

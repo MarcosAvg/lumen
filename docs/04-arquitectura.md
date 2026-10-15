@@ -99,7 +99,7 @@ Funciones servidor como `appendPhoto`, `removePhoto`, `reorderPhotos`, `validate
 
 ### Exportaciones
 
-`exportSubmissionZip(submissionId)`, `exportServiceZip(serviceId)`, `exportServicesCsv(filters)`. Las dos primeras accesibles a cualquier rol autorizado; la última **solo admin**. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
+`exportSubmissionZip(submissionId)`, `exportServiceZip(serviceId)`, `exportServicesCsv(filters)`. Las dos primeras accesibles a **administradores y supervisores asignados** (los **técnicos no exportan** ZIP); la última **solo admin**. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
 
 ## 5. Endpoints y acciones orientativas
 

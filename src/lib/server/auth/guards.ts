@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import type { SessionUser } from '#lib/types';
+import { canExportZip, type SessionUser } from '#lib/types';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
 import { getPhotoAccessContext, type PhotoAccessContext } from '#lib/server/domain/photos';
@@ -17,6 +17,16 @@ export function requireUser(locals: App.Locals): SessionUser {
 export function requireAdmin(locals: App.Locals): SessionUser {
 	const user = requireUser(locals);
 	if (user.role !== 'admin') throw error(403, 'No tienes permisos de administración.');
+	return user;
+}
+
+/**
+ * Autoriza la exportación de ZIP (entrega/servicio): administrador o supervisor.
+ * Los técnicos no exportan (docs/01 §2); en su defecto responde `403`.
+ */
+export function requireExportZip(locals: App.Locals): SessionUser {
+	const user = requireUser(locals);
+	if (!canExportZip(user.role)) throw error(403, 'Los técnicos no pueden exportar evidencias.');
 	return user;
 }
 

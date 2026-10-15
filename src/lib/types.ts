@@ -8,6 +8,14 @@ export const ADDITIONAL_GROUP_LABEL = 'Adicionales';
 
 export type Role = 'admin' | 'supervisor' | 'technician';
 
+/**
+ * Quién puede exportar los ZIP de entrega/servicio. Los técnicos capturan y
+ * envían evidencia, pero no exportan (docs/01 §2).
+ */
+export function canExportZip(role: Role): boolean {
+	return role !== 'technician';
+}
+
 export type AssignmentRole = 'technician' | 'supervisor';
 
 export type CatalogPurpose = 'general' | 'buildings' | 'requirements';

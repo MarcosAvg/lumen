@@ -29,10 +29,11 @@
 | Enviar entrega de evidencia | Sí | No | Sí |
 | Consultar fotos, estado, historial y revisiones | Sí | Sí | Sí |
 | Aprobar o rechazar entregas | Sí | Sí | No |
-| Descargar foto / entrega ZIP / servicio ZIP | Sí | Sí | Sí |
+| Descargar foto individual | Sí | Sí | Sí |
+| Descargar entrega ZIP / servicio ZIP | Sí | Sí | No |
 | Exportar CSV administrativo | Sí | No | No |
 
-Un usuario debe estar **activo** y disponer de sesión válida para cualquier operación. Los administradores tienen permiso global sin necesitar asignación a un servicio. Los supervisores y técnicos solamente acceden a servicios **activos en su asignación**, no a todos los existentes. La vista de participantes expone nombre visible y rol pertinente, nunca credenciales ni datos sensibles.
+Un usuario debe estar **activo** y disponer de sesión válida para cualquier operación. Los administradores tienen permiso global sin necesitar asignación a un servicio. Los supervisores y técnicos solamente acceden a servicios **activos en su asignación**, no a todos los existentes. La vista de participantes expone nombre visible y rol pertinente, nunca credenciales ni datos sensibles. Los **técnicos no exportan ZIP** (capturan y envían evidencia); las descargas de ZIP de entrega y de servicio quedan para administradores y supervisores asignados.
 
 ### Usuarios
 

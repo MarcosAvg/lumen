@@ -122,12 +122,14 @@
 			<h1 class="min-w-0 text-xl font-semibold tracking-tight lg:text-3xl">
 				{data.service.name}
 			</h1>
-			<Button
-				class="shrink-0"
-				href={`/api/services/${data.service.id}/export.zip`}
-				variant="outline"
-				size="sm">Exportar ZIP</Button
-			>
+			{#if data.access !== 'technician'}
+				<Button
+					class="shrink-0"
+					href={`/api/services/${data.service.id}/export.zip`}
+					variant="outline"
+					size="sm">Exportar ZIP</Button
+				>
+			{/if}
 		</div>
 		{#if data.service.description}
 			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">

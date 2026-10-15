@@ -334,6 +334,13 @@ los botones de las barras a la altura de los campos (`h-9`).
 badges pasan **fuera del `h1`**, alineados con un patrón `flex items-center gap-3` (título
 `min-w-0 truncate` + badges `shrink-0`).
 
+**Exportación ZIP solo para admin y supervisor**: los **técnicos no exportan** ZIP (capturan y envían).
+La política `canExportZip(role)` se aplica con `requireExportZip` (403) en `GET
+/api/services/[serviceId]/export.zip` y `GET /api/submissions/[submissionId]/export.zip`, **antes** del
+chequeo de ámbito; los botones «Exportar ZIP»/«Descargar ZIP» se ocultan a los técnicos. Las descargas
+de **foto individual** no cambian. `docs/01`, `docs/04` y `docs/05` actualizados; unit de la política y
+E2E con un técnico (403 y sin botón).
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

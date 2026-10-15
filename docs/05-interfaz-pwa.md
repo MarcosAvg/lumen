@@ -206,7 +206,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - La primera vista es **Actual**, aunque haya varios rechazos.
 - Historial ordenado **de la entrega más reciente a la más antigua**. La tarjeta de cada entrada muestra #, autor, fecha y estado: pendiente de revisión, aprobada o rechazada.
 - Al abrir, ver galería congelada, grupos, orden, revisor/fecha y motivo del rechazo. Nada editable.
-- Botones de descarga individual y ZIP por entrega en el detalle histórico.
+- Botones de descarga individual y ZIP por entrega en el detalle histórico (el ZIP por entrega no se ofrece a los técnicos).
 - En versión rechazada, destacar motivo en la pestaña Actual para que técnico sepa qué corregir sin tener que buscarlo en historial.
 
 ## 11. Administración de catálogos

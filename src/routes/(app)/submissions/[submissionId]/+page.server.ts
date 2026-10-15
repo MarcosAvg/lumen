@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { canExportZip } from '#lib/types';
 import { requireReview, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
@@ -24,7 +25,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const pending = context.status === 'in_review';
 	const canReview = pending && (user.role === 'admin' || access === 'supervisor');
 
-	return { detail, pending, canReview };
+	return { detail, pending, canReview, canExport: canExportZip(user.role) };
 };
 
 export const actions: Actions = {
