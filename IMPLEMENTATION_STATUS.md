@@ -348,9 +348,10 @@ catálogo, eliminar catálogo y revocar asignación. El visor de fotos (lightbox
 
 **Fila clicable**: las filas dejaban de parecer «listas planas». En las **tablas** el enlace principal
 se **estira sobre toda la fila** (fila `relative`, acciones en `z-10`); las **listas internas**
-(trabajos, elementos) pasan a filas con superficie (`rounded-lg`, `hover:bg-muted/50`,
-`active:bg-muted/70`) y clic en toda la fila; las **tarjetas móviles** ganan feedback táctil
-(`active:bg-muted/50`). E2E nuevo `row-click` pulsa fuera del nombre y verifica la navegación.
+(trabajos, elementos) van en un **contenedor con borde y divisores** (`divide-y overflow-hidden
+rounded-lg border`) con filas clicables (`hover:bg-muted/50`, `active:bg-muted/70`); las **tarjetas
+móviles** ganan feedback táctil (`active:bg-muted/50`). E2E nuevo `row-click` pulsa fuera del nombre y
+verifica la navegación.
 
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.

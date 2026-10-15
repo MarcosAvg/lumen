@@ -187,10 +187,10 @@
 							Sin trabajos. Un servicio sin trabajos nunca se considera completado.
 						</p>
 					{:else}
-						<ul class="space-y-1">
+						<ul class="divide-y overflow-hidden rounded-lg border">
 							{#each data.works as work (work.id)}
 								<li
-									class="relative flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
+									class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
 								>
 									<div class="min-w-0">
 										<div class="flex items-center gap-2">

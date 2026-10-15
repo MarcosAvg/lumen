@@ -114,11 +114,11 @@
 								Sin elementos. Un trabajo dividido sin elementos nunca se considera aprobado.
 							</p>
 						{:else}
-							<ul class="space-y-1">
+							<ul class="divide-y overflow-hidden rounded-lg border">
 								{#each data.elements as element (element.id)}
 									<li>
 										<div
-											class="relative flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
+											class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
 										>
 											<span class="flex min-w-0 items-center gap-2 text-sm">
 												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
