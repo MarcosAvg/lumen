@@ -65,7 +65,6 @@
 	const sections = $derived.by(() => {
 		const general = [
 			{ href: resolve('/(app)/dashboard'), label: 'Inicio', icon: House, badge: 0 },
-			{ href: resolve('/(app)/search'), label: 'Buscar', icon: Search, badge: 0 },
 			{
 				href: resolve('/(app)/notifications'),
 				label: 'Notificaciones',
@@ -74,11 +73,19 @@
 			}
 		];
 		if (data.user.role !== 'technician') {
-			general.splice(2, 0, {
+			general.splice(1, 0, {
 				href: resolve('/(app)/reviews'),
 				label: 'Revisiones',
 				icon: ClipboardCheck,
 				badge: data.reviewsCount
+			});
+		}
+		if (data.user.role !== 'admin') {
+			general.splice(1, 0, {
+				href: resolve('/(app)/services'),
+				label: 'Servicios',
+				icon: Building2,
+				badge: 0
 			});
 		}
 
@@ -219,7 +226,7 @@
 								{#snippet child({ props })}
 									<a href={resolve('/(app)/settings')} {...props}>
 										<Settings />
-										<span>Ajustes</span>
+										<span>Perfil</span>
 									</a>
 								{/snippet}
 							</DropdownMenu.Item>

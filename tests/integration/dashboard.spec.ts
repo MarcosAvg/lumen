@@ -15,7 +15,7 @@ import { searchByName } from '#lib/server/domain/search';
 import { createService } from '#lib/server/domain/services';
 import { reviewSubmission, submitEvidence } from '#lib/server/domain/submissions';
 import { createFirstAdmin, createUser } from '#lib/server/domain/users';
-import { createWork } from '#lib/server/domain/works';
+import { createWork, listServiceProgress } from '#lib/server/domain/works';
 import { getTargetForElement } from '#lib/server/domain/targets';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import type { SessionUser } from '#lib/types';
@@ -164,6 +164,41 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 			status: 'pending',
 			targetId: target.id
 		});
+	});
+
+	it('DASH-04: el progreso por servicio se agrega en una consulta', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const service = await createService(db, { name: 'Servicio', actorId: admin.id });
+		const direct = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Directo',
+			actorId: admin.id
+		});
+		await createWork(db, {
+			serviceId: service.id,
+			mode: 'divided',
+			name: 'Dividido',
+			elements: [{ name: 'E1' }, { name: 'E2' }],
+			actorId: admin.id
+		});
+
+		// Aprobar el objetivo directo.
+		const photo = await upload(storage, direct.targetId as string, admin.id);
+		const submission = await submitEvidence(db, {
+			targetId: direct.targetId as string,
+			expectedVersion: photo.version,
+			userId: admin.id
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin.id
+		});
+
+		const progress = await listServiceProgress(db, [service.id]);
+		expect(progress.get(service.id)).toEqual({ totalTargets: 3, approvedTargets: 1 });
 	});
 
 	it('DASH-03: el contador de revisiones respeta el rol y el ámbito', async () => {

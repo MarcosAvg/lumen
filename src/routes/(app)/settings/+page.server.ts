@@ -10,7 +10,7 @@ import type { PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireUser(locals);
 	return {
-		title: 'Ajustes',
+		title: 'Perfil',
 		push: {
 			configured: isPushConfigured(),
 			publicKey: getVapidPublicKey(),

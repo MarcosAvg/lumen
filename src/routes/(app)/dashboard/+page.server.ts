@@ -1,7 +1,6 @@
 import { requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { dashboardSummary, listAttentionTargets } from '#lib/server/domain/dashboard';
-import { listServicesForUser } from '#lib/server/domain/services';
 import { listPendingReviews } from '#lib/server/domain/submissions';
 import type { PageServerLoad } from './$types';
 
@@ -10,7 +9,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireUser(locals);
 	const db = getDatabase().db;
 
-	const services = await listServicesForUser(db, user);
 	const summary = await dashboardSummary(db, user);
 	// Los supervisores no capturan (su tablero es la cola de revisión) y el
 	// administrador tiene un resumen global: «atención» es solo del técnico.
@@ -22,7 +20,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return {
 		title: `Hola, ${user.displayName}`,
-		services,
 		summary,
 		attention,
 		pending: pending.items,

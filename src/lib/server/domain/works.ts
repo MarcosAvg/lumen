@@ -570,6 +570,52 @@ export interface ServiceProgress {
 }
 
 /**
+ * Progreso por servicio en una sola consulta por origen (trabajo directo y
+ * elemento), sin N+1. Devuelve un mapa `serviceId -> { total, approved }`.
+ */
+export async function listServiceProgress(
+	db: Database,
+	serviceIds: string[]
+): Promise<Map<string, { totalTargets: number; approvedTargets: number }>> {
+	const result = new Map<string, { totalTargets: number; approvedTargets: number }>();
+	if (serviceIds.length === 0) return result;
+
+	const approvedCount = sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'approved') as int)`;
+
+	const [direct, viaElement] = await Promise.all([
+		db
+			.select({
+				serviceId: works.serviceId,
+				total: countInt(),
+				approved: approvedCount
+			})
+			.from(evidenceTargets)
+			.innerJoin(works, eq(works.id, evidenceTargets.workId))
+			.where(inArray(works.serviceId, serviceIds))
+			.groupBy(works.serviceId),
+		db
+			.select({
+				serviceId: works.serviceId,
+				total: countInt(),
+				approved: approvedCount
+			})
+			.from(evidenceTargets)
+			.innerJoin(elements, eq(elements.id, evidenceTargets.elementId))
+			.innerJoin(works, eq(works.id, elements.workId))
+			.where(inArray(works.serviceId, serviceIds))
+			.groupBy(works.serviceId)
+	]);
+
+	for (const row of [...direct, ...viaElement]) {
+		const current = result.get(row.serviceId) ?? { totalTargets: 0, approvedTargets: 0 };
+		current.totalTargets += row.total;
+		current.approvedTargets += row.approved;
+		result.set(row.serviceId, current);
+	}
+	return result;
+}
+
+/**
  * Progreso derivado (docs/03 §10): nunca se persiste. Un servicio se completa si
  * tiene al menos un trabajo y todos están aprobados; un trabajo dividido sin
  * elementos nunca está aprobado.

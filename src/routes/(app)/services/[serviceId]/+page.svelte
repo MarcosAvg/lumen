@@ -200,10 +200,12 @@
 							Sin trabajos. Un servicio sin trabajos nunca se considera completado.
 						</p>
 					{:else}
-						<ul class="divide-y overflow-hidden rounded-lg border">
+						<ul
+							class="space-y-2 md:space-y-0 md:divide-y md:overflow-hidden md:rounded-lg md:border"
+						>
 							{#each data.works as work (work.id)}
 								<li
-									class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
+									class="relative flex flex-col gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50 active:bg-muted/70 md:flex-row md:flex-wrap md:items-center md:justify-between md:rounded-none md:border-0 md:px-3 md:py-2.5"
 								>
 									<div class="min-w-0">
 										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
@@ -220,6 +222,7 @@
 										{/if}
 									</div>
 									<div class="flex shrink-0 items-center gap-2">
+										<span class="text-sm font-medium text-primary md:hidden">Abrir →</span>
 										<Chip tone="neutral">{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Chip>
 										{#if work.approved}
 											<Chip tone="approved">Aprobado</Chip>

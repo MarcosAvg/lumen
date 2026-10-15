@@ -6,7 +6,6 @@
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import House from '@lucide/svelte/icons/house';
-	import Search from '@lucide/svelte/icons/search';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import { useSidebar } from '#lib/components/ui/sidebar';
 	import type { Role } from '#lib/types';
@@ -36,11 +35,11 @@
 			icon: House,
 			href: resolve('/(app)/dashboard')
 		};
-		const search = {
-			key: 'search',
-			label: 'Buscar',
-			icon: Search,
-			href: resolve('/(app)/search')
+		const services = {
+			key: 'services',
+			label: 'Servicios',
+			icon: Building2,
+			href: resolve('/(app)/services')
 		};
 		const notifications = {
 			key: 'notifications',
@@ -63,8 +62,8 @@
 			href: resolve('/(app)/settings')
 		};
 
-		if (role === 'technician') return [home, search, notifications, profile];
-		if (role === 'supervisor') return [home, reviews, search, notifications, profile];
+		if (role === 'technician') return [home, services, notifications, profile];
+		if (role === 'supervisor') return [home, reviews, services, notifications, profile];
 		return [
 			home,
 			{

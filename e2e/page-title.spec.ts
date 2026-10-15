@@ -26,7 +26,8 @@ test('el título de la vista vive en la cabecera, no en el contenido', async ({ 
 		['/search', 'Buscar'],
 		['/notifications', 'Notificaciones'],
 		['/reviews', 'Revisiones'],
-		['/settings', 'Ajustes'],
+		['/settings', 'Perfil'],
+		['/services', 'Servicios'],
 		['/admin/services', 'Servicios'],
 		['/admin/users', 'Usuarios'],
 		['/admin/catalogs', 'Catálogos']

@@ -68,7 +68,7 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 ### Móvil
 
-- Barra superior con nombre/pantalla actual, menú o navegación sencilla y **campana** con contador de no leídas. La navegación (sidebar y barra inferior) muestra **contador de revisiones pendientes** en «Revisiones» (solo admin/supervisor), acotado por ámbito.
+- **Barra inferior por rol**: Técnico **Inicio · Servicios · Avisos · Perfil**; Supervisor **Inicio · Revisiones · Servicios · Avisos · Perfil**; Admin **Inicio · Servicios · Revisiones · Avisos · Más**. «Revisiones» lleva **contador** (solo admin/supervisor) y «Avisos» el de no leídas, acotados por ámbito. La **búsqueda no es pestaña**: vive en la cabecera (campo en `md+`, icono en móvil).
 - Buscador global accesible desde el menú superior o inicio.
 - Cards de servicios/trabajos con estado legible y progreso; objetivo táctil amplio.
 - Acción primaria de captura/envío claramente accesible sin tapar galerías; respetar safe area del teléfono.
@@ -84,21 +84,23 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 | Rol | Contenido prioritario | Acciones |
 |---|---|---|
-| Técnico | Servicios asignados; objetivos pendientes, en progreso y rechazados; próximos por completar | Abrir captura, ver rechazo, buscar |
-| Supervisor | Entregas en revisión de servicios asignados; servicios con pendientes y avance | Abrir revisión, aprobar/rechazar, consultar |
-| Admin | Todos los servicios, totales por estado, revisiones pendientes, accesos a usuarios/catálogos/servicios | Gestionar, revisar, capturar, exportar |
+| Técnico | Objetivos pendientes, en progreso y rechazados; próximos por completar (los **servicios** van en su pestaña) | Abrir captura, ver rechazo, cambiar de servicio |
+| Supervisor | Entregas en revisión de servicios asignados; totales y avance | Abrir revisión, aprobar/rechazar, consultar |
+| Admin | Totales por estado, revisiones pendientes, accesos a usuarios/catálogos/servicios | Gestionar, revisar, capturar, exportar |
 
 No mostrar contador «todos los servicios» a supervisores si incluye los no asignados. Cualquier número visible está acotado por permisos.
 
+La **selección de servicio vive en su propia pestaña** (`/services`), no en el tablero: así una cola larga de pendientes no la desplaza. En el tablero, «Requiere tu atención» (rechazados) se muestra completo, mientras que **«Pendientes» se limita a 5** con «Mostrar todos (N)».
+
 ## 5. Lista y detalle de servicios
 
-**Lista:** tarjetas o tabla responsiva, nombre del servicio, edificio opcional, progreso (objetivos aprobados / totales), indicación completado/incompleto, filtros por estado y búsqueda local. Admin ve creación/edición/borrado; otros solo servicios asignados.
+**Lista:** tarjetas o tabla responsiva, nombre del servicio, edificio opcional, progreso (objetivos aprobados / totales), indicación completado/incompleto. Se sirve en **dos rutas**: `/services` (técnico/supervisor: **solo sus servicios asignados**, orientada a seleccionar y entrar) y `/admin/services` (admin: creación/edición/borrado). El progreso por servicio se agrega en una consulta, sin N+1.
 
 **Detalle de servicio:**
 
 - Encabezado con nombre, descripción, edificio y estado calculado.
 - Participantes (técnicos y supervisores) visibles para personas asignadas, con nombres y roles pertinentes.
-- Lista de trabajos y su tipo: `Directo` o `Dividido`, avance y estado.
+- Lista de trabajos y su tipo: `Directo` o `Dividido`, avance y estado. En **móvil** cada trabajo se muestra como **tarjeta/banner** (nombre, chips de modo/estado, medidor de progreso y «Abrir →», con toda la tarjeta clicable); en escritorio, fila compacta con borde y divisores. Mismo DOM en ambos casos.
 - Descarga de **ZIP de evidencias aprobadas del servicio** disponible también si no completado, con texto que indica inclusión solo de objetivos aprobados y relación de omitidos.
 - Admin puede editar datos/participantes/estructura en secciones claras, sin forzar a técnicos a atravesar esos formularios.
 
@@ -246,10 +248,11 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - **Filtros de búsqueda**: por **tipo** (servicios/trabajos/elementos) y por **servicio**; se aplican en servidor y el selector de servicio solo ofrece los servicios del ámbito del usuario.
 - Las listas locales conservan filtros por estado y nombre para navegación detallada.
 
-## 14. Notificaciones y ajustes
+## 14. Notificaciones y perfil
 
 - Campana con contador de no leídas en layout principal.
 - Bandeja con eventos de entrega y revisión, fecha, contexto, resumen, marca leído individual y todo leído; clic abre destino protegido.
+- **Perfil** (`/settings`, pestaña «Perfil»): tarjeta **«Cuenta»** con nombre visible, usuario y rol, y **«Cerrar sesión»** (`POST /logout`) — accesible en móvil.
 - Opción «Activar notificaciones push» que explica permisos y limitaciones de navegadores; botón real para solicitar permiso **solo tras interacción del usuario**.
 - Si push no está disponible o se deniega, mostrarlo sin tratarlo como fallo de la aplicación; bandeja interna sigue activa.
 - Permitir eliminar suscripción del dispositivo actual y limpiar suscripciones obsoletas.

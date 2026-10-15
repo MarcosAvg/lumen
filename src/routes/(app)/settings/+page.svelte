@@ -10,6 +10,12 @@
 
 	let { data }: PageProps = $props();
 
+	const roleLabel = {
+		admin: 'Administrador',
+		supervisor: 'Supervisor',
+		technician: 'Técnico'
+	} as const;
+
 	let supported = $state(false);
 	let permission = $state<NotificationPermission>('default');
 	let currentEndpoint = $state<string | null>(null);
@@ -107,11 +113,31 @@
 </script>
 
 <svelte:head>
-	<title>Ajustes · Lumen</title>
+	<title>Perfil · Lumen</title>
 </svelte:head>
 
 <div class="space-y-6">
-	<PageIntro description="Notificaciones y preferencias de tu cuenta." />
+	<PageIntro description="Tu cuenta, notificaciones y preferencias." />
+
+	<Card.Root>
+		<Card.Header><Card.Title class="text-base">Cuenta</Card.Title></Card.Header>
+		<Card.Content class="space-y-3">
+			<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+				<span class="flex items-baseline gap-1.5">
+					<span class="text-muted-foreground">Nombre</span>
+					<span class="font-medium text-foreground">{data.user.displayName}</span>
+				</span>
+				<span class="flex items-baseline gap-1.5">
+					<span class="text-muted-foreground">Usuario</span>
+					<span class="font-medium text-foreground">{data.user.username}</span>
+				</span>
+				<Badge variant="secondary">{roleLabel[data.user.role]}</Badge>
+			</div>
+			<form method="POST" action="/logout">
+				<Button type="submit" variant="outline">Cerrar sesión</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
 
 	<Card.Root>
 		<Card.Header>

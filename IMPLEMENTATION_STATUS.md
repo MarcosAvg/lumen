@@ -242,6 +242,12 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   barra superior (`#page-title`); el contenido usa `PageIntro` (descripción + acciones) y ya no repite el
   `h1`. Se retiran de la barra el badge de rol y el botón «Ajustes» (ya en el menú de usuario) y el
   `Sidebar.Inset` deja de anidar dos `<main>`.
+- **Navegación móvil por rol y vista de servicios**: se quita «Buscar» de la barra inferior (la búsqueda
+  vive en la cabecera) y se añade «Servicios» (`/services`, **solo asignados**) para técnico y supervisor.
+  El tablero deja de listar servicios (selección en su propia pestaña) y limita «Pendientes» a 5 con
+  «Mostrar todos». El **perfil** (`/settings`) muestra la cuenta y permite **cerrar sesión** (antes no
+  había logout en móvil). Los trabajos se ven como **tarjeta en móvil** y fila compacta en escritorio
+  (mismo DOM). Progreso por servicio agregado en una consulta (`listServiceProgress`).
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

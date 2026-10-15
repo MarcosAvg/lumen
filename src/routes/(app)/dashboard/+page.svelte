@@ -2,10 +2,8 @@
 	import { resolve } from '$app/paths';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
-	import * as Table from '#lib/components/ui/table';
 	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
-	import DataTable from '#lib/components/app/data-table.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
 	import type { AttentionTarget } from '#lib/server/domain/dashboard';
@@ -21,6 +19,14 @@
 	);
 	const rejected = $derived(data.attention.filter((target) => target.status === 'rejected'));
 	const inProgress = $derived(data.attention.filter((target) => target.status !== 'rejected'));
+
+	// Muchos pendientes aglomeran el panel: se muestran los primeros y el resto
+	// se despliega bajo demanda. Seleccionar un servicio vive en su propia pestaña.
+	const PENDING_LIMIT = 5;
+	let showAllPending = $state(false);
+	const visibleInProgress = $derived(
+		showAllPending ? inProgress : inProgress.slice(0, PENDING_LIMIT)
+	);
 
 	function hrefFor(target: AttentionTarget): string {
 		if (target.type === 'element')
@@ -71,10 +77,10 @@
 <div class="space-y-6">
 	<PageIntro
 		description={role === 'technician'
-			? 'Tu evidencia pendiente y los servicios asignados.'
+			? 'Tu evidencia pendiente y rechazada.'
 			: role === 'supervisor'
-				? 'Entregas por revisar y servicios asignados.'
-				: 'Resumen global y servicios.'}
+				? 'Entregas por revisar de tus servicios.'
+				: 'Resumen global y revisiones pendientes.'}
 	></PageIntro>
 
 	{#if role === 'technician'}
@@ -87,7 +93,12 @@
 		{#if inProgress.length > 0}
 			<section class="space-y-2">
 				<h2 class="text-sm font-medium">Pendientes</h2>
-				{@render targetList(inProgress)}
+				{@render targetList(visibleInProgress)}
+				{#if inProgress.length > PENDING_LIMIT}
+					<Button variant="outline" size="sm" onclick={() => (showAllPending = !showAllPending)}>
+						{showAllPending ? 'Mostrar menos' : `Mostrar todos (${inProgress.length})`}
+					</Button>
+				{/if}
 			</section>
 		{/if}
 		{#if data.attention.length === 0}
@@ -167,78 +178,4 @@
 			{/if}
 		</section>
 	{/if}
-
-	<section class="space-y-2">
-		<h2 class="text-sm font-medium">Servicios</h2>
-		{#if data.services.length === 0}
-			<EmptyState
-				title="Aún no hay servicios"
-				description={role === 'admin'
-					? 'Crea el primer servicio para empezar a estructurar trabajos y evidencia.'
-					: 'No tienes servicios asignados. Contacta con un administrador.'}
-			>
-				{#if role === 'admin'}
-					<Button href={resolve('/(app)/admin/services')} size="sm">Ir a Servicios</Button>
-				{/if}
-			</EmptyState>
-		{:else}
-			<ul class="space-y-3 md:hidden">
-				{#each data.services as service (service.id)}
-					<li class="relative">
-						<Card.Root class="transition-colors active:bg-muted/50">
-							<Card.Content>
-								<a
-									class="font-medium text-foreground after:absolute after:inset-0"
-									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-								>
-									{service.name}
-								</a>
-								{#if service.description}
-									<p class="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-										{service.description}
-									</p>
-								{/if}
-								{#if service.buildingName}
-									<p class="mt-1 text-xs text-muted-foreground">Edificio: {service.buildingName}</p>
-								{/if}
-							</Card.Content>
-						</Card.Root>
-					</li>
-				{/each}
-			</ul>
-
-			<div class="hidden md:block">
-				<DataTable>
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>Servicio</Table.Head>
-							<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each data.services as service (service.id)}
-							<Table.Row class="relative">
-								<Table.Cell class="whitespace-normal">
-									<a
-										class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
-										href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
-									>
-										{service.name}
-									</a>
-									{#if service.description}
-										<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
-											{service.description}
-										</p>
-									{/if}
-								</Table.Cell>
-								<Table.Cell class="hidden text-muted-foreground lg:table-cell">
-									{service.buildingName ?? '—'}
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</DataTable>
-			</div>
-		{/if}
-	</section>
 </div>
