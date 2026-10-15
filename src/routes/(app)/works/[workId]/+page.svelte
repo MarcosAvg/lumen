@@ -114,14 +114,16 @@
 								Sin elementos. Un trabajo dividido sin elementos nunca se considera aprobado.
 							</p>
 						{:else}
-							<ul class="divide-y">
+							<ul class="space-y-1">
 								{#each data.elements as element (element.id)}
-									<li class="py-3">
-										<div class="relative flex flex-wrap items-center justify-between gap-2">
+									<li>
+										<div
+											class="relative flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
+										>
 											<span class="flex min-w-0 items-center gap-2 text-sm">
 												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 												<a
-													class="min-w-0 truncate underline-offset-4 after:absolute after:inset-0 hover:underline md:after:hidden"
+													class="min-w-0 truncate underline-offset-4 after:absolute after:inset-0 hover:underline"
 													href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
 												>
 													{element.name}

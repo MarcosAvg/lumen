@@ -58,7 +58,7 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.items as item (item.id)}
 				<li class="relative">
-					<Card.Root class={item.readAt ? 'opacity-60' : ''}>
+					<Card.Root class="transition-colors active:bg-muted/50 {item.readAt ? 'opacity-60' : ''}">
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<!-- eslint-disable svelte/no-navigation-without-resolve -->
@@ -97,12 +97,12 @@
 				</Table.Header>
 				<Table.Body>
 					{#each data.items as item (item.id)}
-						<Table.Row class={item.readAt ? 'opacity-60' : ''}>
+						<Table.Row class="relative {item.readAt ? 'opacity-60' : ''}">
 							<Table.Cell class="whitespace-normal">
 								<div class="flex items-center gap-2">
 									<!-- eslint-disable svelte/no-navigation-without-resolve -->
 									<a
-										class="font-medium text-foreground underline-offset-4 hover:underline"
+										class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 										href={item.deepLink}>{item.title}</a
 									>
 									<!-- eslint-enable svelte/no-navigation-without-resolve -->
@@ -117,7 +117,7 @@
 							<Table.Cell class="tnum hidden text-muted-foreground lg:table-cell">
 								{formatDate(item.createdAt)}
 							</Table.Cell>
-							<Table.Cell class="text-right">
+							<Table.Cell class="relative z-10 text-right">
 								{#if !item.readAt}
 									<form method="POST" action="?/read" class="inline">
 										<input type="hidden" name="notificationId" value={item.id} />

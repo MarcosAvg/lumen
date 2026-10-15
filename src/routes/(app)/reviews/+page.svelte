@@ -97,7 +97,7 @@
 			{#each data.pending as item (item.submissionId)}
 				{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
 				<li class="relative">
-					<Card.Root>
+					<Card.Root class="transition-colors active:bg-muted/50">
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
@@ -149,7 +149,7 @@
 				<Table.Body>
 					{#each data.pending as item (item.submissionId)}
 						{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
-						<Table.Row>
+						<Table.Row class="relative">
 							<Table.Cell class="tnum text-right font-medium text-muted-foreground">
 								{item.sequenceNo}
 							</Table.Cell>
@@ -159,7 +159,7 @@
 							<Table.Cell class="whitespace-normal">
 								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 								<a
-									class="font-medium text-foreground underline-offset-4 hover:underline"
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 									href={resolve('/(app)/submissions/[submissionId]', {
 										submissionId: item.submissionId
 									})}

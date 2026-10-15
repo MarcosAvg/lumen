@@ -140,7 +140,7 @@
 		<ul class="space-y-3 md:hidden">
 			{#each visibleCatalogs as catalog (catalog.id)}
 				<li class="relative">
-					<Card.Root>
+					<Card.Root class="transition-colors active:bg-muted/50">
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">
@@ -178,10 +178,10 @@
 				</Table.Header>
 				<Table.Body>
 					{#each visibleCatalogs as catalog (catalog.id)}
-						<Table.Row>
+						<Table.Row class="relative">
 							<Table.Cell class="whitespace-normal">
 								<a
-									class="font-medium text-foreground underline-offset-4 hover:underline"
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 									href={resolve('/(app)/admin/catalogs/[catalogId]', { catalogId: catalog.id })}
 								>
 									{catalog.name}

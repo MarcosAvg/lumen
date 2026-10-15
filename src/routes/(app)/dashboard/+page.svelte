@@ -34,7 +34,7 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.services as service (service.id)}
 				<li class="relative">
-					<Card.Root>
+					<Card.Root class="transition-colors active:bg-muted/50">
 						<Card.Content>
 							<a
 								class="font-medium text-foreground after:absolute after:inset-0"
@@ -66,10 +66,10 @@
 				</Table.Header>
 				<Table.Body>
 					{#each data.services as service (service.id)}
-						<Table.Row>
+						<Table.Row class="relative">
 							<Table.Cell class="whitespace-normal">
 								<a
-									class="font-medium text-foreground underline-offset-4 hover:underline"
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
 								>
 									{service.name}

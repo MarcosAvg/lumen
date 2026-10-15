@@ -81,7 +81,7 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.services as service (service.id)}
 				<li class="relative">
-					<Card.Root>
+					<Card.Root class="transition-colors active:bg-muted/50">
 						<Card.Content class="space-y-3">
 							<div>
 								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
@@ -127,10 +127,10 @@
 				</Table.Header>
 				<Table.Body>
 					{#each data.services as service (service.id)}
-						<Table.Row>
+						<Table.Row class="relative">
 							<Table.Cell class="whitespace-normal">
 								<a
-									class="font-medium text-foreground underline-offset-4 hover:underline"
+									class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 									href={resolve('/(app)/services/[serviceId]', { serviceId: service.id })}
 								>
 									{service.name}
@@ -144,7 +144,7 @@
 							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
 								{service.buildingName ?? '—'}
 							</Table.Cell>
-							<Table.Cell class="text-right">
+							<Table.Cell class="relative z-10 text-right">
 								<div class="flex items-center justify-end gap-2">
 									<Button
 										href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}

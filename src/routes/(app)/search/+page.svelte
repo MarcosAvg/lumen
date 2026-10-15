@@ -80,7 +80,7 @@
 				<ul class="space-y-3 md:hidden">
 					{#each group.items as result (result.type + result.id)}
 						<li class="relative">
-							<Card.Root>
+							<Card.Root class="transition-colors active:bg-muted/50">
 								<Card.Content>
 									<!-- eslint-disable svelte/no-navigation-without-resolve -->
 									<a
@@ -103,11 +103,11 @@
 					<DataTable>
 						<Table.Body>
 							{#each group.items as result (result.type + result.id)}
-								<Table.Row>
+								<Table.Row class="relative">
 									<Table.Cell class="whitespace-normal">
 										<!-- eslint-disable svelte/no-navigation-without-resolve -->
 										<a
-											class="font-medium text-foreground underline-offset-4 hover:underline"
+											class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
 											href={hrefFor(result)}>{result.label}</a
 										>
 										<!-- eslint-enable svelte/no-navigation-without-resolve -->
