@@ -12,6 +12,7 @@
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	type RoleChangeConflict = {
 		userId: string;
@@ -187,17 +188,11 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="new-role">Rol</Label>
-					<select
-						id="new-role"
-						name="role"
-						bind:value={createRole}
-						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						required
-					>
+					<NativeSelect id="new-role" name="role" bind:value={createRole} required>
 						<option value="technician">Técnico</option>
 						<option value="supervisor">Supervisor</option>
 						<option value="admin">Administrador</option>
-					</select>
+					</NativeSelect>
 				</div>
 
 				<Dialog.Footer>
@@ -314,16 +309,11 @@
 					<h3 class="text-sm font-medium">Rol</h3>
 					<div class="space-y-2">
 						<Label for="edit-role">Rol global</Label>
-						<select
-							id="edit-role"
-							name="role"
-							bind:value={editRole}
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						>
+						<NativeSelect id="edit-role" name="role" bind:value={editRole}>
 							<option value="technician">Técnico</option>
 							<option value="supervisor">Supervisor</option>
 							<option value="admin">Administrador</option>
-						</select>
+						</NativeSelect>
 					</div>
 					<Button type="submit" variant="outline" size="sm" disabled={editPending}
 						>Cambiar rol</Button

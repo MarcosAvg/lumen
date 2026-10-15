@@ -308,6 +308,13 @@ enlace al servicio y columna de **antigüedad** relativa (`formatRelativeAge`, r
 (Servicios/Trabajos/Elementos). Ajustes adopta `PageHeader`. Se elimina el patrón de cabecera antigua
 en estas pantallas.
 
+**Consistencia estética (contrato de UI)**: se crean `NativeSelect`, `LabeledCheckbox` y `StatusBadge`.
+Los **14 `<select>` crudos** y los checkboxes ad-hoc se sustituyen por los componentes compartidos
+(altura única `h-9` en `Input`/`NativeSelect` y botón `default`), `StatusBadge` cablea los tokens
+`--state-*` en evidencia, trabajos, servicio, entregas e histórico, y se unifica la escala de las
+cabeceras de ficha (`lg:text-3xl`), los vacíos (`EmptyState`) y el padding de tarjetas (fuera los
+parches `pt-6`). Contrato documentado en `docs/05`.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

@@ -9,6 +9,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import CatalogItemPicker from './catalog-item-picker.svelte';
 	import type { CatalogGroup } from './types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	interface RelationRow {
 		id: string;
@@ -137,14 +138,10 @@
 					<h3 class="text-sm font-medium">Añadir relación</h3>
 					<div class="space-y-2">
 						<Label for="rel-direction">Sentido</Label>
-						<select
-							id="rel-direction"
-							bind:value={direction}
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						>
+						<NativeSelect id="rel-direction" bind:value={direction}>
 							<option value="outgoing">Este ítem → otro ítem</option>
 							<option value="incoming">Otro ítem → este ítem</option>
-						</select>
+						</NativeSelect>
 					</div>
 					<div class="space-y-2">
 						<Label>Ítem del otro catálogo</Label>

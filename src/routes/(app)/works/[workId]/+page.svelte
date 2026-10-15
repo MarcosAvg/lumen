@@ -10,6 +10,7 @@
 	import ConvertWorkMode from '#lib/components/convert-work-mode.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
@@ -57,14 +58,6 @@
 			elementRequirementsRequired = true;
 		}
 	});
-
-	const statusLabel = {
-		pending: 'Pendiente',
-		in_progress: 'En progreso',
-		in_review: 'En revisión',
-		rejected: 'Rechazado',
-		approved: 'Aprobado'
-	} as const;
 </script>
 
 <svelte:head>
@@ -84,7 +77,7 @@
 					{ label: data.work.name }
 				]}
 			/>
-			<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
+			<h1 class="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight lg:text-3xl">
 				{data.work.name}
 				<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
 			</h1>
@@ -123,7 +116,7 @@
 										<div class="flex flex-wrap items-center justify-between gap-2">
 											<span class="flex items-center gap-2 text-sm">
 												{element.name}
-												<Badge variant="secondary">{statusLabel[element.status]}</Badge>
+												<StatusBadge status={element.status} />
 											</span>
 											<Button
 												href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}

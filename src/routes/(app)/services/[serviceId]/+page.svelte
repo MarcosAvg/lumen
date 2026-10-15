@@ -16,8 +16,10 @@
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	type ActionData = {
 		success?: string;
@@ -61,13 +63,6 @@
 		technician: 'Técnico'
 	} as const;
 	const participantLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
-	const statusLabel = {
-		pending: 'Pendiente',
-		in_progress: 'En progreso',
-		in_review: 'En revisión',
-		rejected: 'Rechazado',
-		approved: 'Aprobado'
-	} as const;
 
 	// Catálogos ofrecidos en los pickers: generales (ni edificios ni requisitos).
 	const catalogsForPicker = $derived<CatalogGroup[]>(
@@ -208,9 +203,9 @@
 												{work.approvedElements}/{work.elementCount} elemento(s) aprobado(s)
 											</p>
 										{:else if work.workStatus}
-											<p class="text-sm text-muted-foreground">
-												Estado: {statusLabel[work.workStatus]}
-											</p>
+											<div class="mt-1">
+												<StatusBadge status={work.workStatus} />
+											</div>
 										{/if}
 									</div>
 									<div class="flex items-center gap-2">
@@ -322,15 +317,10 @@
 					</Dialog.Header>
 					<div class="space-y-1">
 						<Label for="work-mode">Modo</Label>
-						<select
-							id="work-mode"
-							name="mode"
-							bind:value={workMode}
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						>
+						<NativeSelect id="work-mode" name="mode" bind:value={workMode}>
 							<option value="direct">Directo</option>
 							<option value="divided">Dividido</option>
-						</select>
+						</NativeSelect>
 					</div>
 					<div class="space-y-2">
 						<p class="text-xs text-muted-foreground">

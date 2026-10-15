@@ -9,6 +9,7 @@
 	import CatalogItemMultiPicker from './catalog-item-multi-picker.svelte';
 	import CatalogItemPicker from './catalog-item-picker.svelte';
 	import type { CatalogGroup } from './types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	interface RelationRow {
 		fromItemId: string;
@@ -123,14 +124,10 @@
 			<div class="space-y-4">
 				<div class="space-y-2">
 					<Label for="batch-direction">Sentido</Label>
-					<select
-						id="batch-direction"
-						bind:value={direction}
-						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-					>
+					<NativeSelect id="batch-direction" bind:value={direction}>
 						<option value="outgoing">Este catálogo → otro catálogo</option>
 						<option value="incoming">Otro catálogo → este catálogo</option>
-					</select>
+					</NativeSelect>
 				</div>
 
 				<div class="space-y-2">

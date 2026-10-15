@@ -8,6 +8,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	type ActionData = { success?: string; message?: string };
 
@@ -24,7 +25,7 @@
 <div class="space-y-6">
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">{data.service.name}</h1>
+			<h1 class="text-2xl font-semibold tracking-tight lg:text-3xl">{data.service.name}</h1>
 			{#if data.service.description}
 				<p class="text-sm text-muted-foreground">{data.service.description}</p>
 			{/if}
@@ -52,19 +53,18 @@
 					<input type="hidden" name="role" value="technician" />
 					<div class="space-y-2">
 						<Label for="technician">Técnico</Label>
-						<select
+						<NativeSelect
 							id="technician"
 							name="userId"
 							required
 							disabled={data.technicians.length === 0}
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
 						>
 							{#each data.technicians as user (user.id)}
 								<option value={user.id}>{user.displayName}</option>
 							{:else}
 								<option value="">Sin técnicos disponibles</option>
 							{/each}
-						</select>
+						</NativeSelect>
 					</div>
 					<Button type="submit" size="sm" disabled={data.technicians.length === 0}>Asignar</Button>
 				</form>
@@ -79,19 +79,18 @@
 					<input type="hidden" name="role" value="supervisor" />
 					<div class="space-y-2">
 						<Label for="supervisor">Supervisor</Label>
-						<select
+						<NativeSelect
 							id="supervisor"
 							name="userId"
 							required
 							disabled={data.supervisors.length === 0}
-							class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
 						>
 							{#each data.supervisors as user (user.id)}
 								<option value={user.id}>{user.displayName}</option>
 							{:else}
 								<option value="">Sin supervisores disponibles</option>
 							{/each}
-						</select>
+						</NativeSelect>
 					</div>
 					<Button type="submit" size="sm" disabled={data.supervisors.length === 0}>Asignar</Button>
 				</form>

@@ -6,6 +6,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
 	import type { CatalogGroup, RequirementDraft } from '#lib/components/catalog/types';
@@ -181,18 +182,14 @@
 				{#each plan.works as work, index (index)}
 					<div class="space-y-2 rounded-lg border p-3">
 						<div class="flex flex-wrap items-center gap-3">
-							<label class="flex items-center gap-2 text-sm">
-								<input type="checkbox" bind:checked={work.include} /> Incluir trabajo
-							</label>
+							<LabeledCheckbox bind:checked={work.include} label="Incluir trabajo" />
 							<Input bind:value={work.name} class="max-w-xs" aria-label="Nombre del trabajo" />
 						</div>
 						{#if work.elements.length > 0}
 							<ul class="ml-4 space-y-2 border-l pl-4">
 								{#each work.elements as element, elementIndex (elementIndex)}
 									<li class="flex flex-wrap items-center gap-3">
-										<label class="flex items-center gap-2 text-sm">
-											<input type="checkbox" bind:checked={element.include} /> Incluir
-										</label>
+										<LabeledCheckbox bind:checked={element.include} label="Incluir" />
 										<Input
 											bind:value={element.name}
 											class="max-w-xs"

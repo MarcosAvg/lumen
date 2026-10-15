@@ -5,6 +5,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 
 	/**
 	 * Asistente `direct ↔ divided`. Solo se ofrece antes de cualquier entrega y
@@ -168,7 +169,7 @@
 							<div class="flex items-center gap-2 text-sm">
 								<span class="flex-1 truncate">{requirement.name}</span>
 								<select
-									class="rounded-md border border-input bg-background p-1 text-sm"
+									class="h-8 w-auto rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 									value={String(requirementTarget[requirement.id] ?? 0)}
 									onchange={(event) =>
 										(requirementTarget = {
@@ -192,7 +193,7 @@
 							<div class="flex items-center gap-2 text-sm">
 								<span class="flex-1 truncate">Foto adicional {index + 1}</span>
 								<select
-									class="rounded-md border border-input bg-background p-1 text-sm"
+									class="h-8 w-auto rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 									value={String(photoTarget[photo.id] ?? 0)}
 									onchange={(event) =>
 										(photoTarget = {
@@ -217,10 +218,10 @@
 						<li>{elements.length} elemento(s) que se eliminarán</li>
 					</ul>
 				</div>
-				<label class="flex items-center gap-2 text-sm">
-					<input type="checkbox" bind:checked={confirmed} />
-					Confirmo reasignar todos los requisitos y fotos y eliminar los elementos.
-				</label>
+				<LabeledCheckbox
+					bind:checked={confirmed}
+					label="Confirmo reasignar todos los requisitos y fotos y eliminar los elementos."
+				/>
 			{/if}
 
 			{#if error}

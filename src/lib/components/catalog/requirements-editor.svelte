@@ -2,6 +2,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import { Button } from '#lib/components/ui/button';
 	import CatalogItemMultiPicker from './catalog-item-multi-picker.svelte';
 	import type { CatalogGroup, RequirementDraft } from './types';
@@ -59,9 +60,7 @@
 </script>
 
 <div class="space-y-3">
-	<label class="flex items-center gap-2 text-sm">
-		<input type="checkbox" bind:checked={required} {disabled} /> Obligatorio
-	</label>
+	<LabeledCheckbox bind:checked={required} {disabled} label="Obligatorio" />
 
 	{#if value.length > 0}
 		<ul class="divide-y rounded-lg border">

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
-	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Label } from '#lib/components/ui/label';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import type { PageProps } from './$types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 
@@ -81,12 +81,12 @@
 		<div class="flex flex-wrap items-center gap-2 lg:justify-end">
 			{#if data.detail.review}
 				{#if data.detail.review.decision === 'approved'}
-					<Badge>Aprobada</Badge>
+					<StatusBadge status="approved" label="Aprobada" />
 				{:else}
-					<Badge variant="destructive">Rechazada</Badge>
+					<StatusBadge status="rejected" label="Rechazada" />
 				{/if}
 			{:else}
-				<Badge variant="secondary">Pendiente de revisión</Badge>
+				<StatusBadge status="in_review" label="Pendiente de revisión" />
 			{/if}
 			<Button
 				href={`/api/submissions/${data.detail.submission.id}/export.zip`}

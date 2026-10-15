@@ -3,6 +3,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import CatalogItemMultiCombobox from './catalog-item-multi-combobox.svelte';
 	import type { CatalogGroup } from './types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	/**
 	 * Selección múltiple en dos pasos (catálogo → ítems). Los ítems elegidos se
@@ -68,15 +69,11 @@
 			{/each}
 		</div>
 	{/if}
-	<select
-		class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-		aria-label="Catálogo"
-		bind:value={catalogId}
-	>
+	<NativeSelect aria-label="Catálogo" bind:value={catalogId}>
 		{#each catalogs as catalog (catalog.id)}
 			<option value={catalog.id}>{catalog.name}</option>
 		{/each}
-	</select>
+	</NativeSelect>
 	<CatalogItemMultiCombobox
 		items={currentItems}
 		bind:values={value}

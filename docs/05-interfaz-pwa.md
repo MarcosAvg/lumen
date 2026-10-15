@@ -11,6 +11,17 @@
 - **Escritorio**: el área de contenido crece con la plantilla de la página (listados/tablero/búsqueda más anchos que las fichas); los listados usan **tablas** densas y las fichas se organizan en **dos columnas** (contenido + rail de datos/acciones). El progreso se muestra con un **instrumento medido** por objetivos aprobados. En móvil nada de esto cambia: las capas de escritorio se añaden con `lg:`/`xl:` y las tablas permiten desplazamiento horizontal.
 - No imponer flujos complejos de asignación, validación o aprobación. No requerir interacción en tiempo real ni trabajo offline.
 
+## Sistema de UI (contrato)
+
+- **Tipo**: ficha/página `text-2xl lg:text-3xl` (vía `PageHeader` o cabecera de ficha); sección `text-base font-medium`; cuerpo `text-sm`; meta `text-xs text-muted-foreground`. Nada fuera de esa escala.
+- **Altura de control**: `h-9` en `Input`, `NativeSelect` y botón `default`; `h-8` en botón `sm` (acciones de tabla/toolbar).
+- **Radios**: superficies `rounded-xl`; controles `rounded-lg`; badges tipo pill.
+- **Espaciado**: página `space-y-6`; interior `space-y-3/4`; gaps `gap-2/3`.
+- **Controles**: siempre los componentes compartidos `Input`, `NativeSelect`, `LabeledCheckbox`, `Textarea` (no `<select>`/`<input type="checkbox">` crudos).
+- **Estado**: `StatusBadge` mapea `pending / in_progress / in_review / rejected / approved` a los tokens `--state-*` (ámbar, azul de atención, rojo, verde). El color del estado no se escribe a mano en las vistas.
+- **Listado ≠ ficha**: los listados usan `DataTable`; las fichas, breadcrumbs + cabecera de escala única.
+- **Vacíos**: páginas y pestañas usan `EmptyState`; los vacíos dentro de tarjetas/menús quedan como texto atenuado.
+
 ## 2. Mapa de navegación
 
 ```text

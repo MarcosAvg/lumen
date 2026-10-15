@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CatalogItemCombobox from './catalog-item-combobox.svelte';
 	import type { CatalogGroup } from './types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	/**
 	 * Selección en dos pasos: primero el catálogo y después uno de sus ítems
@@ -49,14 +50,10 @@
 	<input type="hidden" {name} {value} />
 {/if}
 <div class="space-y-2">
-	<select
-		class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-		aria-label="Catálogo"
-		bind:value={catalogId}
-	>
+	<NativeSelect aria-label="Catálogo" bind:value={catalogId}>
 		{#each catalogs as catalog (catalog.id)}
 			<option value={catalog.id}>{catalog.name}</option>
 		{/each}
-	</select>
+	</NativeSelect>
 	<CatalogItemCombobox items={currentItems} bind:value {disabled} placeholder={itemPlaceholder} />
 </div>

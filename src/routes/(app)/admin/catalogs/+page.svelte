@@ -12,6 +12,7 @@
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	type ActionData = {
 		success?: string;
@@ -98,15 +99,11 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="purpose">Propósito</Label>
-					<select
-						id="purpose"
-						name="purpose"
-						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-					>
+					<NativeSelect id="purpose" name="purpose">
 						<option value="">General</option>
 						<option value="buildings">Edificios</option>
 						<option value="requirements">Requisitos</option>
-					</select>
+					</NativeSelect>
 				</div>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>

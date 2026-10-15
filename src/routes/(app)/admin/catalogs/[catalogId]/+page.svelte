@@ -14,6 +14,7 @@
 	import CatalogRelationsBatchDialog from '#lib/components/catalog/catalog-relations-batch-dialog.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	type Impact = { works: number; elements: number; services: number; requirements: number };
 	type ActionData = {
@@ -97,7 +98,7 @@
 
 	<div class="flex flex-wrap items-start justify-between gap-3">
 		<div>
-			<h1 class="text-2xl font-semibold tracking-tight">{data.catalog.name}</h1>
+			<h1 class="text-2xl font-semibold tracking-tight lg:text-3xl">{data.catalog.name}</h1>
 			{#if data.catalog.description}
 				<p class="text-sm text-muted-foreground">{data.catalog.description}</p>
 			{/if}
@@ -163,16 +164,11 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="cat-purpose">Propósito</Label>
-					<select
-						id="cat-purpose"
-						name="purpose"
-						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
-						value={data.catalog.purpose ?? ''}
-					>
+					<NativeSelect id="cat-purpose" name="purpose" value={data.catalog.purpose ?? ''}>
 						<option value="">General</option>
 						<option value="buildings">Edificios</option>
 						<option value="requirements">Requisitos</option>
-					</select>
+					</NativeSelect>
 				</div>
 				<div class="sm:col-span-3">
 					<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>

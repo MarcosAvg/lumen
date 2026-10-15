@@ -8,6 +8,9 @@
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
+	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { TargetStatus } from '#lib/types';
@@ -116,14 +119,6 @@
 	function toggleGroup(key: string) {
 		collapsedGroups = { ...collapsedGroups, [key]: !collapsedGroups[key] };
 	}
-
-	const statusLabel: Record<TargetStatus, string> = {
-		pending: 'Pendiente',
-		in_progress: 'En progreso',
-		in_review: 'En revisión',
-		rejected: 'Rechazado',
-		approved: 'Aprobado'
-	};
 
 	function formatDate(value: Date): string {
 		return new Date(value).toLocaleString();
@@ -383,7 +378,7 @@
 	<header class="flex flex-wrap items-center justify-between gap-2">
 		<div class="flex items-center gap-2">
 			<h2 class="text-lg font-semibold">{label}</h2>
-			<Badge variant={status === 'approved' ? 'default' : 'secondary'}>{statusLabel[status]}</Badge>
+			<StatusBadge {status} />
 		</div>
 		{#if status === 'in_review'}
 			<span class="text-sm text-muted-foreground">
@@ -432,7 +427,7 @@
 
 		{#if uploads.length > 0}
 			<Card.Root>
-				<Card.Content class="space-y-2 pt-6">
+				<Card.Content class="space-y-2">
 					{#each uploads as upload (upload.key)}
 						<div class="text-sm">
 							<div class="flex justify-between gap-2">
@@ -627,9 +622,7 @@
 							placeholder="Nuevo requisito (p. ej. Antes)"
 							class="max-w-xs"
 						/>
-						<label class="flex items-center gap-2 text-sm">
-							<input type="checkbox" bind:checked={newRequired} /> Obligatorio
-						</label>
+						<LabeledCheckbox bind:checked={newRequired} label="Obligatorio" />
 						<Button type="submit" size="sm" disabled={busy}>Añadir requisito</Button>
 					</form>
 
@@ -643,9 +636,7 @@
 								disabled={busy}
 							/>
 							<div class="flex flex-wrap items-center gap-2">
-								<label class="flex items-center gap-2 text-sm">
-									<input type="checkbox" bind:checked={catalogRequired} /> Obligatorio
-								</label>
+								<LabeledCheckbox bind:checked={catalogRequired} label="Obligatorio" />
 								<Button
 									type="button"
 									size="sm"
@@ -667,7 +658,7 @@
 
 		{#if editable}
 			<Card.Root>
-				<Card.Content class="flex flex-wrap items-center justify-between gap-2 pt-6">
+				<Card.Content class="flex flex-wrap items-center justify-between gap-2">
 					{#if submitError}
 						<p class="text-sm text-destructive">{submitError}</p>
 					{:else if !online}
@@ -681,26 +672,22 @@
 		{/if}
 	{:else}
 		{#if history.length === 0}
-			<Card.Root>
-				<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-					Sin entregas todavía.
-				</Card.Content>
-			</Card.Root>
+			<EmptyState title="Sin entregas todavía" description="Aquí verás el historial de entregas." />
 		{:else}
 			<ul class="space-y-3">
 				{#each history as entry (entry.id)}
 					<li>
 						<Card.Root>
-							<Card.Content class="flex flex-wrap items-center justify-between gap-3 pt-6">
+							<Card.Content class="flex flex-wrap items-center justify-between gap-3">
 								<div>
 									<p class="flex items-center gap-2 font-medium">
 										Entrega #{entry.sequenceNo}
 										{#if entry.decision === 'approved'}
-											<Badge>Aprobada</Badge>
+											<StatusBadge status="approved" />
 										{:else if entry.decision === 'rejected'}
-											<Badge variant="destructive">Rechazada</Badge>
+											<StatusBadge status="rejected" />
 										{:else}
-											<Badge variant="secondary">Pendiente</Badge>
+											<StatusBadge status="in_review" label="Pendiente" />
 										{/if}
 									</p>
 									<p class="text-sm text-muted-foreground">

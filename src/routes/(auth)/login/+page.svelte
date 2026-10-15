@@ -26,7 +26,7 @@
 	{/if}
 
 	<Card.Root>
-		<Card.Content class="pt-6">
+		<Card.Content>
 			<form method="POST" class="space-y-4">
 				<div class="space-y-2">
 					<Label for="username">Usuario</Label>

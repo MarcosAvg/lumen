@@ -10,6 +10,7 @@
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import { formatRelativeAge } from '#lib/utils';
 	import type { PageProps } from './$types';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	let { data }: PageProps = $props();
 
@@ -60,18 +61,14 @@
 		</div>
 		<div class="space-y-1 lg:w-56">
 			<Label for="serviceId" class="text-xs">Servicio</Label>
-			<select
-				id="serviceId"
-				name="serviceId"
-				class="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
-			>
+			<NativeSelect id="serviceId" name="serviceId">
 				<option value="">Todos</option>
 				{#each data.services as service (service.id)}
 					<option value={service.id} selected={data.filters.serviceId === service.id}
 						>{service.name}</option
 					>
 				{/each}
-			</select>
+			</NativeSelect>
 		</div>
 		<div class="space-y-1">
 			<Label for="from" class="text-xs">Desde</Label>
