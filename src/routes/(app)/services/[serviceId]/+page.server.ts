@@ -2,6 +2,12 @@ import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import {
+	assignUser,
+	listAssignableUsers,
+	listServiceAssignments,
+	revokeAssignment
+} from '#lib/server/domain/assignments';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { listParticipants, updateService } from '#lib/server/domain/services';
 import {
@@ -13,7 +19,11 @@ import {
 } from '#lib/server/domain/works';
 import { failFrom, fieldErrors, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
-import { updateServiceSchema } from '#lib/schemas/services';
+import {
+	assignUserSchema,
+	revokeAssignmentSchema,
+	updateServiceSchema
+} from '#lib/schemas/services';
 import {
 	createWorkElementSchema,
 	createWorkSchema,
@@ -29,11 +39,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { service, access } = await requireServiceAccess(locals, serviceId);
 	const db = getDatabase().db;
 
-	const [participants, works, progress, catalogs] = await Promise.all([
+	const [participants, works, progress, catalogs, assignments, assignable] = await Promise.all([
 		listParticipants(db, serviceId),
 		listWorksDetailed(db, serviceId),
 		getServiceProgress(db, serviceId),
-		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
+		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([]),
+		user.role === 'admin' ? listServiceAssignments(db, serviceId) : Promise.resolve([]),
+		user.role === 'admin' ? listAssignableUsers(db) : Promise.resolve([])
 	]);
 
 	return {
@@ -44,6 +56,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		works,
 		progress,
 		catalogs,
+		assignments,
+		technicians: assignable.filter((candidate) => candidate.role === 'technician'),
+		supervisors: assignable.filter((candidate) => candidate.role === 'supervisor'),
 		isAdmin: user.role === 'admin'
 	};
 };
@@ -150,5 +165,36 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Elemento actualizado.' };
+	},
+
+	assign: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(assignUserSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { message: 'Datos de asignación inválidos.' });
+
+		try {
+			await assignUser(getDatabase().db, { ...parsed.data, actorId: admin.id });
+		} catch (error) {
+			return failFrom(error);
+		}
+
+		return { success: 'Asignación guardada.' };
+	},
+
+	revoke: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(revokeAssignmentSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { message: 'Asignación inválida.' });
+
+		try {
+			await revokeAssignment(getDatabase().db, {
+				assignmentId: parsed.data.assignmentId,
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+
+		return { success: 'Asignación revocada.' };
 	}
 };

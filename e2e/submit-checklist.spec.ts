@@ -66,7 +66,8 @@ test('el checklist de envío avisa antes de enviar evidencia obligatoria', async
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 
 	// Requisito obligatorio sin ninguna foto.
-	await page.getByPlaceholder('Nuevo requisito (p. ej. Antes)').fill('Antes');
+	await page.getByRole('button', { name: 'Nuevo requisito' }).click();
+	await page.locator('#new-requirement').fill('Antes');
 	await page.getByRole('button', { name: 'Añadir requisito' }).click();
 	await expect(page.getByText(/Falta evidencia obligatoria en: Antes/)).toBeVisible();
 

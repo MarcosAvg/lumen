@@ -38,9 +38,12 @@ async function openCatalog(page: Page, name: string) {
 }
 
 async function addItem(page: Page, name: string) {
-	await page.getByLabel('Nuevo ítem').fill(name);
+	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+	await page.locator('#item-name').fill(name);
 	await page.getByRole('button', { name: 'Añadir' }).click();
-	await expect(page.getByRole('textbox', { name: 'Nombre del ítem' }).last()).toHaveValue(name);
+	await expect(
+		page.getByText(name, { exact: true }).filter({ visible: true }).first()
+	).toBeVisible();
 }
 
 async function createService(page: Page, name: string) {

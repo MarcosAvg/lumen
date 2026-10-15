@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
@@ -7,10 +8,12 @@
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
+	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import RenameDialog from '#lib/components/app/rename-dialog.svelte';
 	import CatalogItemRelationsDialog from '#lib/components/catalog/catalog-item-relations-dialog.svelte';
 	import CatalogRelationsBatchDialog from '#lib/components/catalog/catalog-relations-batch-dialog.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
@@ -66,6 +69,22 @@
 	let batchOpen = $state(false);
 	let removingRelationId = $state<string | null>(null);
 
+	// Diálogos de edición y alta de ítem; cierran solo al confirmarse el éxito.
+	let editOpen = $state(false);
+	let itemOpen = $state(false);
+	const submitCatalog: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') editOpen = false;
+		};
+	const submitItem: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') itemOpen = false;
+		};
+
 	function openItemRelations(item: { id: string; name: string }) {
 		itemRelationsTarget = { id: item.id, name: item.name };
 		itemRelationsOpen = true;
@@ -111,10 +130,13 @@
 				<p class="text-sm text-muted-foreground">{data.catalog.description}</p>
 			{/if}
 		</div>
-		<form method="POST" action="?/deleteCatalog">
-			<input type="hidden" name="confirm" value="false" />
-			<Button type="submit" variant="destructive" size="sm">Eliminar catálogo</Button>
-		</form>
+		<div class="flex flex-wrap items-center gap-2">
+			<Button variant="outline" size="sm" onclick={() => (editOpen = true)}>Editar catálogo</Button>
+			<form method="POST" action="?/deleteCatalog">
+				<input type="hidden" name="confirm" value="false" />
+				<Button type="submit" variant="destructive" size="sm">Eliminar catálogo</Button>
+			</form>
+		</div>
 	</div>
 
 	{#if action?.success}
@@ -179,11 +201,14 @@
 		</AlertDialog.Content>
 	</AlertDialog.Root>
 
-	<Card.Root>
-		<Card.Header><Card.Title class="text-base">Datos del catálogo</Card.Title></Card.Header>
-		<Card.Content>
-			<form method="POST" action="?/updateCatalog" class="grid gap-4 sm:grid-cols-3">
+	<Dialog.Root bind:open={editOpen}>
+		<Dialog.Content>
+			<form method="POST" action="?/updateCatalog" class="space-y-4" use:enhance={submitCatalog}>
 				<input type="hidden" name="catalogId" value={data.catalog.id} />
+				<Dialog.Header>
+					<Dialog.Title>Editar catálogo</Dialog.Title>
+					<Dialog.Description>Nombre, descripción y propósito de la lista.</Dialog.Description>
+				</Dialog.Header>
 				<div class="space-y-2">
 					<Label for="cat-name">Nombre</Label>
 					<Input id="cat-name" name="name" value={data.catalog.name} required />
@@ -200,39 +225,59 @@
 						<option value="requirements">Requisitos</option>
 					</NativeSelect>
 				</div>
-				<div class="sm:col-span-3">
-					<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>
-				</div>
+				{#if action?.message}
+					<p class="text-sm text-destructive">{action.message}</p>
+				{/if}
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
+					<Button type="submit">Guardar cambios</Button>
+				</Dialog.Footer>
 			</form>
-		</Card.Content>
-	</Card.Root>
+		</Dialog.Content>
+	</Dialog.Root>
 
 	<Card.Root>
 		<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 			<Card.Title class="text-base">Ítems ({data.total})</Card.Title>
-			<form method="GET" class="flex gap-2">
-				<Input name="q" value={data.q} placeholder="Buscar ítem…" class="h-8 w-48" />
-				<Button type="submit" variant="outline" size="sm">Buscar</Button>
-			</form>
+			<div class="flex flex-wrap items-center gap-2">
+				<form method="GET" class="flex gap-2">
+					<Input name="q" value={data.q} placeholder="Buscar ítem…" class="h-8 w-48" />
+					<Button type="submit" variant="outline" size="sm">Buscar</Button>
+				</form>
+				<Button size="sm" onclick={() => (itemOpen = true)}>Nuevo ítem</Button>
+			</div>
 		</Card.Header>
 		<Card.Content class="space-y-4">
-			<form method="POST" action="?/createItem" class="flex flex-wrap items-end gap-2">
-				<input type="hidden" name="catalogId" value={data.catalog.id} />
-				<div class="space-y-1">
-					<Label for="item-name">Nuevo ítem</Label>
-					<Input
-						id="item-name"
-						name="name"
-						required
-						aria-invalid={action?.createErrors?.name ? true : undefined}
-						aria-describedby={action?.createErrors?.name ? 'item-name-error' : undefined}
-					/>
-					{#if action?.createErrors?.name}
-						<p id="item-name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
-					{/if}
-				</div>
-				<Button type="submit">Añadir</Button>
-			</form>
+			<Dialog.Root bind:open={itemOpen}>
+				<Dialog.Content>
+					<form method="POST" action="?/createItem" class="space-y-4" use:enhance={submitItem}>
+						<input type="hidden" name="catalogId" value={data.catalog.id} />
+						<Dialog.Header>
+							<Dialog.Title>Nuevo ítem</Dialog.Title>
+							<Dialog.Description>Se añade al final de la lista.</Dialog.Description>
+						</Dialog.Header>
+						<div class="space-y-2">
+							<Label for="item-name">Nombre</Label>
+							<Input
+								id="item-name"
+								name="name"
+								required
+								aria-invalid={action?.createErrors?.name ? true : undefined}
+								aria-describedby={action?.createErrors?.name ? 'item-name-error' : undefined}
+							/>
+							{#if action?.createErrors?.name}
+								<p id="item-name-error" class="text-sm text-destructive">
+									{action.createErrors.name}
+								</p>
+							{/if}
+						</div>
+						<Dialog.Footer>
+							<Dialog.Close>Cancelar</Dialog.Close>
+							<Button type="submit">Añadir</Button>
+						</Dialog.Footer>
+					</form>
+				</Dialog.Content>
+			</Dialog.Root>
 
 			{#if data.items.length === 0}
 				<p class="text-sm text-muted-foreground">
@@ -255,16 +300,13 @@
 							{#each data.items as item (item.id)}
 								<Table.Row>
 									<Table.Cell class="whitespace-normal">
-										<form method="POST" action="?/renameItem" class="flex items-center gap-2">
-											<input type="hidden" name="itemId" value={item.id} />
-											<Input
-												name="name"
-												value={item.name}
-												aria-label="Nombre del ítem"
-												class="h-8 max-w-xs"
-											/>
-											<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-										</form>
+										<span class="mr-2 font-medium">{item.name}</span>
+										<RenameDialog
+											action="?/renameItem"
+											hiddenName="itemId"
+											id={item.id}
+											currentName={item.name}
+										/>
 									</Table.Cell>
 									<Table.Cell class="hidden lg:table-cell">
 										<Badge variant="secondary" class="tnum font-normal">

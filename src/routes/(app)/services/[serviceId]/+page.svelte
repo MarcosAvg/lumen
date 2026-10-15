@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Tabs from '#lib/components/ui/tabs';
 	import { Input } from '#lib/components/ui/input';
@@ -59,10 +61,21 @@
 	const elementsJson = $derived(JSON.stringify(workElements));
 	const requirementsJson = $derived(JSON.stringify(workRequirements));
 
-	// Pantalla de asignar/revocar participantes (solo admin).
-	const assignmentHref = $derived(
-		resolve('/(app)/admin/services/[serviceId]', { serviceId: data.service.id })
-	);
+	// Participantes (asignar/revocar) en modal, solo admin.
+	let assignmentsOpen = $state(false);
+	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
+	const assignmentLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
+	const submitAssign: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ update }) => {
+			await update({ reset: true });
+		};
+	const submitRevoke: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: true });
+			if (result.type === 'success') revokeTarget = null;
+		};
 
 	const accessLabel = {
 		admin: 'Administrador',
@@ -114,6 +127,15 @@
 			buildingSeeded = true;
 		}
 	});
+
+	// Edición del servicio en modal: cierra solo al confirmarse el éxito.
+	let editServiceOpen = $state(false);
+	const submitService: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') editServiceOpen = false;
+		};
 </script>
 
 <svelte:head>
@@ -133,7 +155,12 @@
 			{/if}
 			<div class="ml-auto flex shrink-0 flex-wrap items-center gap-2">
 				{#if data.isAdmin}
-					<Button href={assignmentHref} variant="outline" size="sm">Gestionar asignaciones</Button>
+					<Button variant="outline" size="sm" onclick={() => (editServiceOpen = true)}
+						>Editar servicio</Button
+					>
+					<Button variant="outline" size="sm" onclick={() => (assignmentsOpen = true)}
+						>Gestionar asignaciones</Button
+					>
 				{/if}
 				{#if data.access !== 'technician'}
 					<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm"
@@ -251,51 +278,23 @@
 		</div>
 
 		<div class="mt-6 space-y-6 lg:mt-0">
-			{#if data.isAdmin}
-				<Card.Root>
-					<Card.Header><Card.Title class="text-base">Datos del servicio</Card.Title></Card.Header>
-					<Card.Content>
-						<form method="POST" action="?/updateService" class="grid gap-4">
-							<input type="hidden" name="serviceId" value={data.service.id} />
-							<div class="space-y-2">
-								<Label for="svc-name">Nombre</Label>
-								<Input id="svc-name" name="name" value={data.service.name} required />
-							</div>
-							<div class="space-y-2">
-								<Label for="svc-desc">Descripción</Label>
-								<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
-							</div>
-							<div class="space-y-2">
-								<Label for="svc-building">Edificio</Label>
-								<CatalogItemPicker
-									name="buildingItemId"
-									catalogs={buildingCatalogs}
-									bind:value={buildingItemId}
-									itemPlaceholder="Sin edificio"
-								/>
-							</div>
-							<div>
-								<Button type="submit" variant="outline" size="sm">Guardar cambios</Button>
-							</div>
-						</form>
-					</Card.Content>
-				</Card.Root>
-			{/if}
-
 			<Card.Root>
 				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 					<Card.Title class="text-base">Participantes</Card.Title>
 					{#if data.isAdmin}
-						<Button href={assignmentHref} variant="outline" size="sm">Asignar</Button>
+						<Button variant="outline" size="sm" onclick={() => (assignmentsOpen = true)}
+							>Asignar</Button
+						>
 					{/if}
 				</Card.Header>
 				<Card.Content>
 					{#if data.participants.length === 0}
 						<p class="text-sm text-muted-foreground">
 							Sin participantes asignados.{#if data.isAdmin}
-								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-								<a class="underline underline-offset-4" href={assignmentHref}
-									>Asignar participantes</a
+								<button
+									type="button"
+									class="underline underline-offset-4"
+									onclick={() => (assignmentsOpen = true)}>Asignar participantes</button
 								>.{/if}
 						</p>
 					{:else}
@@ -334,6 +333,161 @@
 	</div>
 
 	{#if data.isAdmin}
+		<Dialog.Root bind:open={assignmentsOpen}>
+			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+				<Dialog.Header>
+					<Dialog.Title>Participantes</Dialog.Title>
+					<Dialog.Description>
+						Los técnicos capturan y envían; los supervisores revisan. Solo estos usuarios acceden al
+						servicio.
+					</Dialog.Description>
+				</Dialog.Header>
+				<div class="space-y-4">
+					<form method="POST" action="?/assign" class="space-y-2" use:enhance={submitAssign}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="role" value="technician" />
+						<Label for="technician">Añadir técnico</Label>
+						<div class="flex gap-2">
+							<NativeSelect
+								id="technician"
+								name="userId"
+								required
+								disabled={data.technicians.length === 0}
+							>
+								{#each data.technicians as candidate (candidate.id)}
+									<option value={candidate.id}>{candidate.displayName}</option>
+								{:else}
+									<option value="">Sin técnicos disponibles</option>
+								{/each}
+							</NativeSelect>
+							<Button type="submit" size="sm" disabled={data.technicians.length === 0}
+								>Asignar</Button
+							>
+						</div>
+					</form>
+
+					<form method="POST" action="?/assign" class="space-y-2" use:enhance={submitAssign}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="role" value="supervisor" />
+						<Label for="supervisor">Añadir supervisor</Label>
+						<div class="flex gap-2">
+							<NativeSelect
+								id="supervisor"
+								name="userId"
+								required
+								disabled={data.supervisors.length === 0}
+							>
+								{#each data.supervisors as candidate (candidate.id)}
+									<option value={candidate.id}>{candidate.displayName}</option>
+								{:else}
+									<option value="">Sin supervisores disponibles</option>
+								{/each}
+							</NativeSelect>
+							<Button type="submit" size="sm" disabled={data.supervisors.length === 0}
+								>Asignar</Button
+							>
+						</div>
+					</form>
+
+					<div class="space-y-2 border-t pt-3">
+						<p class="text-sm font-medium">Asignados</p>
+						{#if data.assignments.length === 0}
+							<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
+						{:else}
+							<ul class="divide-y">
+								{#each data.assignments as assignment (assignment.id)}
+									<li class="flex items-center justify-between gap-3 py-2 text-sm">
+										<span class="flex items-center gap-2">
+											{assignment.displayName}
+											<Badge variant="secondary">{assignmentLabel[assignment.assignmentRole]}</Badge
+											>
+										</span>
+										<Button
+											variant="destructive"
+											size="sm"
+											onclick={() =>
+												(revokeTarget = {
+													id: assignment.id,
+													displayName: assignment.displayName
+												})}
+										>
+											Revocar
+										</Button>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				</div>
+				<Dialog.Footer>
+					<Dialog.Close>Cerrar</Dialog.Close>
+				</Dialog.Footer>
+			</Dialog.Content>
+		</Dialog.Root>
+
+		<AlertDialog.Root
+			open={revokeTarget !== null}
+			onOpenChange={(open) => {
+				if (!open) revokeTarget = null;
+			}}
+		>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title
+						>¿Revocar la asignación de «{revokeTarget?.displayName ?? ''}»?</AlertDialog.Title
+					>
+					<AlertDialog.Description>
+						Dejará de tener acceso a este servicio. Podrás volver a asignarle cuando quieras.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+					<form method="POST" action="?/revoke" use:enhance={submitRevoke}>
+						<input type="hidden" name="assignmentId" value={revokeTarget?.id ?? ''} />
+						<Button type="submit" variant="destructive">Revocar asignación</Button>
+					</form>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+
+		<Dialog.Root bind:open={editServiceOpen}>
+			<Dialog.Content>
+				<form method="POST" action="?/updateService" class="space-y-4" use:enhance={submitService}>
+					<input type="hidden" name="serviceId" value={data.service.id} />
+					<Dialog.Header>
+						<Dialog.Title>Editar servicio</Dialog.Title>
+						<Dialog.Description>
+							Cambia el nombre, la descripción y el edificio. No altera entregas ni revisiones.
+						</Dialog.Description>
+					</Dialog.Header>
+					<div class="space-y-2">
+						<Label for="svc-name">Nombre</Label>
+						<Input id="svc-name" name="name" value={data.service.name} required />
+					</div>
+					<div class="space-y-2">
+						<Label for="svc-desc">Descripción</Label>
+						<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
+					</div>
+					<div class="space-y-2">
+						<Label for="svc-building">Edificio</Label>
+						<CatalogItemPicker
+							name="buildingItemId"
+							catalogs={buildingCatalogs}
+							bind:value={buildingItemId}
+							itemPlaceholder="Sin edificio"
+						/>
+					</div>
+					{#if action?.message}
+						<p class="text-sm text-destructive">{action.message}</p>
+					{/if}
+					<Dialog.Footer>
+						<Dialog.Close>Cancelar</Dialog.Close>
+						<Button type="submit">Guardar cambios</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+
 		<Dialog.Root bind:open={workOpen}>
 			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
 				<form method="POST" action="?/createWork" class="space-y-4">

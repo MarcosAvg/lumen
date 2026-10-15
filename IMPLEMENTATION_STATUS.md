@@ -248,6 +248,11 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   «Mostrar todos». El **perfil** (`/settings`) muestra la cuenta y permite **cerrar sesión** (antes no
   había logout en móvil). Los trabajos se ven como **tarjeta en móvil** y fila compacta en escritorio
   (mismo DOM). Progreso por servicio agregado en una consulta (`listServiceProgress`).
+- **Edición y alta en modal**: editar servicio/trabajo/catálogo, crear ítem de catálogo, añadir
+  requisitos (pestañas «Nuevo / Desde catálogo»), renombrar ítem/elemento/requisito, gestionar
+  participantes y **desactivar usuario** pasan a `Dialog`/`AlertDialog`. Nuevos componentes
+  `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
+  servicio (`/admin/services/[serviceId]` redirige a la ficha).
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

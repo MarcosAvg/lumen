@@ -9,6 +9,7 @@
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import * as Dialog from '#lib/components/ui/dialog';
+	import { Label } from '#lib/components/ui/label';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import Chip from '#lib/components/app/chip.svelte';
@@ -91,6 +92,10 @@
 	let uploads = $state<Upload[]>([]);
 	let pendingRemove = $state<Photo | null>(null);
 	let pendingRequirement = $state<Req | null>(null);
+	let renameTarget = $state<Req | null>(null);
+	let renameValue = $state('');
+	let requirementOpen = $state(false);
+	let requirementTab = $state<'custom' | 'catalog'>('custom');
 	let lightbox = $state<Photo | null>(null);
 	let adminError = $state<string | null>(null);
 	let newRequirement = $state('');
@@ -293,6 +298,7 @@
 				{ id: body.id, name, isRequired: newRequired, catalogItemId: null }
 			];
 			newRequirement = '';
+			requirementOpen = false;
 		} else {
 			adminError =
 				((await response.json().catch(() => ({}))) as { message?: string }).message ??
@@ -321,6 +327,7 @@
 			};
 			requirements = [...requirements, ...body.requirements];
 			catalogRequirementIds = [];
+			requirementOpen = false;
 			if (body.skipped > 0) {
 				adminError = `Se añadieron ${body.created} y se omitieron ${body.skipped} por duplicado.`;
 			}
@@ -473,6 +480,16 @@
 							{collapsedGroups[requirement.id] ? 'Mostrar' : 'Ocultar'}
 						</Button>
 						{#if isAdmin && editable}
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => {
+									renameTarget = requirement;
+									renameValue = requirement.name;
+								}}
+							>
+								Renombrar
+							</Button>
 							<Button variant="ghost" size="sm" onclick={() => toggleRequired(requirement)}>
 								{requirement.isRequired ? 'Hacer opcional' : 'Hacer obligatorio'}
 							</Button>
@@ -488,26 +505,6 @@
 				</Card.Header>
 				{#if !collapsedGroups[requirement.id]}
 					<Card.Content class="space-y-3">
-						{#if isAdmin && editable}
-							<form
-								class="flex flex-wrap items-center gap-2"
-								onsubmit={(event) => {
-									event.preventDefault();
-									const input = event.currentTarget.elements.namedItem('reqName');
-									if (input instanceof HTMLInputElement)
-										renameRequirement(requirement, input.value);
-								}}
-							>
-								<Input
-									name="reqName"
-									value={requirement.name}
-									class="h-8 max-w-xs"
-									aria-label="Nombre del requisito"
-								/>
-								<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-							</form>
-						{/if}
-
 						{@render PhotoGrid({
 							editable,
 							group: groupPhotos(requirement.id),
@@ -616,54 +613,86 @@
 
 		{#if isAdmin && editable}
 			<Card.Root>
-				<Card.Header>
+				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 					<Card.Title class="text-base">Requisitos (solo antes del primer envío)</Card.Title>
+					<Button size="sm" onclick={() => (requirementOpen = true)}>Nuevo requisito</Button>
 				</Card.Header>
 				<Card.Content class="space-y-3">
-					<form
-						class="flex flex-wrap items-end gap-2"
-						onsubmit={(event) => {
-							event.preventDefault();
-							createRequirement();
-						}}
-					>
-						<Input
-							bind:value={newRequirement}
-							placeholder="Nuevo requisito (p. ej. Antes)"
-							class="max-w-xs"
-						/>
-						<LabeledCheckbox bind:checked={newRequired} label="Obligatorio" />
-						<Button type="submit" size="sm" disabled={busy}>Añadir requisito</Button>
-					</form>
+					{#if requirements.length === 0}
+						<p class="text-sm text-muted-foreground">
+							Sin requisitos. Añádelos para exigir evidencia concreta en cada sección.
+						</p>
+					{:else}
+						<p class="text-sm text-muted-foreground">
+							{requirements.length} requisito(s). Añade o renombra desde su cabecera.
+						</p>
+					{/if}
+				</Card.Content>
+			</Card.Root>
 
-					{#if requirementCatalogs.length > 0}
-						<div class="space-y-2 border-t pt-3">
-							<p class="text-sm font-medium">Añadir desde catálogo de requisitos</p>
+			<Dialog.Root bind:open={requirementOpen}>
+				<Dialog.Content>
+					<Dialog.Header>
+						<Dialog.Title>Añadir requisitos</Dialog.Title>
+						<Dialog.Description>
+							Los requisitos se congelan tras el primer envío.
+						</Dialog.Description>
+					</Dialog.Header>
+					<Tabs.Root bind:value={requirementTab}>
+						<Tabs.List class="grid w-full grid-cols-2">
+							<Tabs.Trigger value="custom">Nuevo</Tabs.Trigger>
+							<Tabs.Trigger value="catalog" disabled={requirementCatalogs.length === 0}>
+								Desde catálogo
+							</Tabs.Trigger>
+						</Tabs.List>
+					</Tabs.Root>
+
+					{#if requirementTab === 'custom'}
+						<form
+							class="space-y-4"
+							onsubmit={(event) => {
+								event.preventDefault();
+								createRequirement();
+							}}
+						>
+							<div class="space-y-2">
+								<Label for="new-requirement">Nombre</Label>
+								<Input
+									id="new-requirement"
+									bind:value={newRequirement}
+									placeholder="p. ej. Antes"
+									required
+								/>
+							</div>
+							<LabeledCheckbox bind:checked={newRequired} label="Obligatorio" />
+							<Dialog.Footer>
+								<Dialog.Close>Cancelar</Dialog.Close>
+								<Button type="submit" disabled={busy}>Añadir requisito</Button>
+							</Dialog.Footer>
+						</form>
+					{:else}
+						<div class="space-y-4">
 							<CatalogItemMultiPicker
 								catalogs={requirementCatalogs}
 								bind:value={catalogRequirementIds}
 								itemPlaceholder="Elegir requisitos…"
 								disabled={busy}
 							/>
-							<div class="flex flex-wrap items-center gap-2">
-								<LabeledCheckbox bind:checked={catalogRequired} label="Obligatorio" />
+							<LabeledCheckbox bind:checked={catalogRequired} label="Obligatorio" />
+							<Dialog.Footer>
+								<Dialog.Close>Cancelar</Dialog.Close>
 								<Button
 									type="button"
-									size="sm"
 									disabled={busy || catalogRequirementIds.length === 0}
 									onclick={addCatalogRequirements}
 								>
 									Añadir seleccionados
 								</Button>
-							</div>
+							</Dialog.Footer>
 						</div>
-					{:else}
-						<p class="border-t pt-3 text-sm text-muted-foreground">
-							No hay catálogos de requisitos. Créalos en «Catálogos» con el tipo «Requisitos».
-						</p>
 					{/if}
-				</Card.Content>
-			</Card.Root>
+				</Dialog.Content>
+			</Dialog.Root>
 		{/if}
 
 		{#if editable}
@@ -818,6 +847,41 @@
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
+
+	<Dialog.Root
+		open={renameTarget !== null}
+		onOpenChange={(open) => {
+			if (!open) renameTarget = null;
+		}}
+	>
+		<Dialog.Content>
+			<form
+				class="space-y-4"
+				onsubmit={(event) => {
+					event.preventDefault();
+					const requirement = renameTarget;
+					if (!requirement) return;
+					renameTarget = null;
+					renameRequirement(requirement, renameValue);
+				}}
+			>
+				<Dialog.Header>
+					<Dialog.Title>Renombrar requisito</Dialog.Title>
+					<Dialog.Description>
+						Al renombrarlo queda desvinculado del catálogo y conserva este nombre propio.
+					</Dialog.Description>
+				</Dialog.Header>
+				<div class="space-y-2">
+					<Label for="req-rename">Nombre</Label>
+					<Input id="req-rename" bind:value={renameValue} required />
+				</div>
+				<Dialog.Footer>
+					<Dialog.Close>Cancelar</Dialog.Close>
+					<Button type="submit">Guardar</Button>
+				</Dialog.Footer>
+			</form>
+		</Dialog.Content>
+	</Dialog.Root>
 
 	<Dialog.Root
 		open={lightbox !== null}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { enhance } from '$app/forms';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -9,6 +10,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import ConvertWorkMode from '#lib/components/convert-work-mode.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
+	import RenameDialog from '#lib/components/app/rename-dialog.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
@@ -58,6 +60,15 @@
 			elementRequirementsRequired = true;
 		}
 	});
+
+	// Edición del trabajo en modal.
+	let editOpen = $state(false);
+	const submitWork: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ result, update }) => {
+			await update({ reset: false });
+			if (result.type === 'success') editOpen = false;
+		};
 </script>
 
 <svelte:head>
@@ -84,6 +95,9 @@
 				<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>
 			{/if}
 		</div>
+		{#if data.isAdmin}
+			<Button variant="outline" size="sm" onclick={() => (editOpen = true)}>Editar trabajo</Button>
+		{/if}
 	</div>
 
 	{#if action?.success}
@@ -95,7 +109,7 @@
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
 
-	<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-8">
+	<div class="space-y-6">
 		<div class="space-y-6">
 			{#if data.work.mode === 'divided'}
 				<Card.Root>
@@ -127,21 +141,13 @@
 											<span class="shrink-0"><StatusBadge status={element.status} /></span>
 										</div>
 										{#if data.isAdmin}
-											<form
-												method="POST"
-												action="?/updateElement"
-												class="mt-2 flex flex-wrap items-end gap-2"
-											>
-												<input type="hidden" name="elementId" value={element.id} />
-												<Input
-													name="name"
-													value={element.name}
-													class="h-8 max-w-xs"
-													aria-label="Nombre del elemento"
+											<div class="mt-2 flex flex-wrap items-center gap-2">
+												<RenameDialog
+													action="?/updateElement"
+													hiddenName="elementId"
+													id={element.id}
+													currentName={element.name}
 												/>
-												<Button type="submit" variant="outline" size="sm">Renombrar</Button>
-											</form>
-											<div class="mt-2">
 												<DestructiveDelete
 													label="Eliminar elemento"
 													endpoint={`/api/elements/${element.id}`}
@@ -222,32 +228,36 @@
 				/>
 			{/if}
 		</div>
-
-		<div class="mt-6 space-y-6 lg:mt-0">
-			{#if data.isAdmin}
-				<Card.Root>
-					<Card.Header><Card.Title class="text-base">Editar trabajo</Card.Title></Card.Header>
-					<Card.Content>
-						<form method="POST" action="?/updateWork" class="grid gap-3">
-							<input type="hidden" name="workId" value={data.work.id} />
-							<div class="space-y-1">
-								<Label for="work-name">Nombre</Label>
-								<Input id="work-name" name="name" value={data.work.name} required />
-							</div>
-							<div class="space-y-1">
-								<Label for="work-desc">Descripción</Label>
-								<Input id="work-desc" name="description" value={data.work.description ?? ''} />
-							</div>
-							<div>
-								<Button type="submit" variant="outline" size="sm">Guardar</Button>
-							</div>
-						</form>
-						<p class="mt-2 text-xs text-muted-foreground">
-							Renombrar un trabajo vinculado a catálogo lo desvincula y conserva el nombre propio.
-						</p>
-					</Card.Content>
-				</Card.Root>
-			{/if}
-		</div>
 	</div>
+
+	{#if data.isAdmin}
+		<Dialog.Root bind:open={editOpen}>
+			<Dialog.Content>
+				<form method="POST" action="?/updateWork" class="space-y-4" use:enhance={submitWork}>
+					<input type="hidden" name="workId" value={data.work.id} />
+					<Dialog.Header>
+						<Dialog.Title>Editar trabajo</Dialog.Title>
+						<Dialog.Description>
+							Renombrar un trabajo vinculado a catálogo lo desvincula y conserva el nombre propio.
+						</Dialog.Description>
+					</Dialog.Header>
+					<div class="space-y-2">
+						<Label for="work-name">Nombre</Label>
+						<Input id="work-name" name="name" value={data.work.name} required />
+					</div>
+					<div class="space-y-2">
+						<Label for="work-desc">Descripción</Label>
+						<Input id="work-desc" name="description" value={data.work.description ?? ''} />
+					</div>
+					{#if action?.message}
+						<p class="text-sm text-destructive">{action.message}</p>
+					{/if}
+					<Dialog.Footer>
+						<Dialog.Close>Cancelar</Dialog.Close>
+						<Button type="submit">Guardar</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+	{/if}
 </div>

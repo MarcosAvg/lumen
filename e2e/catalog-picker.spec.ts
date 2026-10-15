@@ -40,11 +40,10 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
 		.click();
-	await page.getByLabel('Nuevo ítem').fill(itemName);
+	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+	await page.locator('#item-name').fill(itemName);
 	await page.getByRole('button', { name: 'Añadir' }).click();
-	await expect(page.getByRole('textbox', { name: 'Nombre del ítem' }).first()).toHaveValue(
-		itemName
-	);
+	await expect(page.getByText(itemName).filter({ visible: true }).first()).toBeVisible();
 
 	// La búsqueda de ítems filtra.
 	await page.getByPlaceholder('Buscar ítem…').fill('no-existe-zzz');

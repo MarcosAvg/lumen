@@ -39,7 +39,8 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
 		.click();
-	await page.getByLabel('Nuevo ítem').fill(itemName);
+	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+	await page.locator('#item-name').fill(itemName);
 	await page.getByRole('button', { name: 'Añadir' }).click();
 
 	// Servicio.

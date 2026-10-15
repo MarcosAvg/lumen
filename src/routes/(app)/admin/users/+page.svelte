@@ -9,6 +9,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
 	import PageIntro from '#lib/components/app/page-intro.svelte';
+	import ConfirmSubmit from '#lib/components/app/confirm-submit.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
@@ -240,10 +241,15 @@
 						</div>
 						<div class="flex flex-wrap items-center gap-2">
 							{#if user.isActive}
-								<form method="POST" action="?/deactivate">
-									<input type="hidden" name="userId" value={user.id} />
-									<Button type="submit" variant="destructive" size="sm">Desactivar</Button>
-								</form>
+								<ConfirmSubmit
+									action="?/deactivate"
+									fields={{ userId: user.id }}
+									label="Desactivar"
+									variant="destructive"
+									title="¿Desactivar «{user.displayName}»?"
+									description="Perderá el acceso y se cerrarán sus sesiones. Su autoría histórica se conserva."
+									confirmLabel="Confirmar desactivación"
+								/>
 							{:else}
 								<form method="POST" action="?/activate">
 									<input type="hidden" name="userId" value={user.id} />
@@ -294,10 +300,15 @@
 						<Table.Cell class="text-right">
 							<div class="flex items-center justify-end gap-2">
 								{#if user.isActive}
-									<form method="POST" action="?/deactivate">
-										<input type="hidden" name="userId" value={user.id} />
-										<Button type="submit" variant="destructive" size="sm">Desactivar</Button>
-									</form>
+									<ConfirmSubmit
+										action="?/deactivate"
+										fields={{ userId: user.id }}
+										label="Desactivar"
+										variant="destructive"
+										title="¿Desactivar «{user.displayName}»?"
+										description="Perderá el acceso y se cerrarán sus sesiones. Su autoría histórica se conserva."
+										confirmLabel="Confirmar desactivación"
+									/>
 								{:else}
 									<form method="POST" action="?/activate">
 										<input type="hidden" name="userId" value={user.id} />

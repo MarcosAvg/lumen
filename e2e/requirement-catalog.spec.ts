@@ -50,9 +50,12 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 		.getByRole('link', { name: catalogName })
 		.click();
 	for (const name of [antes, despues]) {
-		await page.getByLabel('Nuevo ítem').fill(name);
+		await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+		await page.locator('#item-name').fill(name);
 		await page.getByRole('button', { name: 'Añadir' }).click();
-		await expect(page.getByRole('textbox', { name: 'Nombre del ítem' }).last()).toHaveValue(name);
+		await expect(
+			page.getByText(name, { exact: true }).filter({ visible: true }).first()
+		).toBeVisible();
 	}
 
 	// Servicio con trabajo directo.
@@ -81,15 +84,17 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 		.getByRole('link', { name: workName });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 
-	// Alta desde el catálogo de requisitos (varios a la vez).
-	await expect(page.getByText('Añadir desde catálogo de requisitos')).toBeVisible();
-	await page.getByLabel('Catálogo').selectOption({ label: catalogName });
-	await page.getByRole('button', { name: 'Elegir requisitos…' }).click();
+	// Alta desde el catálogo de requisitos (varios a la vez), en el modal.
+	await page.getByRole('button', { name: 'Nuevo requisito' }).click();
+	const reqDialog = page.getByRole('dialog');
+	await reqDialog.getByRole('tab', { name: 'Desde catálogo' }).click();
+	await reqDialog.getByLabel('Catálogo').selectOption({ label: catalogName });
+	await reqDialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	for (const name of [antes, despues]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();
 	}
-	await page.getByText('Añadir desde catálogo de requisitos').click();
-	await page.getByRole('button', { name: 'Añadir seleccionados' }).click();
+	await reqDialog.getByRole('heading', { name: 'Añadir requisitos' }).click();
+	await reqDialog.getByRole('button', { name: 'Añadir seleccionados' }).click();
 
 	await expect(page.getByText(antes).first()).toBeVisible();
 	await expect(page.getByText(despues).first()).toBeVisible();

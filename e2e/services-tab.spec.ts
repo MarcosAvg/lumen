@@ -59,9 +59,11 @@ test('el técnico ve solo sus servicios asignados y puede seleccionarlos', async
 	await dialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
-	await page.goto(`/admin/services/${assignedId}`);
-	await page.locator('#technician').selectOption({ label: techName });
-	await page.getByRole('button', { name: 'Asignar' }).first().click();
+	await page.goto(`/services/${assignedId}`);
+	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
+	const assignDialog = page.getByRole('dialog');
+	await assignDialog.locator('#technician').selectOption({ label: techName });
+	await assignDialog.getByRole('button', { name: 'Asignar' }).first().click();
 	await expect(page.getByText('Asignación guardada.')).toBeVisible();
 
 	// Entrar como técnico.

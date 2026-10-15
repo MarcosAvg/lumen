@@ -25,7 +25,8 @@
 - **Asignaciones**: el administrador asigna/revoca participantes en `/admin/services/[serviceId]`, accesible desde el listado de Servicios y desde la **ficha del servicio** (botón «Gestionar asignaciones» y enlace «Asignar» en Participantes). Los supervisores y técnicos no asignan.
 - **Listado ≠ ficha**: los listados usan `DataTable`; las fichas, breadcrumbs + cabecera de escala única.
 - **Vacíos**: páginas y pestañas usan `EmptyState`; los vacíos dentro de tarjetas/menús quedan como texto atenuado.
-- **Confirmaciones destructivas en modal**: toda acción que borra/retira/revoca algo (retirar foto, eliminar requisito, eliminar ítem o catálogo, revocar asignación, eliminar servicio/trabajo/elemento/usuario, aprobar/rechazar) confirma en un **`AlertDialog`** (no en avisos inline), mostrando el resumen de impacto cuando aplique.
+- **Edición y alta en modal**: editar servicio/trabajo/catálogo, crear ítem de catálogo, añadir y renombrar requisitos, renombrar ítem/elemento, gestionar participantes y desactivar usuario abren un `Dialog`/`AlertDialog` (los avisos de cada formulario se acotan a su modal). Las fichas quedan para consulta y acciones contextuales.
+- **Confirmaciones destructivas en modal**: toda acción que borra/retira/revoca algo (retirar foto, eliminar requisito, eliminar ítem o catálogo, revocar asignación, eliminar servicio/trabajo/elemento/usuario, aprobar/rechazar) confirma en un **`AlertDialog`** (no en avisos inline), mostrando el resumen de impacto cuando aplique. **Desactivar** usuario también confirma.
 - **Móvil (`< md`)**: navegación por **barra inferior** por rol (zona del pulgar), **siempre visible** —también en las pantallas de captura, donde la **barra de acción fija** («Enviar evidencia») se coloca por encima—; el buscador de la cabecera se reduce a un icono; controles con área táctil **≥ 44 px**; los **breadcrumbs se ocultan**; los listados se muestran como **tarjetas** (en `md+` como tabla); y los diálogos abren como **bottom sheet**. Cabecera compacta: título `text-xl` (`lg:text-3xl`) y descripción **oculta en listados** y **limitada a 2 líneas** en fichas. Se respetan las *safe areas* (`viewport-fit=cover` + `env(safe-area-inset-*)`) y el `theme-color` del sistema.
 - **Tarjeta enlazada (sin botones «Abrir»/«Ver»)**: el **nombre del recurso es el enlace** y, en móvil, un *enlace estirado* (`after:absolute after:inset-0` sobre un `<li class="relative">`) hace que **toda la tarjeta** navegue. Las acciones secundarias/destructivas quedan dentro con `relative z-10`.
 - **Fila clicable**: en las **tablas** de escritorio el enlace principal también se **estira sobre toda la fila** (fila `relative`) y las celdas de acciones van en `relative z-10`; en las **listas internas** (trabajos, elementos) la lista va en un **contenedor con borde y divisores** (`divide-y overflow-hidden rounded-lg border`) y cada fila es clicable con `hover:bg-muted/50` y `active:bg-muted/70`. Las tarjetas móviles añaden feedback táctil (`active:bg-muted/50`).
@@ -102,7 +103,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 - Participantes (técnicos y supervisores) visibles para personas asignadas, con nombres y roles pertinentes.
 - Lista de trabajos y su tipo: `Directo` o `Dividido`, avance y estado. En **móvil** cada trabajo se muestra como **tarjeta/banner** (nombre, chips de modo/estado, medidor de progreso y «Abrir →», con toda la tarjeta clicable); en escritorio, fila compacta con borde y divisores. Mismo DOM en ambos casos.
 - Descarga de **ZIP de evidencias aprobadas del servicio** disponible también si no completado, con texto que indica inclusión solo de objetivos aprobados y relación de omitidos.
-- Admin puede editar datos/participantes/estructura en secciones claras, sin forzar a técnicos a atravesar esos formularios.
+- Admin puede editar datos del servicio (**modal** desde la cabecera) y gestionar participantes (**modal** con asignar/revocar), sin forzar a técnicos a atravesar esos formularios.
 
 ## 6. Trabajo directo y trabajo dividido
 
@@ -221,7 +222,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 ## 11. Administración de catálogos
 
-- Lista de catálogos con búsqueda, **pestañas por tipo** (Todos / Generales / Edificios / Requisitos) y acciones agregar/editar. Al crear o editar, se elige el **tipo**.
+- Lista de catálogos con búsqueda, **pestañas por tipo** (Todos / Generales / Edificios / Requisitos) y acciones agregar/editar. Al crear o editar (**modal**), se elige el **tipo**. El alta de ítems y el renombrado también son **modales**.
 - Detalle de ítems, relaciones opcionales con ítems de otros catálogos, orden, usos.
 - Relaciones **por ítem**: cada ítem muestra su número de relaciones y abre un modal para verlas en ambos sentidos, añadir una y quitar. El **sentido** (origen → destino) es explícito y afecta a la generación en lote.
 - Relaciones **en lote**: varios ítems de este catálogo con un único ítem de otro catálogo, en cualquiera de los dos sentidos, con resumen previo («se crearán X; Y ya existen y se omitirán») y sin duplicar relaciones existentes.
@@ -234,8 +235,8 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Formularios simples: nombre, descripción, edificio opcional, participantes asignados.
 - Selector de modo directo/dividido al crear trabajo, con explicación visible de dónde vivirán fotos y aprobaciones.
 - Crear trabajos/elementos manualmente o **en lote** desde catálogo. Vista previa antes de aplicar lote: árboles/fila, cantidad final, duplicados contextuales, opciones de excepción por instancia. Al crear un trabajo o generar en lote se pueden elegir **requisitos** (de catálogo o libres) que se aplican al objetivo directo o a cada elemento; al añadir elementos a un trabajo existente también.
-- Editar/eliminar trabajos y elementos en cualquier estado, con advertencia de eliminación **destructiva** de todas las fotos e historial del ámbito.
-- Administrar requisitos en cada target mientras no exista primer envío; se pueden **añadir varios desde un catálogo de requisitos** (omitiendo duplicados) o escribir requisitos libres; renombrarlos a mano los desvincula. Opción de copiar plantilla a elementos recién creados sin enlazarles requisitos posteriormente.
+- Editar/eliminar trabajos y elementos en cualquier estado, con advertencia de eliminación **destructiva** de todas las fotos e historial del ámbito. La edición del trabajo (nombre/descripción) se hace en un **modal** desde la cabecera de la ficha; el renombrado de elementos, en un **modal pequeño** por fila.
+- Administrar requisitos en cada target mientras no exista primer envío; se pueden **añadir varios desde un catálogo de requisitos** (omitiendo duplicados) o escribir requisitos libres en un **modal** (pestañas «Nuevo» / «Desde catálogo»); renombrarlos (modal) los desvincula. Opción de copiar plantilla a elementos recién creados sin enlazarles requisitos posteriormente.
 - Cambiar modo abre asistente de reasignación de fotos y requisitos, **solo si nunca hubo envío**; no crear destino/suprimir fotos automáticamente. Permitir cancelar sin cambios.
 - Acciones de borrado de servicio/trabajo/elemento requieren nombre del recurso, resumen de dependencias afectadas y confirmación explícita (puede requerirse escribir el nombre para recursos con historial).
 

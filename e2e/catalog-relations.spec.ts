@@ -37,9 +37,12 @@ async function openCatalog(page: Page, name: string) {
 }
 
 async function addItem(page: Page, name: string) {
-	await page.getByLabel('Nuevo ítem').fill(name);
+	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
+	await page.locator('#item-name').fill(name);
 	await page.getByRole('button', { name: 'Añadir' }).click();
-	await expect(page.getByRole('textbox', { name: 'Nombre del ítem' }).last()).toHaveValue(name);
+	await expect(
+		page.getByText(name, { exact: true }).filter({ visible: true }).first()
+	).toBeVisible();
 }
 
 test('catálogo: relacionar por lote y gestionar por ítem', async ({ page }, testInfo) => {
@@ -90,16 +93,8 @@ test('catálogo: relacionar por lote y gestionar por ítem', async ({ page }, te
 	await expect(page.getByRole('button', { name: 'Relaciones (1)' })).toHaveCount(3);
 
 	// Gestionar por ítem: abrir el modal del primer piso y quitar su relación.
-	const nameBoxes = page.getByRole('textbox', { name: 'Nombre del ítem' });
-	const rowCount = await nameBoxes.count();
-	let pisoIndex = 0;
-	for (let i = 0; i < rowCount; i += 1) {
-		if ((await nameBoxes.nth(i).inputValue()) === piso1) {
-			pisoIndex = i;
-			break;
-		}
-	}
-	await page.getByRole('button', { name: 'Relaciones (1)' }).nth(pisoIndex).click();
+	const pisoRow = page.locator('tr').filter({ visible: true }).filter({ hasText: piso1 });
+	await pisoRow.getByRole('button', { name: 'Relaciones (1)' }).click();
 	const itemDialog = page.getByRole('dialog');
 	await expect(itemDialog.getByRole('heading', { name: `Relaciones de «${piso1}»` })).toBeVisible();
 	await expect(itemDialog.getByText(edificio)).toBeVisible();

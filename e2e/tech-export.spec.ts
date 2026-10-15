@@ -49,9 +49,16 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toBeVisible();
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).not.toBe(403);
 
-	// Desde la ficha se accede a la pantalla de asignaciones.
-	await page.getByRole('link', { name: 'Gestionar asignaciones' }).click();
-	await expect(page).toHaveURL(new RegExp(`/admin/services/${serviceId}$`));
+	// Desde la ficha se abre el modal de asignaciones.
+	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
+	await expect(
+		page.getByRole('dialog').getByRole('heading', { name: 'Participantes' })
+	).toBeVisible();
+	await page
+		.getByRole('dialog')
+		.locator('[data-slot="dialog-footer"]')
+		.getByRole('button', { name: 'Cerrar' })
+		.click();
 
 	// Crear un técnico y asignarlo al servicio.
 	await page.goto('/admin/users');
@@ -64,13 +71,15 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await createDialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
-	await page.goto(`/admin/services/${serviceId}`);
-	await page.locator('#technician').selectOption({ label: techName });
-	await page.getByRole('button', { name: 'Asignar' }).first().click();
+	await page.goto(serviceHref ?? '/admin/services');
+	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
+	const assignDialog = page.getByRole('dialog');
+	await assignDialog.locator('#technician').selectOption({ label: techName });
+	await assignDialog.getByRole('button', { name: 'Asignar' }).first().click();
 	await expect(page.getByText('Asignación guardada.')).toBeVisible();
 
 	// Revocar pide confirmación en modal (se cancela para conservar la asignación).
-	await page.getByRole('button', { name: 'Revocar' }).click();
+	await assignDialog.getByRole('button', { name: 'Revocar' }).click();
 	const revokeDialog = page.getByRole('alertdialog');
 	await expect(revokeDialog).toBeVisible();
 	await revokeDialog.getByRole('button', { name: 'Cancelar' }).click();
