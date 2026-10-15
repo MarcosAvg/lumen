@@ -302,6 +302,12 @@ progreso usa un **instrumento medido** (`ProgressMeter`). Se añaden primitivas 
 `EmptyState`, `DataTable`, `ProgressMeter`) y una paleta base fría con colores de estado
 (`--state-*`). Todo el escritorio se añade con `lg:`/`xl:`; el móvil conserva su comportamiento.
 
+**Mesa de revisión y búsqueda**: Revisiones pasa a `PageHeader` + **toolbar** (sin tarjeta) + tabla con
+enlace al servicio y columna de **antigüedad** relativa (`formatRelativeAge`, resaltada a partir de
+24 h) para priorizar. Buscar usa `PageHeader` + toolbar y resultados **agrupados por tipo**
+(Servicios/Trabajos/Elementos). Ajustes adopta `PageHeader`. Se elimina el patrón de cabecera antigua
+en estas pantallas.
+
 **Limpieza**: se corrigió un caso de no-determinismo en `cleanupOrphans` (`mtimeMs` marginalmente
 por delante de `now`) que hacía intermitente la prueba de limpieza.
 

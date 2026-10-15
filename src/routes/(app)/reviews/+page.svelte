@@ -1,17 +1,20 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
-	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import * as Table from '#lib/components/ui/table';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
+	import { formatRelativeAge } from '#lib/utils';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const now = Date.now();
+	const STALE_MS = 24 * 60 * 60 * 1000;
 
 	function formatDate(value: Date): string {
 		return new Date(value).toLocaleString();
@@ -41,58 +44,50 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Revisiones pendientes</h1>
-		<p class="text-sm text-muted-foreground">
-			Entregas en revisión de los servicios que puedes revisar ({data.total} en total).
-		</p>
-	</div>
+	<PageHeader
+		title="Revisiones"
+		description="Entregas en revisión de los servicios que puedes revisar ({data.total} en total)."
+	/>
 
-	<Card.Root>
-		<Card.Content class="pt-6">
-			<form method="GET" action={resolve('/(app)/reviews')} class="grid gap-3 sm:grid-cols-5">
-				<div class="space-y-1 sm:col-span-2">
-					<Label for="q">Texto</Label>
-					<Input
-						id="q"
-						name="q"
-						value={data.filters.q}
-						placeholder="Servicio, trabajo o elemento"
-					/>
-				</div>
-				<div class="space-y-1 sm:col-span-2">
-					<Label for="serviceId">Servicio</Label>
-					<select
-						id="serviceId"
-						name="serviceId"
-						class="h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
+	<form
+		method="GET"
+		action={resolve('/(app)/reviews')}
+		class="flex flex-col gap-3 border-y py-4 lg:flex-row lg:items-end"
+	>
+		<div class="flex-1 space-y-1">
+			<Label for="q" class="text-xs">Texto</Label>
+			<Input id="q" name="q" value={data.filters.q} placeholder="Servicio, trabajo o elemento" />
+		</div>
+		<div class="space-y-1 lg:w-56">
+			<Label for="serviceId" class="text-xs">Servicio</Label>
+			<select
+				id="serviceId"
+				name="serviceId"
+				class="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
+			>
+				<option value="">Todos</option>
+				{#each data.services as service (service.id)}
+					<option value={service.id} selected={data.filters.serviceId === service.id}
+						>{service.name}</option
 					>
-						<option value="">Todos</option>
-						{#each data.services as service (service.id)}
-							<option value={service.id} selected={data.filters.serviceId === service.id}
-								>{service.name}</option
-							>
-						{/each}
-					</select>
-				</div>
-				<div class="space-y-1">
-					<Label for="from">Desde</Label>
-					<Input id="from" name="from" type="date" value={data.filters.from} />
-				</div>
-				<div class="space-y-1">
-					<Label for="to">Hasta</Label>
-					<Input id="to" name="to" type="date" value={data.filters.to} />
-				</div>
-				<div class="flex items-end gap-2 sm:col-span-5">
-					<Button type="submit" size="sm">Filtrar</Button>
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-					<a href={resolve('/(app)/reviews')} class="text-sm text-muted-foreground underline"
-						>Limpiar</a
-					>
-				</div>
-			</form>
-		</Card.Content>
-	</Card.Root>
+				{/each}
+			</select>
+		</div>
+		<div class="space-y-1">
+			<Label for="from" class="text-xs">Desde</Label>
+			<Input id="from" name="from" type="date" value={data.filters.from} />
+		</div>
+		<div class="space-y-1">
+			<Label for="to" class="text-xs">Hasta</Label>
+			<Input id="to" name="to" type="date" value={data.filters.to} />
+		</div>
+		<div class="flex items-center gap-2 pb-0.5">
+			<Button type="submit" size="sm">Filtrar</Button>
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<a href={resolve('/(app)/reviews')} class="text-sm text-muted-foreground underline">Limpiar</a
+			>
+		</div>
+	</form>
 
 	{#if data.pending.length === 0}
 		<EmptyState
@@ -103,21 +98,29 @@
 		<DataTable>
 			<Table.Header>
 				<Table.Row>
+					<Table.Head class="w-px text-right">#</Table.Head>
 					<Table.Head>Servicio</Table.Head>
 					<Table.Head>Objetivo</Table.Head>
 					<Table.Head class="hidden lg:table-cell">Autor</Table.Head>
 					<Table.Head class="hidden lg:table-cell">Enviada</Table.Head>
+					<Table.Head class="hidden lg:table-cell">Antigüedad</Table.Head>
 					<Table.Head class="w-px text-right">Acciones</Table.Head>
 				</Table.Row>
 			</Table.Header>
 			<Table.Body>
 				{#each data.pending as item (item.submissionId)}
+					{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
 					<Table.Row>
+						<Table.Cell class="tnum text-right font-medium text-muted-foreground">
+							{item.sequenceNo}
+						</Table.Cell>
 						<Table.Cell class="whitespace-normal">
-							<div class="flex items-center gap-2 font-medium text-foreground">
+							<a
+								class="font-medium text-foreground underline-offset-4 hover:underline"
+								href={resolve('/(app)/services/[serviceId]', { serviceId: item.serviceId })}
+							>
 								{item.serviceName}
-								<Badge variant="secondary" class="tnum">#{item.sequenceNo}</Badge>
-							</div>
+							</a>
 						</Table.Cell>
 						<Table.Cell class="whitespace-normal text-muted-foreground">
 							{item.workName}
@@ -130,6 +133,19 @@
 						</Table.Cell>
 						<Table.Cell class="tnum hidden text-muted-foreground lg:table-cell">
 							{formatDate(item.submittedAt)}
+						</Table.Cell>
+						<Table.Cell class="hidden lg:table-cell">
+							<span
+								class="inline-flex items-center gap-1.5 text-sm {stale
+									? 'font-medium text-state-attention'
+									: 'text-muted-foreground'}"
+								title={formatDate(item.submittedAt)}
+							>
+								{#if stale}
+									<span class="size-1.5 rounded-full bg-state-attention" aria-hidden="true"></span>
+								{/if}
+								{formatRelativeAge(item.submittedAt, now)}
+							</span>
 						</Table.Cell>
 						<Table.Cell class="text-right">
 							<Button

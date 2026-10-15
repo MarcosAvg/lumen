@@ -5,6 +5,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -110,7 +111,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-semibold tracking-tight">Ajustes</h1>
+	<PageHeader title="Ajustes" description="Notificaciones y preferencias de tu cuenta." />
 
 	<Card.Root>
 		<Card.Header>

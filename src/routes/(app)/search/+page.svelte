@@ -1,17 +1,40 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import * as Card from '#lib/components/ui/card';
-	import { Input } from '#lib/components/ui/input';
 	import { Button } from '#lib/components/ui/button';
+	import { Input } from '#lib/components/ui/input';
+	import * as Table from '#lib/components/ui/table';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const typeLabel = {
-		service: 'Servicio',
-		work: 'Trabajo',
-		element: 'Elemento'
+		service: 'Servicios',
+		work: 'Trabajos',
+		element: 'Elementos'
 	} as const;
+
+	type ResultType = keyof typeof typeLabel;
+
+	function hrefFor(result: { type: string; id: string }): string {
+		if (result.type === 'work') return resolve('/(app)/works/[workId]', { workId: result.id });
+		if (result.type === 'element')
+			return resolve('/(app)/elements/[elementId]', { elementId: result.id });
+		return resolve('/(app)/services/[serviceId]', { serviceId: result.id });
+	}
+
+	const grouped = $derived.by(() => {
+		const order: ResultType[] = ['service', 'work', 'element'];
+		return order
+			.map((type) => ({
+				type,
+				label: typeLabel[type],
+				items: data.results.filter((result) => result.type === type)
+			}))
+			.filter((group) => group.items.length > 0);
+	});
 </script>
 
 <svelte:head>
@@ -19,44 +42,62 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-2xl font-semibold tracking-tight">Buscar</h1>
-		<p class="text-sm text-muted-foreground">
-			Solo se muestran servicios, trabajos y elementos dentro de tu ámbito autorizado.
-		</p>
-	</div>
+	<PageHeader
+		title="Buscar"
+		description="Solo se muestran servicios, trabajos y elementos dentro de tu ámbito autorizado."
+	/>
 
-	<form method="GET" action={resolve('/(app)/search')} class="flex gap-2">
-		<Input name="q" value={data.q} placeholder="Nombre de servicio, trabajo o elemento" autofocus />
+	<form
+		method="GET"
+		action={resolve('/(app)/search')}
+		class="flex items-center gap-2 border-y py-4"
+	>
+		<Input
+			name="q"
+			value={data.q}
+			placeholder="Nombre de servicio, trabajo o elemento"
+			autofocus
+			class="max-w-xl"
+		/>
 		<Button type="submit">Buscar</Button>
 	</form>
 
 	{#if data.q.trim().length === 0}
-		<p class="text-sm text-muted-foreground">Escribe un término para buscar.</p>
+		<EmptyState
+			title="Escribe un término para buscar"
+			description="Servicios, trabajos y elementos de tu ámbito."
+		/>
 	{:else if data.results.length === 0}
-		<Card.Root>
-			<Card.Content class="py-8 text-center text-sm text-muted-foreground">
-				Sin resultados para «{data.q}».
-			</Card.Content>
-		</Card.Root>
+		<EmptyState title="Sin resultados" description="Nada coincide con «{data.q}»." />
 	{:else}
-		<ul class="space-y-2">
-			{#each data.results as result (result.type + result.id)}
-				<li>
-					<Card.Root>
-						<Card.Content class="flex items-center justify-between gap-3 py-3">
-							<div class="min-w-0">
-								<p class="truncate font-medium">{result.label}</p>
-								<p class="truncate text-sm text-muted-foreground">
-									{typeLabel[result.type]}{#if result.context}
-										· {result.context}{/if}
-								</p>
-							</div>
-							<Button href={result.href} variant="outline" size="sm">Abrir</Button>
-						</Card.Content>
-					</Card.Root>
-				</li>
-			{/each}
-		</ul>
+		{#each grouped as group (group.type)}
+			<section class="space-y-2">
+				<h2 class="tnum text-sm font-medium text-muted-foreground">
+					{group.label} ({group.items.length})
+				</h2>
+				<DataTable>
+					<Table.Body>
+						{#each group.items as result (result.type + result.id)}
+							<Table.Row>
+								<Table.Cell class="whitespace-normal">
+									<!-- eslint-disable svelte/no-navigation-without-resolve -->
+									<a
+										class="font-medium text-foreground underline-offset-4 hover:underline"
+										href={hrefFor(result)}>{result.label}</a
+									>
+									<!-- eslint-enable svelte/no-navigation-without-resolve -->
+								</Table.Cell>
+								<Table.Cell class="hidden whitespace-normal text-muted-foreground lg:table-cell">
+									{result.context || '—'}
+								</Table.Cell>
+								<Table.Cell class="w-px text-right">
+									<Button href={hrefFor(result)} variant="outline" size="sm">Abrir</Button>
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</DataTable>
+			</section>
+		{/each}
 	{/if}
 </div>
