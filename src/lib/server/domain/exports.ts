@@ -11,15 +11,25 @@ import {
 	photos,
 	reviews,
 	services,
-	submissionPhotos,
 	users,
 	works
 } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
-import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 import { NameRegistry, sanitizeSegment } from '#lib/server/exports/names';
 import { DomainError } from './errors';
-import { getTargetContext } from './targets';
+import {
+	additionalFolderLabel,
+	getRegistry,
+	loadSubmissionPhotos,
+	photosToFiles,
+	type ArchiveFile,
+	type SubmissionPhotoRow
+} from './exports-shared';
+
+// ZIP de entrega (extraído a `exports-submission.ts`; se re-exporta aquí).
+export { getSubmissionArchive } from './exports-submission';
+export type { SubmissionArchive } from './exports-submission';
+export type { ArchiveFile } from './exports-shared';
 
 /**
  * Exportaciones ZIP (docs/06 §10). `buildExportPlan` calcula **una vez** las
@@ -35,22 +45,6 @@ import { getTargetContext } from './targets';
  */
 
 const NO_BUILDING_LABEL = 'Sin edificio';
-
-export interface ArchiveFile {
-	/** Ruta dentro del ZIP (POSIX, sin traversal). */
-	path: string;
-	/** Ruta relativa del binario dentro del almacenamiento. */
-	storagePath: string;
-}
-
-export interface SubmissionArchive {
-	submissionId: string;
-	sequenceNo: number;
-	serviceId: string;
-	fileName: string;
-	files: ArchiveFile[];
-}
-
 /** Agregados de una unidad (trabajo directo o elemento) para el XLSX. */
 export interface UnitAggregate {
 	status: TargetStatus;
@@ -121,17 +115,6 @@ export interface ContractArchive {
 	files: ArchiveFile[];
 	plan: ExportPlan;
 }
-
-interface SubmissionPhotoRow {
-	groupOrder: number;
-	photoOrder: number;
-	groupKind: 'requirement' | 'additional';
-	requirementName: string | null;
-	storagePath: string;
-	uploadedAt: Date | null;
-	uploadedByName: string | null;
-}
-
 /** Foto dentro de un bloque del PDF (elemento/requisito). */
 export interface PdfBlockPhoto {
 	storagePath: string;
@@ -149,122 +132,6 @@ export interface PdfBlock {
 const visibleBuildingName = sql<
 	string | null
 >`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot})`;
-
-async function loadSubmissionPhotos(
-	db: Database,
-	submissionIds: string[]
-): Promise<Map<string, SubmissionPhotoRow[]>> {
-	const bySubmission = new Map<string, SubmissionPhotoRow[]>();
-	if (submissionIds.length === 0) return bySubmission;
-
-	const rows = await db
-		.select({
-			submissionId: submissionPhotos.submissionId,
-			groupOrder: submissionPhotos.groupSortOrder,
-			photoOrder: submissionPhotos.photoSortOrder,
-			groupKind: submissionPhotos.groupKind,
-			requirementName: submissionPhotos.requirementNameSnapshot,
-			storagePath: photos.storagePath,
-			uploadedAt: submissionPhotos.photoUploadedAtSnapshot,
-			uploadedByName: submissionPhotos.photoUploadedByName
-		})
-		.from(submissionPhotos)
-		.innerJoin(photos, eq(photos.id, submissionPhotos.photoId))
-		.where(inArray(submissionPhotos.submissionId, submissionIds))
-		.orderBy(asc(submissionPhotos.groupSortOrder), asc(submissionPhotos.photoSortOrder));
-
-	for (const row of rows) {
-		const list = bySubmission.get(row.submissionId) ?? [];
-		list.push({
-			groupOrder: row.groupOrder,
-			photoOrder: row.photoOrder,
-			groupKind: row.groupKind,
-			requirementName: row.requirementName,
-			storagePath: row.storagePath,
-			uploadedAt: row.uploadedAt,
-			uploadedByName: row.uploadedByName
-		});
-		bySubmission.set(row.submissionId, list);
-	}
-	return bySubmission;
-}
-
-/** Etiqueta de carpeta para el grupo sin requisito según haya o no grupos de requisito. */
-function additionalFolderLabel(rows: SubmissionPhotoRow[]): string {
-	return rows.some((row) => row.requirementName !== null)
-		? ADDITIONAL_GROUP_LABEL
-		: NO_REQUIREMENT_GROUP_LABEL;
-}
-
-/** Construye las rutas de un ZIP a partir de las fotos de una entrega. */
-function photosToFiles(
-	parent: string,
-	rows: SubmissionPhotoRow[],
-	submissionKey: string,
-	additionalLabel: string
-): ArchiveFile[] {
-	const files: ArchiveFile[] = [];
-	const registries = new Map<string, NameRegistry>();
-	let currentGroup = Number.NaN;
-	let folder = '';
-	let indexInGroup = 0;
-
-	for (const row of rows) {
-		if (row.groupOrder !== currentGroup) {
-			currentGroup = row.groupOrder;
-			const registry = getRegistry(registries, parent);
-			const name = row.requirementName ?? additionalLabel;
-			folder = registry.unique(name, `${submissionKey}-${row.groupOrder}`);
-			indexInGroup = 0;
-		}
-		indexInGroup += 1;
-		const file = `${String(indexInGroup).padStart(2, '0')}.jpg`;
-		files.push({ path: `${parent}/${folder}/${file}`, storagePath: row.storagePath });
-	}
-	return files;
-}
-
-function getRegistry(map: Map<string, NameRegistry>, parent: string): NameRegistry {
-	const existing = map.get(parent);
-	if (existing) return existing;
-	const created = new NameRegistry();
-	map.set(parent, created);
-	return created;
-}
-
-export async function getSubmissionArchive(
-	db: Database,
-	submissionId: string
-): Promise<SubmissionArchive> {
-	const [submission] = await db
-		.select({
-			id: evidenceSubmissions.id,
-			targetId: evidenceSubmissions.targetId,
-			sequenceNo: evidenceSubmissions.sequenceNo
-		})
-		.from(evidenceSubmissions)
-		.where(eq(evidenceSubmissions.id, submissionId))
-		.limit(1);
-	if (!submission) throw new DomainError(404, 'Entrega no encontrada.');
-
-	const context = await getTargetContext(db, submission.targetId);
-	const photosBySubmission = await loadSubmissionPhotos(db, [submission.id]);
-	const rows = photosBySubmission.get(submission.id) ?? [];
-
-	return {
-		submissionId: submission.id,
-		sequenceNo: submission.sequenceNo,
-		serviceId: context.serviceId,
-		fileName: `entrega-${submission.sequenceNo}.zip`,
-		files: photosToFiles(
-			`entrega-${submission.sequenceNo}`,
-			rows,
-			submission.id,
-			additionalFolderLabel(rows)
-		)
-	};
-}
-
 /** Última entrega **aprobada** por objetivo. */
 async function latestApprovedSubmissions(
 	db: Database,
