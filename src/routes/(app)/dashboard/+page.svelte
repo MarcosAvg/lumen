@@ -113,7 +113,7 @@
 		<div class="grid gap-2 md:hidden">
 			{#if data.summary.pendingReviews > 0}
 				<Button href={resolve('/(app)/reviews')} class="w-full justify-between">
-					<span>Revisiones pendientes</span>
+					<span>Revisar pendientes</span>
 					<span class="tnum">{data.summary.pendingReviews}</span>
 				</Button>
 			{/if}

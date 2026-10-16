@@ -17,6 +17,7 @@
 	import * as Sidebar from '#lib/components/ui/sidebar';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu';
 	import BottomNav from '#lib/components/app/bottom-nav.svelte';
+	import InstallPrompt from '#lib/components/app/install-prompt.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
 	import type { LayoutProps } from './$types';
 
@@ -317,10 +318,10 @@
 			aria-busy={navigating.to !== null}
 			class="mx-auto w-full min-w-0 {shellWidth} px-4 pt-6 pb-28 outline-none md:pb-8 lg:px-8 lg:pt-8"
 		>
+			<InstallPrompt />
 			{@render children()}
 		</div>
 	</Sidebar.Inset>
-
 	<BottomNav
 		role={data.user.role}
 		unreadCount={data.unreadCount}
