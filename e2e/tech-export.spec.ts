@@ -151,8 +151,10 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.getByRole('link', { name: 'General' })
 		.first()
 		.click();
-	await page.locator('#member-technician').selectOption({ label: techName });
-	await page.getByRole('button', { name: 'Añadir' }).first().click();
+	await page.getByRole('button', { name: 'Gestionar participantes' }).click();
+	const membersDialog = page.getByRole('dialog');
+	await membersDialog.locator('#member-technician').selectOption({ label: techName });
+	await membersDialog.getByRole('button', { name: 'Añadir' }).first().click();
 	await expect(page.getByText('Participante añadido.')).toBeVisible();
 
 	await page.goto(serviceHref ?? '/admin/services');

@@ -19,6 +19,7 @@ import {
 	updateContractPdfMargins
 } from '#lib/server/domain/contracts';
 import { listServicesByContract } from '#lib/server/domain/services';
+import { listServiceProgress } from '#lib/server/domain/works';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
 import {
@@ -45,14 +46,44 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		getContractPdfContext(db, contractId)
 	]);
 
+	// Avance por servicio y agregado del contrato, en una sola consulta.
+	const progress = await listServiceProgress(
+		db,
+		services.map((service) => service.id)
+	);
+	let totalTargets = 0;
+	let approvedTargets = 0;
+	const servicesWithProgress = services.map((service) => {
+		const entry = progress.get(service.id) ?? { totalTargets: 0, approvedTargets: 0 };
+		totalTargets += entry.totalTargets;
+		approvedTargets += entry.approvedTargets;
+		return {
+			...service,
+			totalTargets: entry.totalTargets,
+			approvedTargets: entry.approvedTargets,
+			percent:
+				entry.totalTargets === 0
+					? 0
+					: Math.round((entry.approvedTargets / entry.totalTargets) * 100)
+		};
+	});
+
 	return {
 		title: access.contract.name,
 		back: { href: '/contracts', label: 'Contratos' },
 		contract: access.contract,
 		isAdmin: access.isAdmin,
+		isSupervisor: access.isSupervisor,
+		isTechnician: access.isTechnician,
 		canManage: access.canManage,
 		assignments,
-		services,
+		services: servicesWithProgress,
+		progress: {
+			totalTargets,
+			approvedTargets,
+			percent: totalTargets === 0 ? 0 : Math.round((approvedTargets / totalTargets) * 100),
+			completed: totalTargets > 0 && approvedTargets === totalTargets
+		},
 		assignable,
 		hasPdfBackground: Boolean(pdfContext.backgroundPath),
 		pdfMargins: pdfContext.margins
