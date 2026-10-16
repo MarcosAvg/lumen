@@ -256,20 +256,22 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 
 ## Registro XLSX dentro de las exportaciones
 
-Cada ZIP (contrato, servicio y trabajo) incluye `<Ámbito>/<Ámbito>.xlsx` con el registro de evidencias, generado con
-**`exceljs@4.4.0`** (MIT):
+Cada ZIP (contrato, servicio y trabajo) puede incluir `<Ámbito>/<Ámbito>.xlsx`, generado con **`exceljs@4.4.0`**
+(MIT), con **una fila por trabajo**:
 
-- Hoja **`Resumen`** (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) y **una hoja
-  por servicio**, con **una fila por trabajo** (no por elemento).
-- Columnas: edificio, servicio, trabajo, tipo, elementos (X/Y), estado, requisitos obligatorios (X/Y), fotografías,
-  última entrega, decisión, revisor, fecha de decisión, motivo de rechazo, **evidencia** y notas.
-- **Estado derivado** en trabajos divididos: aprobado si todos sus elementos lo están; si no, el más prioritario
-  (`Rechazado > En revisión > En progreso > Pendiente`), con contador de elementos.
-- Refleja **todo el estado**; las fotos del ZIP siguen siendo solo las aprobadas.
-- La columna **Evidencia** es un **hipervínculo relativo** al PDF del trabajo en su carpeta (PDF pendiente de generar);
-  Excel/LibreOffice resuelven rutas relativas, Google Sheets no.
-- `buildExportPlan(scope)` calcula rutas y agregados una sola vez (ZIP + XLSX); `buildZipResponse` acepta ahora entradas
-  binarias generadas. Pruebas: integración EXP-05 y E2E `tech-export` (el ZIP de contrato contiene `General/General.xlsx`).
+- **Variante `extended`** (por defecto): hoja `Resumen` (por servicio: trabajos, aprobados, en revisión, rechazados,
+  pendientes, % avance) + una hoja por servicio con edificio, servicio, trabajo, tipo, elementos (X/Y), estado,
+  requisitos (X/Y), fotografías, última entrega, decisión, revisor, fecha, motivo y evidencia.
+- **Variante `simple`**: solo hojas por servicio con `Edificio · Trabajo · Estado · Evidencia · Notas` (sin `Resumen`).
+- **Estado derivado** en trabajos divididos (aprobado si todos; si no, el más prioritario + contador de elementos).
+  Refleja todo el estado; las fotos del ZIP siguen siendo solo las aprobadas.
+- **Evidencia** = hipervínculo relativo al PDF del trabajo en su carpeta (PDF pendiente de generar).
+- **Modal de exportación** (`app/export-dialog.svelte`) en las tres fichas: variante, incluir/no XLSX, incluir/no
+  fotografías (al menos una), recordando la última elección en el dispositivo. Los endpoints aceptan
+  `?variant=simple|extended&xlsx=0|1&photos=0|1`; `buildExportPlan(scope, { aggregates })` evita las consultas de más
+  en la variante simple.
+- Pruebas: integración EXP-05 (extendida) y EXP-06 (simple, sin `Resumen`, 5 columnas); E2E `tech-export` (modal,
+  `xlsx=0`, `photos=0`, `variant=simple`).
 
 ## Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
 

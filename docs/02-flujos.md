@@ -166,11 +166,16 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 
 ### Registro XLSX (incluido en cada ZIP)
 
-1. Cada ZIP (contrato, servicio o trabajo) incluye un libro `<Ámbito>/<Ámbito>.xlsx` en su raíz.
-2. Una hoja **`Resumen`** (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) y **una hoja por servicio** con **una fila por trabajo**.
-3. Columnas por fila: edificio, servicio, trabajo, tipo, elementos (aprobados/total), estado (derivado en trabajos divididos), requisitos obligatorios (X/Y), fotografías, última entrega, decisión, revisor, fecha de decisión, motivo de rechazo, **evidencia** (hipervínculo relativo al PDF del trabajo) y notas.
+1. Cada ZIP (contrato, servicio o trabajo) puede incluir un libro `<Ámbito>/<Ámbito>.xlsx` en su raíz (opcional desde el modal).
+2. Dos **variantes**:
+   - **Simple**: solo hojas por servicio con `Edificio · Trabajo · Estado · Evidencia · Notas` (sin hoja `Resumen`).
+   - **Extendida**: hoja `Resumen` (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) + una hoja por servicio con todas las columnas (tipo, elementos, requisitos, fotografías, última entrega, decisión, revisor, fecha y motivo de rechazo).
+3. En ambas, **una fila por trabajo** y columna **Evidencia** con **hipervínculo relativo** al PDF del trabajo (que vivirá en su carpeta).
 4. Se incluye **todo el estado** (pendientes y rechazados también); las **fotos del ZIP siguen siendo solo las aprobadas**.
-5. La columna «Evidencia» enlaza (ruta relativa) con el PDF del trabajo en su carpeta; el PDF se genera en una fase posterior.
+
+### Opciones de exportación
+
+El modal permite además **incluir o no** el registro XLSX y **incluir o no** las carpetas de fotografías (al menos una de las dos).
 
 ### Exportación de datos
 

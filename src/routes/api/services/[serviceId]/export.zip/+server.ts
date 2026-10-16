@@ -2,27 +2,41 @@ import { errorResponse } from '#lib/server/api';
 import { requireExportZip, requireServiceAccess } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { getServiceArchive } from '#lib/server/domain/exports';
+import { parseExportRequest } from '#lib/server/exports/options';
 import { buildZipResponse } from '#lib/server/exports/zip';
 import { buildWorkbook } from '#lib/server/exports/workbook';
 import { isUuid } from '#lib/server/params';
 import { storage } from '#lib/server/storage';
 import type { RequestHandler } from './$types';
 
-/** ZIP del servicio: última entrega aprobada por objetivo + XLSX de registro. */
-export const GET: RequestHandler = async ({ params, locals }) => {
+/**
+ * ZIP del servicio: última entrega aprobada por objetivo + XLSX de registro.
+ * Opciones: `?variant=simple|extended&xlsx=0|1&photos=0|1`.
+ */
+export const GET: RequestHandler = async ({ params, locals, url }) => {
 	if (!isUuid(params.serviceId)) return new Response('No encontrado', { status: 404 });
 
 	try {
 		// Los técnicos no exportan (403 antes de tocar el recurso).
 		requireExportZip(locals);
 		await requireServiceAccess(locals, params.serviceId);
-		const archive = await getServiceArchive(getDatabase().db, params.serviceId);
-		const workbook = await buildWorkbook(archive.plan);
+		const options = parseExportRequest(url);
+		const archive = await getServiceArchive(getDatabase().db, params.serviceId, {
+			aggregates: options.variant === 'extended'
+		});
+		const extra = options.xlsx
+			? [
+					{
+						name: `${archive.plan.root}/${archive.plan.root}.xlsx`,
+						content: await buildWorkbook(archive.plan, options.variant)
+					}
+				]
+			: [];
 		return buildZipResponse(
 			{
 				fileName: archive.fileName,
-				files: archive.files,
-				extra: [{ name: `${archive.plan.root}/${archive.plan.root}.xlsx`, content: workbook }]
+				files: options.photos ? archive.files : [],
+				extra
 			},
 			storage
 		);

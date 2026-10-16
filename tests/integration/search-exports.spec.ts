@@ -446,6 +446,57 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		expect(summary?.getRow(7).getCell(2).value).toBe('TOTAL');
 	});
 
+	it('EXP-06: la variante simple omite el Resumen y usa 5 columnas', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'UMAs Torre',
+			actorId: admin
+		});
+		const work = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Piso 1',
+			actorId: admin
+		});
+		const photo = await upload(storage, work.targetId as string, admin, null);
+		const submission = await submitEvidence(db, {
+			targetId: work.targetId as string,
+			expectedVersion: photo.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
+
+		// En la variante simple no se calculan los agregados que no se muestran.
+		const plan = await buildExportPlan(
+			db,
+			{ kind: 'service', serviceId: service.id },
+			{
+				aggregates: false
+			}
+		);
+		expect(plan.rows[0].units[0].status).toBe('approved');
+
+		const buffer = await buildWorkbook(plan, 'simple');
+		const wb = new ExcelJS.Workbook();
+		await wb.xlsx.load(buffer);
+
+		expect(wb.worksheets.map((ws) => ws.name)).toEqual(['UMAs Torre']);
+		const sheet = wb.getWorksheet('UMAs Torre');
+		expect(sheet?.columnCount).toBe(5);
+		const row = sheet?.getRow(4);
+		expect(row?.getCell(2).value).toBe('Piso 1'); // Trabajo
+		expect(row?.getCell(3).value).toBe('Aprobado'); // Estado derivado
+		const evidence = row?.getCell(4).value as { text: string; hyperlink: string };
+		expect(evidence.text).toBe('PDF');
+		expect(evidence.hyperlink.endsWith('.pdf')).toBe(true);
+	});
+
 	it('sanea nombres de ZIP y desambigua duplicados', () => {
 		expect(sanitizeSegment('../../etc/passwd')).not.toContain('/');
 		expect(sanitizeSegment('  ')).toBe('sin-nombre');

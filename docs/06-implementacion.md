@@ -174,7 +174,7 @@ Una función se considera terminada cuando:
 - Descarga de foto optimizada en evidencia actual e histórica.
 - ZIP de entrega desde snapshot: requisitos, Adicionales, números en orden.
 - ZIP de servicio: última entrega aprobada por target, jerarquía de carpetas y `resumen.csv` con omitidos.
-- ZIP de contrato (`Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`) y de trabajo (`Trabajo ▸ (Elemento) ▸ Requisito`), con la última entrega aprobada, más el **registro XLSX** (hoja `Resumen` + una por servicio, fila por trabajo, enlaces relativos al PDF de evidencia).
+- ZIP de contrato/servicio/trabajo con la última entrega aprobada, más el **registro XLSX** (variantes Simple y Extendida, fila por trabajo, enlaces relativos al PDF de evidencia) elegible junto a las fotografías desde el modal de exportación.
 - Streaming o temporal controlado y nombres seguros para ZIP.
 
 **Aceptación**

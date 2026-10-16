@@ -4,12 +4,19 @@ import { sanitizeSegment } from './names';
 import type { ExportPlan, ExportPlanRow, UnitAggregate } from '#lib/server/domain/exports';
 
 /**
- * Libro XLSX de una exportación: hoja `Resumen` + una hoja por servicio, con
- * **una fila por trabajo** y un hipervínculo relativo al PDF de evidencia de
- * cada trabajo (que se generará junto al ZIP).
+ * Libro XLSX de una exportación: **una fila por trabajo** con un hipervínculo
+ * relativo al PDF de evidencia del trabajo (que se generará junto al ZIP).
+ *
+ * Dos variantes:
+ * - `extended` (por defecto): hoja `Resumen` + una hoja por servicio con todas
+ *   las columnas (edificio, tipo, elementos, requisitos, fotos, revisión…).
+ * - `simple`: solo hojas por servicio con `Edificio · Trabajo · Estado ·
+ *   Evidencia · Notas` (sin `Resumen`).
  *
  * Solo se usan **valores** (sin fórmulas) para que el resultado sea determinista.
  */
+
+export type WorkbookVariant = 'simple' | 'extended';
 
 const STATUS_LABEL: Record<TargetStatus, string> = {
 	pending: 'Pendiente',
@@ -98,25 +105,57 @@ function deriveRow(row: ExportPlanRow): DerivedRow {
 	};
 }
 
-const COLUMNS: { header: string; key: string; width: number }[] = [
-	{ header: 'Edificio', key: 'building', width: 24 },
-	{ header: 'Servicio', key: 'service', width: 24 },
-	{ header: 'Trabajo', key: 'work', width: 28 },
-	{ header: 'Tipo', key: 'mode', width: 10 },
-	{ header: 'Elementos', key: 'elements', width: 12 },
-	{ header: 'Estado', key: 'status', width: 14 },
-	{ header: 'Requisitos', key: 'requirements', width: 12 },
-	{ header: 'Fotografías', key: 'photos', width: 12 },
-	{ header: 'Última entrega', key: 'lastDelivery', width: 15 },
-	{ header: 'Decisión', key: 'decision', width: 13 },
-	{ header: 'Revisor', key: 'reviewer', width: 18 },
-	{ header: 'Fecha decisión', key: 'reviewedAt', width: 15 },
-	{ header: 'Motivo de rechazo', key: 'reason', width: 30 },
-	{ header: 'Evidencia', key: 'evidence', width: 12 },
-	{ header: 'Notas', key: 'notes', width: 24 }
-];
+interface ColumnDef {
+	header: string;
+	key: string;
+	width: number;
+}
 
-const INSPECTION_COLUMNS = 8; // A..H
+interface ColumnSet {
+	columns: ColumnDef[];
+	/** Columnas del bloque «inspección» (resto = «resultados y evidencia»). */
+	split: number;
+	includeSummary: boolean;
+}
+
+const SIMPLE_SET: ColumnSet = {
+	columns: [
+		{ header: 'Edificio', key: 'building', width: 26 },
+		{ header: 'Trabajo', key: 'work', width: 30 },
+		{ header: 'Estado', key: 'status', width: 14 },
+		{ header: 'Evidencia', key: 'evidence', width: 12 },
+		{ header: 'Notas', key: 'notes', width: 30 }
+	],
+	split: 3,
+	includeSummary: false
+};
+
+const EXTENDED_SET: ColumnSet = {
+	columns: [
+		{ header: 'Edificio', key: 'building', width: 24 },
+		{ header: 'Servicio', key: 'service', width: 24 },
+		{ header: 'Trabajo', key: 'work', width: 28 },
+		{ header: 'Tipo', key: 'mode', width: 10 },
+		{ header: 'Elementos', key: 'elements', width: 12 },
+		{ header: 'Estado', key: 'status', width: 14 },
+		{ header: 'Requisitos', key: 'requirements', width: 12 },
+		{ header: 'Fotografías', key: 'photos', width: 12 },
+		{ header: 'Última entrega', key: 'lastDelivery', width: 15 },
+		{ header: 'Decisión', key: 'decision', width: 13 },
+		{ header: 'Revisor', key: 'reviewer', width: 18 },
+		{ header: 'Fecha decisión', key: 'reviewedAt', width: 15 },
+		{ header: 'Motivo de rechazo', key: 'reason', width: 30 },
+		{ header: 'Evidencia', key: 'evidence', width: 12 },
+		{ header: 'Notas', key: 'notes', width: 24 }
+	],
+	split: 8,
+	includeSummary: true
+};
+
+function columnSet(variant: WorkbookVariant): ColumnSet {
+	return variant === 'simple' ? SIMPLE_SET : EXTENDED_SET;
+}
+
 const TITLE_FILL = 'FF1B365D';
 const INSPECTION_FILL = 'FF4338CA';
 const RESULTS_FILL = 'FF0D9488';
@@ -157,8 +196,7 @@ function sheetName(base: string, used: Set<string>): string {
 }
 
 function styleTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, columns: number): void {
-	const span = `A1:${lastColumnLetter(columns)}1`;
-	ws.mergeCells(span);
+	ws.mergeCells(`A1:${lastColumnLetter(columns)}1`);
 	ws.mergeCells(`A2:${lastColumnLetter(columns)}2`);
 	const titleCell = ws.getCell('A1');
 	titleCell.value = title;
@@ -172,16 +210,16 @@ function styleTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, colu
 	subtitleCell.alignment = { horizontal: 'left', vertical: 'middle' };
 }
 
-function styleHeader(ws: ExcelJS.Worksheet, rowNumber: number): void {
+function styleHeader(ws: ExcelJS.Worksheet, rowNumber: number, set: ColumnSet): void {
 	const row = ws.getRow(rowNumber);
-	for (let index = 1; index <= COLUMNS.length; index += 1) {
+	for (let index = 1; index <= set.columns.length; index += 1) {
 		const cell = row.getCell(index);
 		cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
 		cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 		cell.fill = {
 			type: 'pattern',
 			pattern: 'solid',
-			fgColor: { argb: index <= INSPECTION_COLUMNS ? INSPECTION_FILL : RESULTS_FILL }
+			fgColor: { argb: index <= set.split ? INSPECTION_FILL : RESULTS_FILL }
 		};
 	}
 	row.height = 20;
@@ -191,33 +229,54 @@ function addServiceSheet(
 	wb: ExcelJS.Workbook,
 	plan: ExportPlan,
 	service: { id: string; name: string; buildingName: string | null },
-	usedNames: Set<string>
+	usedNames: Set<string>,
+	variant: WorkbookVariant
 ): void {
 	const rows = plan.rows.filter((row) => row.serviceId === service.id);
 	if (rows.length === 0) return;
+	const set = columnSet(variant);
 
 	const ws = wb.addWorksheet(sheetName(service.name, usedNames), {
 		views: [{ state: 'frozen', ySplit: 3 }]
 	});
-	ws.columns = COLUMNS;
+	ws.columns = set.columns;
 
 	const scopeLabel = plan.kind === 'contract' ? `Contrato: ${plan.title} | ` : '';
 	styleTitle(
 		ws,
 		'REGISTRO DE EVIDENCIAS',
 		`${scopeLabel}Servicio: ${service.name}${service.buildingName ? ` | Edificio: ${service.buildingName}` : ''}`,
-		COLUMNS.length
+		set.columns.length
 	);
 
 	const headerRow = ws.getRow(3);
-	COLUMNS.forEach((column, index) => {
+	set.columns.forEach((column, index) => {
 		headerRow.getCell(index + 1).value = column.header;
 	});
-	styleHeader(ws, 3);
-	ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: COLUMNS.length } };
+	styleHeader(ws, 3, set);
+	ws.autoFilter = {
+		from: { row: 3, column: 1 },
+		to: { row: 3, column: set.columns.length }
+	};
 
 	for (const row of rows) {
 		const derived = deriveRow(row);
+		const evidence = { text: 'PDF', hyperlink: relativeToRoot(plan, row.pdfPath) };
+
+		if (variant === 'simple') {
+			const added = ws.addRow({
+				building: service.buildingName ?? 'Sin edificio',
+				work: row.workName,
+				status: STATUS_LABEL[derived.status],
+				evidence,
+				notes: ''
+			});
+			added.getCell('status').alignment = { horizontal: 'center' };
+			added.getCell('evidence').font = { color: { argb: LINK_COLOR }, underline: true, bold: true };
+			added.getCell('evidence').alignment = { horizontal: 'center' };
+			continue;
+		}
+
 		const added = ws.addRow({
 			building: service.buildingName ?? 'Sin edificio',
 			service: service.name,
@@ -240,17 +299,13 @@ function addServiceSheet(
 			reviewer: derived.reviewerName ?? '',
 			reviewedAt: derived.reviewedAt ?? null,
 			reason: derived.rejectionReason ?? '',
-			evidence: { text: 'PDF', hyperlink: relativeToRoot(plan, row.pdfPath) },
+			evidence,
 			notes: ''
 		});
 
 		added.getCell('lastDelivery').numFmt = 'DD-MM-YYYY';
 		added.getCell('reviewedAt').numFmt = 'DD-MM-YYYY';
-		added.getCell('evidence').font = {
-			color: { argb: LINK_COLOR },
-			underline: true,
-			bold: true
-		};
+		added.getCell('evidence').font = { color: { argb: LINK_COLOR }, underline: true, bold: true };
 		added.getCell('evidence').alignment = { horizontal: 'center' };
 		added.getCell('status').alignment = { horizontal: 'center' };
 		added.getCell('mode').alignment = { horizontal: 'center' };
@@ -347,26 +402,31 @@ function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan): void {
 	totals.getCell('percent').numFmt = '0%';
 }
 
-/** Genera el XLSX de un plan de exportación. */
-export async function buildWorkbook(plan: ExportPlan): Promise<Buffer> {
+/** Genera el XLSX de un plan de exportación en la variante indicada. */
+export async function buildWorkbook(
+	plan: ExportPlan,
+	variant: WorkbookVariant = 'extended'
+): Promise<Buffer> {
 	const wb = new ExcelJS.Workbook();
 	wb.creator = 'Lumen';
 	wb.created = new Date();
 
-	addSummarySheet(wb, plan);
+	const set = columnSet(variant);
+	if (set.includeSummary) addSummarySheet(wb, plan);
 
 	const usedNames = new Set<string>(['resumen']);
 	for (const service of plan.services) {
-		addServiceSheet(wb, plan, service, usedNames);
+		addServiceSheet(wb, plan, service, usedNames, variant);
 	}
-	// Ámbito de trabajo: el servicio puede no venir en `plan.services` si no hay filas.
-	if (wb.worksheets.length === 1 && plan.rows.length > 0) {
+	// Ámbito de trabajo: si el servicio no aporta filas, se crea su hoja.
+	if (wb.worksheets.length === (set.includeSummary ? 1 : 0) && plan.rows.length > 0) {
 		const first = plan.rows[0];
 		addServiceSheet(
 			wb,
 			plan,
 			{ id: first.serviceId, name: first.serviceName, buildingName: first.buildingName },
-			usedNames
+			usedNames,
+			variant
 		);
 	}
 

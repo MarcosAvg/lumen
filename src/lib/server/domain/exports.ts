@@ -408,7 +408,11 @@ interface LoadedUnits {
 }
 
 /** Carga trabajos, elementos, objetivos y datos de un conjunto de servicios. */
-async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise<LoadedUnits> {
+async function loadUnitsForServices(
+	db: Database,
+	serviceIds: string[],
+	options: { aggregates: boolean } = { aggregates: true }
+): Promise<LoadedUnits> {
 	const empty: LoadedUnits = {
 		works: [],
 		elements: [],
@@ -471,14 +475,28 @@ async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise
 		: [];
 
 	const targetIds = targetRows.map((row) => row.id);
-	const [approved, aggregates] = await Promise.all([
-		latestApprovedSubmissions(db, targetIds),
-		loadTargetAggregates(db, targetIds)
-	]);
-	// El estado autoritativo vive en el objetivo; se copia al agregado.
+	const approved = await latestApprovedSubmissions(db, targetIds);
+	// El estado autoritativo vive en el objetivo; los agregados amplían el resto.
+	const aggregates = options.aggregates
+		? await loadTargetAggregates(db, targetIds)
+		: new Map<string, UnitAggregate>();
 	for (const target of targetRows) {
 		const aggregate = aggregates.get(target.id);
-		if (aggregate) aggregate.status = target.status;
+		if (aggregate) {
+			aggregate.status = target.status;
+		} else {
+			aggregates.set(target.id, {
+				status: target.status,
+				requiredTotal: 0,
+				requiredSatisfied: 0,
+				photoCount: 0,
+				lastSubmissionAt: null,
+				decision: null,
+				reviewerName: null,
+				reviewedAt: null,
+				rejectionReason: null
+			});
+		}
 	}
 	const photosBySubmission = await loadSubmissionPhotos(
 		db,
@@ -554,7 +572,16 @@ function lastDeliveryDate(units: UnitAggregate[]): Date | null {
 	return last;
 }
 
-export async function buildExportPlan(db: Database, scope: ExportScope): Promise<ExportPlan> {
+export interface ExportPlanOptions {
+	/** Calcula requisitos, fotos y revisión por objetivo (solo para `extended`). */
+	aggregates?: boolean;
+}
+
+export async function buildExportPlan(
+	db: Database,
+	scope: ExportScope,
+	options: ExportPlanOptions = {}
+): Promise<ExportPlan> {
 	// 1. Resolver el ámbito: nombre del ámbito y servicios implicados.
 	let scopeName: string;
 	let serviceRows: { id: string; name: string; buildingName: string | null }[];
@@ -612,7 +639,8 @@ export async function buildExportPlan(db: Database, scope: ExportScope): Promise
 	// 2. Cargar trabajos/elementos/objetivos/agregados de esos servicios.
 	const state = await loadUnitsForServices(
 		db,
-		serviceRows.map((row) => row.id)
+		serviceRows.map((row) => row.id),
+		{ aggregates: options.aggregates !== false }
 	);
 	const serviceById = new Map(serviceRows.map((row) => [row.id, row]));
 
@@ -701,8 +729,12 @@ export function planFiles(plan: ExportPlan): ArchiveFile[] {
 	return plan.rows.flatMap((row) => row.files);
 }
 
-export async function getServiceArchive(db: Database, serviceId: string): Promise<ServiceArchive> {
-	const plan = await buildExportPlan(db, { kind: 'service', serviceId });
+export async function getServiceArchive(
+	db: Database,
+	serviceId: string,
+	options: ExportPlanOptions = {}
+): Promise<ServiceArchive> {
+	const plan = await buildExportPlan(db, { kind: 'service', serviceId }, options);
 	return {
 		serviceId,
 		fileName: `servicio-${plan.root}.zip`,
@@ -711,8 +743,12 @@ export async function getServiceArchive(db: Database, serviceId: string): Promis
 	};
 }
 
-export async function getWorkArchive(db: Database, workId: string): Promise<WorkArchive> {
-	const plan = await buildExportPlan(db, { kind: 'work', workId });
+export async function getWorkArchive(
+	db: Database,
+	workId: string,
+	options: ExportPlanOptions = {}
+): Promise<WorkArchive> {
+	const plan = await buildExportPlan(db, { kind: 'work', workId }, options);
 	const row = plan.rows[0];
 	if (!row) throw new DomainError(404, 'Trabajo no encontrado.');
 	return {
@@ -726,9 +762,10 @@ export async function getWorkArchive(db: Database, workId: string): Promise<Work
 
 export async function getContractArchive(
 	db: Database,
-	contractId: string
+	contractId: string,
+	options: ExportPlanOptions = {}
 ): Promise<ContractArchive> {
-	const plan = await buildExportPlan(db, { kind: 'contract', contractId });
+	const plan = await buildExportPlan(db, { kind: 'contract', contractId }, options);
 	return {
 		contractId,
 		fileName: `contrato-${plan.root}.zip`,

@@ -3,6 +3,16 @@ import { expect, test, type Page } from '@playwright/test';
 const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
 const DUMMY_UUID = '00000000-0000-4000-8000-000000000000';
 const TECH_PASSWORD = 'contrasena-segura';
+const JPEG_BASE64 =
+	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';
+
+function photoFile() {
+	return {
+		name: 'foto.jpg',
+		mimeType: 'image/jpeg',
+		buffer: Buffer.from(JPEG_BASE64, 'base64')
+	};
+}
 
 async function ensureAdmin(page: Page) {
 	await page.goto('/');
@@ -46,8 +56,16 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 
 	// Admin: ve el botón, el acceso a asignaciones y el endpoint no responde 403.
 	await page.goto(serviceHref ?? '/admin/services');
-	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Exportar ZIP' })).toBeVisible();
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).not.toBe(403);
+
+	// El botón abre el modal de configuración de exportación.
+	await page.getByRole('button', { name: 'Exportar ZIP' }).click();
+	const exportDialog = page.getByRole('dialog');
+	await expect(exportDialog.getByRole('heading', { name: 'Exportar evidencias' })).toBeVisible();
+	await expect(exportDialog.getByRole('button', { name: 'Simple' })).toBeVisible();
+	await expect(exportDialog.getByRole('button', { name: 'Extendida' })).toBeVisible();
+	await exportDialog.getByRole('button', { name: 'Cancelar' }).click();
 
 	// Crear un trabajo directo para probar el ZIP de trabajo.
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
@@ -65,6 +83,24 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	)
 		.split('/')
 		.pop();
+
+	// Subir una foto, enviar y aprobar (para probar la opción de fotografías).
+	await page.goto(`/works/${workId}`);
+	await page.locator('input[type="file"]').first().setInputFiles(photoFile());
+	await page.getByRole('button', { name: 'Enviar evidencia' }).click();
+	await page.getByRole('button', { name: 'Confirmar envío' }).click();
+	await expect(page.getByText('En revisión').first()).toBeVisible();
+	await page.goto('/reviews');
+	await page
+		.locator('tr, li')
+		.filter({ visible: true })
+		.filter({ hasText: `Trabajo ${unique}` })
+		.getByRole('link')
+		.first()
+		.click();
+	await page.getByRole('button', { name: 'Aprobar entrega' }).click();
+	await page.getByRole('button', { name: 'Confirmar aprobación' }).click();
+	await expect(page.getByText('Aprobada').first()).toBeVisible();
 
 	// Contrato «General» (contrato por defecto de los E2E) para el ZIP de contrato.
 	await page.goto('/contracts');
@@ -86,6 +122,17 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	expect(contractBody.includes(Buffer.from('General/General.xlsx'))).toBe(true);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(200);
 	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(200);
+
+	// Opciones del modal en servidor: sin fotografías / sin XLSX / variante simple.
+	const withPhotos = await page.request.get(`/api/services/${serviceId}/export.zip`);
+	expect((await withPhotos.body()).includes(Buffer.from('.jpg'))).toBe(true);
+	const withoutPhotos = await page.request.get(`/api/services/${serviceId}/export.zip?photos=0`);
+	expect((await withoutPhotos.body()).includes(Buffer.from('.jpg'))).toBe(false);
+	const withoutXlsx = await page.request.get(`/api/services/${serviceId}/export.zip?xlsx=0`);
+	expect((await withoutXlsx.body()).includes(Buffer.from('.xlsx'))).toBe(false);
+	expect(
+		(await page.request.get(`/api/services/${serviceId}/export.zip?variant=simple`)).status()
+	).toBe(200);
 
 	// Desde la ficha se abre el modal de asignaciones.
 	await page.goto(serviceHref ?? '/admin/services');
@@ -148,7 +195,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	// El técnico ve el servicio pero no puede exportar ni asignar.
 	await page.goto(serviceHref ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: serviceName })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Exportar ZIP' })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Gestionar asignaciones' })).toHaveCount(0);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(403);
 	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(403);

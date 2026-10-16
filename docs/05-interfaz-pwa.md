@@ -267,11 +267,13 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 - Foto: menú o icono Descargar en visualizador.
 - Entrega: «Descargar ZIP de esta entrega» tanto en actual enviada como historial.
-- **Contrato**: «Exportar ZIP» en la ficha (admin o supervisor del contrato). Jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
-- **Trabajo**: «Exportar ZIP» en la ficha (admin o supervisor asignado). Jerarquía `Trabajo ▸ (Elemento) ▸ Requisito`.
-- **Servicio**: «Exportar ZIP» en el detalle (admin o supervisor asignado). Jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
+- **Contrato / Servicio / Trabajo**: botón «Exportar ZIP» en la ficha que abre un **modal de configuración** con:
+  - **Variante del registro XLSX**: `Simple` (`Edificio · Trabajo · Estado · Evidencia · Notas`, sin hoja Resumen) o `Extendida` (hoja `Resumen` + todas las columnas).
+  - Casilla **«Incluir registro XLSX»** y casilla **«Incluir fotografías»** (se exige al menos una).
+  - Botón «Descargar» (recuerda la última elección en el dispositivo).
+- Jerarquías: contrato `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; servicio `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; trabajo `Trabajo ▸ (Elemento) ▸ Requisito`.
 - Solo se incluye la **última entrega aprobada** de cada objetivo para las fotos; **no** se generan archivos de resumen.
-- **Registro XLSX**: cada ZIP añade `<Ámbito>/<Ámbito>.xlsx` con hoja `Resumen` (por servicio) y una hoja por servicio, **una fila por trabajo** (estado derivado en divididos, requisitos X/Y, fotos, decisión, revisor, motivo y **enlace relativo al PDF** de evidencia del trabajo). Refleja **todo** el estado.
+- **Evidencia** en el XLSX: hipervínculo relativo al PDF del trabajo (pendiente de generar). Excel/LibreOffice resuelven rutas relativas; Google Sheets no.
 - En descargas grandes, feedback de inicio/error; no prometer barra de progreso si streaming nativo no permite medirlo de manera robusta.
 
 ## 16. Estados de interfaz y accesibilidad

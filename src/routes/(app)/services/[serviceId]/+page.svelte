@@ -13,6 +13,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
@@ -165,9 +166,7 @@
 					>
 				{/if}
 				{#if data.access !== 'technician'}
-					<Button href={`/api/services/${data.service.id}/export.zip`} variant="outline" size="sm"
-						>Exportar ZIP</Button
-					>
+					<ExportDialog href={`/api/services/${data.service.id}/export.zip`} />
 				{/if}
 			</div>
 		</div>

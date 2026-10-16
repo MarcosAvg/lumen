@@ -14,6 +14,7 @@
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
 	import type { CatalogGroup, ElementDraft, RequirementDraft } from '#lib/components/catalog/types';
@@ -96,12 +97,7 @@
 			{/if}
 		</div>
 		{#if data.canExport}
-			<Button
-				href={`/api/works/${data.work.id}/export.zip`}
-				variant="outline"
-				size="sm"
-				class="w-full sm:w-auto">Exportar ZIP</Button
-			>
+			<ExportDialog href={`/api/works/${data.work.id}/export.zip`} class="w-full sm:w-auto" />
 		{/if}
 		{#if data.isAdmin}
 			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (editOpen = true)}

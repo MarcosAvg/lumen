@@ -11,6 +11,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import { NativeSelect } from '#lib/components/ui/native-select';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string };
@@ -61,9 +62,7 @@
 		</div>
 		{#if data.canManage || data.isAdmin}
 			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-				<Button href={`/api/contracts/${data.contract.id}/export.zip`} variant="outline" size="sm"
-					>Exportar ZIP</Button
-				>
+				<ExportDialog href={`/api/contracts/${data.contract.id}/export.zip`} />
 				{#if data.isAdmin}
 					<Button variant="outline" size="sm" onclick={() => (editOpen = true)}
 						>Editar contrato</Button

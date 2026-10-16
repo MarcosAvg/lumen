@@ -196,9 +196,10 @@ Solo se permite convertir `direct` ↔ `divided` cuando el trabajo **nunca ha te
 | Trabajo ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo del trabajo; jerarquía `Trabajo ▸ (Elemento) ▸ Requisito` |
 | Servicio ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo; jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito` |
 | Contrato ZIP | Admin y supervisor del contrato | **Última entrega aprobada** de cada objetivo; jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; incluye el **registro XLSX** |
-| Registro XLSX | En cada ZIP | Hoja `Resumen` + una hoja por servicio, **una fila por trabajo** con estado, requisitos, fotos, revisión y **enlace relativo al PDF** de evidencia del trabajo |
+| Registro XLSX | En cada ZIP (opcional) | Dos variantes: **Simple** (`Edificio · Trabajo · Estado · Evidencia · Notas`) y **Extendida** (hoja `Resumen` + columnas completas); una fila por trabajo y **enlace relativo al PDF** de evidencia |
 
 - La exportación de datos (antes CSV) se entrega ahora como **XLSX** dentro de cada ZIP.
+- El modal de exportación permite elegir la **variante**, incluir o no el **registro XLSX** y las **fotografías**.
 - Un ZIP puede exportarse **antes** de completarse; solo incluye fotos aprobadas y omite el resto (el XLSX sí lista todo el estado).
 - El **registro XLSX** se entrega en la raíz del ámbito: `<Ámbito>/<Ámbito>.xlsx`.
 - Cuando el trabajo es directo, sus carpetas de requisito viven en la carpeta del **trabajo**; no inventar elemento hijo.
