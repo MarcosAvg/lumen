@@ -1,0 +1,18 @@
+# Compila la imagen en local en lugar de usar la publicada en GHCR:
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+#
+# Útil si aún no hay imagen publicada o si quieres probar cambios sin publicar.
+
+services:
+  migrate:
+    image: lumen-app:local
+    build:
+      context: .
+      target: runtime
+
+  app:
+    image: lumen-app:local
+    build:
+      context: .
+      target: runtime

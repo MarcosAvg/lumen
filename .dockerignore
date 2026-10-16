@@ -11,3 +11,11 @@ data
 .vscode
 docs
 *.md
+compose.dev.yaml
+compose.build.yaml
+deploy
+install.sh
+backups
+test-results
+playwright-report
+.e2e

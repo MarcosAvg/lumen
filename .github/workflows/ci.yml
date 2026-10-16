@@ -52,3 +52,18 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  docker:
+    name: Compose e imagen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar sintaxis de los scripts
+        run: bash -n install.sh deploy/backup.sh deploy/restore.sh
+      - name: Validar compose (base, build y dev)
+        run: |
+          docker compose -f compose.yaml config -q
+          docker compose -f compose.yaml -f compose.build.yaml config -q
+          docker compose -f compose.yaml -f compose.dev.yaml config -q
+      - name: Construir la imagen (runtime)
+        run: docker build --target runtime -t lumen-ci .

@@ -1,0 +1,9 @@
+# Ajustes solo para desarrollo en el host: publica PostgreSQL en 127.0.0.1:5432
+# para que `pnpm dev`, `pnpm db:migrate` y las pruebas de integración conecten.
+#
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d db
+
+services:
+  db:
+    ports:
+      - '127.0.0.1:5432:5432'

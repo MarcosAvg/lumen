@@ -1,68 +1,83 @@
 name: lumen
 
+# Autoalojamiento en un solo `docker compose up -d`:
+#   - `db`      PostgreSQL con volumen persistente (no publicado al exterior).
+#   - `migrate` aplica migraciones una vez y termina.
+#   - `app`     Lumen (imagen GHCR por defecto; ver `compose.build.yaml`).
+#   - `caddy`   proxy de entrada: sirve http://localhost y, con `DOMAIN`, HTTPS
+#               automático (Let's Encrypt). La app no se publica directamente.
+#
+# Todos los valores tienen un default razonable; `.env` es opcional para una
+# prueba local y recomendable en producción (ver `install.sh` y `.env.example`).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+# Variables comunes de la aplicación. El origen público se deriva de la petición
+# (no se hornea en la imagen), así que no hay que reconstruir al cambiar de dominio.
+# Caddy es el único ingreso y añade siempre `X-Forwarded-Proto`/`X-Forwarded-For`.
+x-app-environment: &app-environment
+  DATABASE_URL: postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
+  PHOTO_STORAGE_PATH: /data/photos
+  BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-30M}
+  PROTOCOL_HEADER: x-forwarded-proto
+  ADDRESS_HEADER: x-forwarded-for
+  XFF_DEPTH: '1'
+  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
+  IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}
+  IMAGE_THUMB_DIMENSION: ${IMAGE_THUMB_DIMENSION:-400}
+  TZ: ${TZ:-UTC}
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER en .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
-      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB en .env}
+      POSTGRES_USER: ${POSTGRES_USER:-lumen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumen}
+      POSTGRES_DB: ${POSTGRES_DB:-lumen}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Publicado solo en localhost, para permitir `pnpm dev` desde el host.
-    # No exponer PostgreSQL a Internet.
-    ports:
-      - '127.0.0.1:5432:5432'
+    # PostgreSQL no se publica al exterior. Para desarrollo, usa `compose.dev.yaml`.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_MEM_LIMIT:-1g}
+          cpus: ${DB_CPUS:-2}
 
   # Servicio de un solo uso: aplica migraciones antes de arrancar la app.
   migrate:
-    image: lumen-app:local
-    build:
-      context: .
-      target: runtime
-      args:
-        ORIGIN: ${ORIGIN:-http://localhost:3000}
+    image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
     restart: 'no'
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
     command: ['node', 'scripts/migrate.mjs']
     depends_on:
       db:
         condition: service_healthy
+    logging: *logging
 
   app:
-    image: lumen-app:local
-    build:
-      context: .
-      target: runtime
-      args:
-        ORIGIN: ${ORIGIN:-http://localhost:3000}
+    image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
     restart: unless-stopped
     init: true
-    environment:
-      # La URL interna se construye contra el host `db`, ignorando el `.env` de desarrollo.
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      PHOTO_STORAGE_PATH: /data/photos
-      # adapter-node limita el body a 512K por defecto; las subidas necesitan más.
-      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-30M}
-      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-      IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}
-      IMAGE_THUMB_DIMENSION: ${IMAGE_THUMB_DIMENSION:-400}
-      TZ: ${TZ:-UTC}
-      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+    environment: *app-environment
     volumes:
       - lumen_photos:/data/photos
-    ports:
-      - '${APP_PORT:-3000}:3000'
+    # Sin `ports`: el único ingreso es Caddy (red interna).
     depends_on:
       db:
         condition: service_healthy
@@ -80,7 +95,41 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: ${APP_MEM_LIMIT:-1g}
+          cpus: ${APP_CPUS:-2}
+
+  # Proxy de entrada con HTTPS automático.
+  #   DOMAIN=http://localhost  (por defecto) → sirve HTTP en el puerto 80.
+  #   DOMAIN=lumen.midominio.com            → HTTPS con Let's Encrypt en 80/443.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-http://localhost}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+      - '${HTTPS_PORT:-443}:443/udp'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_started
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: ${CADDY_MEM_LIMIT:-256m}
+          cpus: ${CADDY_CPUS:-1}
 
 volumes:
   postgres_data:
   lumen_photos:
+  caddy_data:
+  caddy_config:

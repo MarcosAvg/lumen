@@ -29,11 +29,11 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 - Svelte 5 + SvelteKit + TypeScript como **monolito** (UI y servidor en un mismo proyecto).
 - Tailwind CSS + shadcn-svelte; mobile-first para técnicos, cómodo en escritorio para administración.
 - PostgreSQL + Drizzle ORM/Drizzle Kit; migraciones versionadas.
-- Docker Compose: aplicación y PostgreSQL. Fotos en volumen local persistente; datos SQL en volumen independiente.
+- Docker Compose **autosuficiente**: `docker compose up -d` (o `./install.sh`) levanta app + PostgreSQL + migraciones con valores por defecto; Fotos en volumen local persistente; datos SQL en volumen independiente.
 - PWA instalable, **en línea**, con Web Push estándar VAPID e inbox interno.
 - Autenticación local por sesión segura en cookie; primera cuenta admin configurada en el primer arranque.
 - No añadir Redis, S3, Firebase, colas externas, microservicios, WebSockets ni servicios cloud obligatorios por defecto.
-- Preferir una imagen de contenedor publicable en GHCR; no asumir un despliegue concreto.
+- Imagen publicable en GHCR y usada **por defecto** por Compose (`compose.build.yaml` para build local); **origen público en runtime** (no hornear `ORIGIN`); **proxy HTTPS integrado (Caddy)** como único ingreso (HTTP local y HTTPS con `DOMAIN`), sin asumir un despliegue concreto.
 
 ## Invariantes que nunca deben romperse
 

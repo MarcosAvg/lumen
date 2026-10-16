@@ -84,23 +84,42 @@ cd lumen
 cp .env.example .env          # ajusta POSTGRES_PASSWORD y ORIGIN si lo necesitas
 ```
 
-### Aplicación completa con Docker (recomendado para probar el despliegue)
+### Autoalojamiento (un solo `docker compose`)
 
 ```bash
-docker compose up -d --build   # construye la imagen, aplica migraciones y arranca
-# App en http://localhost:3000  ·  PostgreSQL publicado en 127.0.0.1:5432
-curl http://localhost:3000/health
+git clone https://github.com/MarcosAvg/lumen.git
+cd lumen
+./install.sh                    # genera .env con secretos y arranca
+# App en http://localhost
 ```
 
-- El puerto publicado es configurable: `APP_PORT=3080 docker compose up -d`.
-- `ORIGIN` se incorpora al **build** de la imagen; si cambia, reconstruye con `docker compose build`.
+Sin script también funciona: `docker compose up -d` levanta todo con valores por
+defecto; `install.sh` añade una contraseña aleatoria y, con `--domain`, HTTPS.
+
+El único ingreso es **Caddy**: por defecto sirve `http://localhost` (puerto 80) y,
+si defines `DOMAIN`, obtiene el certificado y sirve **HTTPS** en 80/443:
+
+```bash
+./install.sh --domain lumen.midominio.com
+# o bien: edita DOMAIN en .env y ejecuta `docker compose up -d`
+```
+
+**Compilar la imagen en local** (sin GHCR):
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
+```
+
+- Puertos públicos configurables: `HTTP_PORT=8080 ./install.sh`.
+- El **origen público se deriva de la petición**: la misma imagen sirve para
+  cualquier dominio sin reconstruir.
 - Primer arranque: abre la app y completa **Configurar Lumen** para crear la cuenta administradora.
 - Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar volúmenes).
 
 ### Desarrollo con servidor de Vite (hot reload)
 
 ```bash
-docker compose up -d db        # solo PostgreSQL (publicado en 127.0.0.1:5432)
+docker compose -f compose.yaml -f compose.dev.yaml up -d db   # PostgreSQL en 127.0.0.1:5432
 pnpm install
 pnpm db:migrate                # carga .env automáticamente
 pnpm dev                       # http://localhost:5173
@@ -128,11 +147,16 @@ propia base, construyen la app y arrancan el servidor; requieren
 
 ### Mantenimiento
 
+Con Docker (no requiere Node en el host):
+
 ```bash
-pnpm maintenance:cleanup   # borra temporales y binarios huérfanos (no toca los referenciados)
-pnpm backup                # respalda BD + fotos en ./backups/<fecha>
-pnpm restore ./backups/<fecha>
+./deploy/backup.sh                  # BD + fotos en ./backups/<fecha>
+./deploy/restore.sh backups/<fecha> # restauración (destructiva; pide confirmación)
+docker compose exec app node scripts/cleanup.mjs   # borra temporales y huérfanos
 ```
+
+Con Node en el host también valen `pnpm backup`, `pnpm restore` y `pnpm maintenance:cleanup`.
+Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
 
 Guía completa de despliegue, HTTPS, migraciones, VAPID, backups/restauración y GHCR en
 [`docs/deployment.md`](docs/deployment.md).

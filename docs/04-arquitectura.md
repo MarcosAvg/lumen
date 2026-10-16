@@ -221,22 +221,30 @@ Valores **sugeridos, configurables** para v1: tamaño máximo de subida por arch
 
 ```text
 compose.yaml
-  app: SvelteKit/Node, puerto interno configurable, healthcheck,
-       volumen /data/photos (lectura/escritura)
-       variables DATABASE_URL, ORIGIN, ...
-  db: PostgreSQL con volumen /var/lib/postgresql/data,
-      healthcheck y red privada
+  db:      PostgreSQL 17 con volumen /var/lib/postgresql/data,
+           healthcheck y red privada (no publicado al exterior)
+  migrate: runner de Drizzle (una vez) antes de arrancar la app
+  app:     SvelteKit/Node (imagen GHCR), healthcheck,
+           volumen /data/photos (lectura/escritura), solo red interna
+  caddy:   único ingreso: HTTP local y HTTPS automático (Let's Encrypt)
 
 volumes:
   postgres_data: persistente
   lumen_photos: persistente
+  caddy_data / caddy_config: estado de Caddy
 ```
 
-- Publicar puerto de app al proxy existente según instalación; no publicar Postgres a Internet por defecto.
-- HTTPS en proxy inverso con `X-Forwarded-*` confiables según configuración y `ORIGIN` correcto. Guardar archivos fuera del root público.
-- Base de datos debe inicializarse antes de marcar app lista; migrations controladas, con políticas claras sobre ejecución al arrancar (preferible comando específico con protección ante despliegues concurrentes).
-- La app no debe contener ni exigir secretos de ejemplo en imágenes. Ejecutar proceso como usuario sin privilegios, healthchecks y señales de apagado limpias.
-- GHCR es distribución preferida de imagen versionada; Compose puede permitir `image: ghcr.io/...:<version>` o build local.
+- El acceso pasa por Caddy (único ingreso): `app` no se publica y **PostgreSQL nunca** sale a
+  Internet. `compose.dev.yaml` publica `db` solo en `127.0.0.1` para desarrollo.
+- HTTPS en el proxy con `X-Forwarded-*` confiables; la app usa `PROTOCOL_HEADER`/`ADDRESS_HEADER`/
+  `XFF_DEPTH`. El **origen público se deriva de la petición** (no se hornea), así que la misma imagen
+  sirve para cualquier dominio sin reconstruir.
+- Base de datos inicializada antes de marcar app lista; migraciones con comando específico y bloqueo de
+  asesoría ante despliegues concurrentes.
+- La app no contiene ni exige secretos de ejemplo: proceso como usuario sin privilegios, healthchecks y
+  señales de apagado limpias.
+- GHCR es la distribución preferida de imagen versionada, usada **por defecto** por `compose.yaml`;
+  `compose.build.yaml` permite compilar en local.
 
 ### Variables de entorno previstas
 
