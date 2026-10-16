@@ -90,13 +90,13 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 | Rol | Contenido prioritario | Acciones |
 |---|---|---|
-| Técnico | Objetivos pendientes, en progreso y rechazados; próximos por completar (los **servicios** van en su pestaña) | Abrir captura, ver rechazo, cambiar de servicio |
+| Técnico | **Métricas al inicio** (servicios, trabajos aprobados, por corregir y en curso); después, trabajos pendientes, en progreso y rechazados | Abrir captura, ver rechazo, cambiar de servicio |
 | Supervisor | Entregas en revisión de servicios asignados; totales y avance | Abrir revisión, aprobar/rechazar, consultar |
 | Admin | Totales por estado, revisiones pendientes, accesos a usuarios/catálogos/servicios | Gestionar, revisar, capturar, exportar |
 
 No mostrar contador «todos los servicios» a supervisores si incluye los no asignados. Cualquier número visible está acotado por permisos.
 
-La **selección de servicio vive en su propia pestaña** (`/services`), no en el tablero: así una cola larga de pendientes no la desplaza. En el tablero, «Requiere tu atención» (rechazados) se muestra completo, mientras que **«Pendientes» se limita a 5** con «Mostrar todos (N)».
+La **selección de servicio vive en su propia pestaña** (`/services`), no en el tablero: así una cola larga de pendientes no la desplaza. El tablero del técnico abre con **métricas** (servicios, trabajos aprobados, «Por corregir» y «En curso») y sus listas se agregan **por trabajo**: un trabajo dividido aparece como **una fila** con su avance (`aprobados/total elementos`) y el enlace abre la ficha del trabajo, que ya lista sus elementos. «Requiere tu atención» (rechazados) se muestra completo, mientras que **«Pendientes» se limita a 5** con «Mostrar todos (N)».
 
 ## 6. Lista y detalle de servicios
 

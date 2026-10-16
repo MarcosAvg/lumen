@@ -8,7 +8,7 @@ import { assignUser } from '#lib/server/domain/assignments';
 import {
 	countPendingReviews,
 	dashboardSummary,
-	listAttentionTargets
+	listAttentionWorks
 } from '#lib/server/domain/dashboard';
 import { appendPhoto } from '#lib/server/domain/photos';
 import { searchByName } from '#lib/server/domain/search';
@@ -141,17 +141,22 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 			reviewerId: admin.id
 		});
 
-		const technicianAttention = await listAttentionTargets(db, technician);
-		expect(technicianAttention.map((target) => target.label)).toEqual(['W-A']);
-		expect(technicianAttention[0].status).toBe('rejected');
-		expect(technicianAttention[0].rejectionReason).toBe('Falta la placa de características');
-		expect(technicianAttention[0].serviceName).toBe('Alfa');
+		const technicianAttention = await listAttentionWorks(db, technician);
+		expect(technicianAttention.map((work) => work.workName)).toEqual(['W-A']);
+		expect(technicianAttention[0]).toMatchObject({
+			status: 'rejected',
+			mode: 'direct',
+			serviceName: 'Alfa',
+			elementTotal: 1,
+			elementRejected: 1,
+			rejectionReason: 'Falta la placa de características'
+		});
 
-		const adminAttention = await listAttentionTargets(db, admin);
-		expect(adminAttention.map((target) => target.label).sort()).toEqual(['W-A', 'W-B']);
+		const adminAttention = await listAttentionWorks(db, admin);
+		expect(adminAttention.map((work) => work.workName).sort()).toEqual(['W-A', 'W-B']);
 	});
 
-	it('DASH-02: los objetivos de elementos se resuelven con su trabajo padre', async () => {
+	it('DASH-02: los elementos se agrupan con su trabajo padre', async () => {
 		const admin = await seedAdmin();
 		const service = await createService(db, {
 			contractId: await seedContract(db, admin.id),
@@ -165,18 +170,80 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 			elements: [{ name: 'UMA 03' }],
 			actorId: admin.id
 		});
-		const target = await getTargetForElement(db, divided.elementIds[0]);
 
-		const attention = await listAttentionTargets(db, admin);
+		const attention = await listAttentionWorks(db, admin);
 		expect(attention).toHaveLength(1);
 		expect(attention[0]).toMatchObject({
-			type: 'element',
-			id: divided.elementIds[0],
-			label: 'UMA 03',
+			workId: divided.id,
 			workName: 'Edificio',
+			mode: 'divided',
 			status: 'pending',
-			targetId: target.id
+			elementTotal: 1,
+			elementApproved: 0,
+			elementPending: 1
 		});
+	});
+
+	it('DASH-05: un trabajo dividido con elementos en distinto estado es una fila', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio',
+			actorId: admin.id
+		});
+		const divided = await createWork(db, {
+			serviceId: service.id,
+			mode: 'divided',
+			name: 'Edificio',
+			elements: [{ name: 'E1' }, { name: 'E2' }, { name: 'E3' }],
+			actorId: admin.id
+		});
+
+		// E1 rechazado, E2 aprobado y E3 pendiente: el trabajo queda en una fila.
+		const targetE1 = await getTargetForElement(db, divided.elementIds[0]);
+		const photo = await upload(storage, targetE1.id, admin.id);
+		const submission = await submitEvidence(db, {
+			targetId: targetE1.id,
+			expectedVersion: photo.version,
+			userId: admin.id
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'rejected',
+			reason: 'Falta etiqueta',
+			reviewerId: admin.id
+		});
+
+		const targetE2 = await getTargetForElement(db, divided.elementIds[1]);
+		const photoE2 = await upload(storage, targetE2.id, admin.id);
+		const submissionE2 = await submitEvidence(db, {
+			targetId: targetE2.id,
+			expectedVersion: photoE2.version,
+			userId: admin.id
+		});
+		await reviewSubmission(db, {
+			submissionId: submissionE2.submissionId,
+			decision: 'approved',
+			reviewerId: admin.id
+		});
+
+		const attention = await listAttentionWorks(db, admin);
+		expect(attention).toHaveLength(1);
+		expect(attention[0]).toMatchObject({
+			workId: divided.id,
+			mode: 'divided',
+			status: 'rejected',
+			elementTotal: 3,
+			elementApproved: 1,
+			elementRejected: 1,
+			elementPending: 1,
+			rejectionReason: 'Falta etiqueta'
+		});
+
+		const summary = await dashboardSummary(db, admin);
+		expect(summary.workTotal).toBe(1);
+		expect(summary.workApproved).toBe(0);
 	});
 
 	it('DASH-04: el progreso por servicio se agrega en una consulta', async () => {

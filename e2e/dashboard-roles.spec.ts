@@ -33,6 +33,12 @@ test('el tablero se adapta al rol del usuario', async ({ page }, testInfo) => {
 	await page.getByLabel('Contraseña').fill(password);
 	await page.getByRole('button', { name: 'Entrar' }).click();
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
+	const metrics = page.getByRole('region', { name: 'Tu resumen' });
+	await expect(metrics).toBeVisible();
+	await expect(metrics.getByText('Servicios')).toBeVisible();
+	await expect(metrics.getByText('Aprobados')).toBeVisible();
+	await expect(metrics.getByText('Por corregir')).toBeVisible();
+	await expect(metrics.getByText('En curso')).toBeVisible();
 	await expect(page.getByText('No tienes evidencia pendiente. Buen trabajo.')).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Entregas por revisar' })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Revisiones' })).toHaveCount(0);

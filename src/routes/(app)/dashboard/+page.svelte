@@ -6,7 +6,7 @@
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
-	import type { AttentionTarget } from '#lib/server/domain/dashboard';
+	import type { AttentionWork } from '#lib/server/domain/dashboard';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -17,8 +17,15 @@
 			? 0
 			: Math.round((data.summary.approvedTargets / data.summary.totalTargets) * 100)
 	);
-	const rejected = $derived(data.attention.filter((target) => target.status === 'rejected'));
-	const inProgress = $derived(data.attention.filter((target) => target.status !== 'rejected'));
+	const workPercent = $derived(
+		data.summary.workTotal === 0
+			? 0
+			: Math.round((data.summary.workApproved / data.summary.workTotal) * 100)
+	);
+	// El tablero del técnico trabaja a nivel de **trabajo**: un dividido con
+	// varios elementos afectados es una sola fila.
+	const rejected = $derived(data.attention.filter((work) => work.elementRejected > 0));
+	const inProgress = $derived(data.attention.filter((work) => work.elementRejected === 0));
 	const servicesHref = $derived(
 		role === 'admin' ? resolve('/(app)/admin/services') : resolve('/(app)/services')
 	);
@@ -30,47 +37,47 @@
 	const visibleInProgress = $derived(
 		showAllPending ? inProgress : inProgress.slice(0, PENDING_LIMIT)
 	);
-
-	function hrefFor(target: AttentionTarget): string {
-		if (target.type === 'element')
-			return resolve('/(app)/elements/[elementId]', { elementId: target.id });
-		return resolve('/(app)/works/[workId]', { workId: target.id });
-	}
 </script>
 
 <svelte:head>
 	<title>Inicio · Lumen</title>
 </svelte:head>
 
-{#snippet targetList(targets: AttentionTarget[])}
+{#snippet workList(works: AttentionWork[])}
 	<ul class="divide-y overflow-hidden rounded-lg border">
-		{#each targets as target (target.targetId)}
+		{#each works as work (work.workId)}
 			<li class="relative flex min-h-14 items-start justify-between gap-3 p-3 active:bg-muted/50">
-				<div class="space-y-0.5">
+				<div class="min-w-0 space-y-0.5">
 					<p class="flex flex-wrap items-center gap-2">
 						<!-- eslint-disable svelte/no-navigation-without-resolve -->
 						<a
 							class="font-medium text-foreground after:absolute after:inset-0"
-							href={hrefFor(target)}
+							href={resolve('/(app)/works/[workId]', { workId: work.workId })}
 						>
-							{target.label}
+							{work.workName}
 						</a>
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
-						<StatusBadge status={target.status} />
+						<StatusBadge status={work.status} />
 					</p>
-					<p class="text-xs text-muted-foreground">{target.serviceName} · {target.workName}</p>
-					{#if target.status === 'rejected' && target.rejectionReason}
-						<p class="text-sm">Motivo: {target.rejectionReason}</p>
-					{:else if target.requiredCount > 0}
+					<p class="text-xs text-muted-foreground">
+						{work.serviceName}{#if work.mode === 'divided'}
+							· {work.elementApproved}/{work.elementTotal}
+							elementos{/if}
+					</p>
+					{#if work.status === 'rejected' && work.rejectionReason}
+						<p class="text-sm">Motivo: {work.rejectionReason}</p>
+					{:else if work.elementRejected > 0}
 						<p class="tnum text-sm text-muted-foreground">
-							{target.satisfiedCount}/{target.requiredCount} requisitos
+							{work.elementRejected} elemento(s) por corregir
 						</p>
 					{:else}
-						<p class="tnum text-sm text-muted-foreground">{target.readyPhotoCount} foto(s)</p>
+						<p class="tnum text-sm text-muted-foreground">
+							{work.elementPending} elemento(s) por completar
+						</p>
 					{/if}
 				</div>
 				<span class="relative z-10 shrink-0 pt-0.5 text-sm font-medium text-primary">
-					{target.status === 'rejected' ? 'Corregir' : 'Continuar'} →
+					{work.status === 'rejected' ? 'Corregir' : 'Continuar'} →
 				</span>
 			</li>
 		{/each}
@@ -87,16 +94,51 @@
 	></PageIntro>
 
 	{#if role === 'technician'}
+		<section aria-label="Tu resumen" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+			<Card.Root>
+				<Card.Content>
+					<p class="text-sm text-muted-foreground">Servicios</p>
+					<p class="tnum text-2xl font-semibold">{data.summary.serviceCount}</p>
+				</Card.Content>
+			</Card.Root>
+			<Card.Root>
+				<Card.Content class="space-y-2">
+					<p class="text-sm text-muted-foreground">Aprobados</p>
+					<ProgressMeter
+						approved={data.summary.workApproved}
+						total={data.summary.workTotal}
+						percent={workPercent}
+						completed={data.summary.workTotal > 0 &&
+							data.summary.workApproved === data.summary.workTotal}
+					/>
+				</Card.Content>
+			</Card.Root>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-sm text-muted-foreground">Por corregir</p>
+					<p class="tnum text-2xl font-semibold" class:text-destructive={rejected.length > 0}>
+						{rejected.length}
+					</p>
+				</Card.Content>
+			</Card.Root>
+			<Card.Root>
+				<Card.Content>
+					<p class="text-sm text-muted-foreground">En curso</p>
+					<p class="tnum text-2xl font-semibold">{inProgress.length}</p>
+				</Card.Content>
+			</Card.Root>
+		</section>
+
 		{#if rejected.length > 0}
 			<section class="space-y-2">
 				<h2 class="text-sm font-medium">Requiere tu atención</h2>
-				{@render targetList(rejected)}
+				{@render workList(rejected)}
 			</section>
 		{/if}
 		{#if inProgress.length > 0}
 			<section class="space-y-2">
 				<h2 class="text-sm font-medium">Pendientes</h2>
-				{@render targetList(visibleInProgress)}
+				{@render workList(visibleInProgress)}
 				{#if inProgress.length > PENDING_LIMIT}
 					<Button variant="outline" size="sm" onclick={() => (showAllPending = !showAllPending)}>
 						{showAllPending ? 'Mostrar menos' : `Mostrar todos (${inProgress.length})`}
