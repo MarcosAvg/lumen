@@ -6,6 +6,7 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import Building2 from '@lucide/svelte/icons/building-2';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Flame from '@lucide/svelte/icons/flame';
 	import House from '@lucide/svelte/icons/house';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -56,6 +57,11 @@
 	function isCurrent(href: string): boolean {
 		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 	}
+
+	// Padre al que vuelve el botón de la cabecera (lo declara cada ficha).
+	const back = $derived(
+		(page.data as unknown as { back?: { href: string; label: string } }).back ?? null
+	);
 
 	/**
 	 * Ancho del área de contenido según la plantilla de la página: los listados,
@@ -260,6 +266,17 @@
 			<div class="max-md:hidden">
 				<Sidebar.Trigger />
 			</div>
+			{#if back}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					href={back.href}
+					aria-label={`Volver a ${back.label}`}
+					class="flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:size-9"
+				>
+					<ArrowLeft size={18} aria-hidden="true" />
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
 			{#if page.data.title}
 				<h1
 					id="page-title"

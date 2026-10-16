@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		title: element.name,
+		back: { href: `/works/${element.workId}`, label: element.workName },
 		element,
 		evidence,
 		history,

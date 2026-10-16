@@ -46,6 +46,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	return {
 		title: catalog.name,
+		back: { href: '/admin/catalogs', label: 'Catálogos' },
 		catalog,
 		items: itemsPage.items,
 		total: itemsPage.total,

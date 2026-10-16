@@ -60,6 +60,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		title: service.name,
+		back: { href: isAdmin ? '/admin/services' : '/services', label: 'Servicios' },
 		service,
 		access,
 		participants,

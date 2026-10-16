@@ -27,6 +27,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		title: `Entrega #${detail.submission.sequenceNo}`,
+		back: {
+			href: `/services/${detail.context.serviceId}`,
+			label: detail.context.serviceName
+		},
 		detail,
 		pending,
 		canReview,

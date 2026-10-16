@@ -47,6 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	return {
 		title: access.contract.name,
+		back: { href: '/contracts', label: 'Contratos' },
 		contract: access.contract,
 		isAdmin: access.isAdmin,
 		canManage: access.canManage,

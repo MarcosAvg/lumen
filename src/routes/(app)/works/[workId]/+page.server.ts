@@ -43,6 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const catalogs = user.role === 'admin' ? await listCatalogsWithItems(db) : [];
 		return {
 			title: work.name,
+			back: { href: `/services/${work.serviceId}`, label: work.serviceName },
 			work,
 			elements: [],
 			evidence,
@@ -63,6 +64,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 	return {
 		title: work.name,
+		back: { href: `/services/${work.serviceId}`, label: work.serviceName },
 		work,
 		elements,
 		evidence: null,
