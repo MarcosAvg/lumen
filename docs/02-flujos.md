@@ -176,8 +176,8 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 ### PDF de evidencia (uno por trabajo)
 
 1. Cada trabajo con evidencia aprobada genera un **PDF** con sus fotografías (última entrega aprobada), **sin portada** y con cabecera corrida (contrato · edificio · servicio · trabajo).
-2. Hasta **4 fotografías por página** (2×2) con pie `fecha · autor`. Estructura: en trabajo directo, un bloque por **requisito** (y «Adicionales»); en dividido, un bloque por **elemento** y, dentro, por requisito.
-3. El **fondo del contrato** (imagen configurable) se dibuja en todas las páginas con un panel claro semitransparente encima.
+2. Hasta **4 fotografías por página** (2×2). Cada foto lleva su **leyenda pegada debajo**: `Trabajo · Elemento · Requisito` (sin fecha ni autor); sin encabezados de sección.
+3. **Márgenes superior e inferior de 5 cm** (las filas se reparten dentro del área útil). El **fondo del contrato** se dibuja **opaco** en todas las páginas, sin velo.
 4. Ubicación: **con fotografías**, el PDF vive en la carpeta del trabajo; **sin fotografías**, los PDF caen **directamente en la carpeta del servicio** (`<Servicio>/<Trabajo> - [fecha].pdf`).
 5. Los enlaces del XLSX apuntan a esa misma ruta.
 
