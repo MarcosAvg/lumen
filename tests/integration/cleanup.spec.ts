@@ -9,7 +9,7 @@ import { appendPhoto } from '#lib/server/domain/photos';
 import { createService } from '#lib/server/domain/services';
 import { createFirstAdmin } from '#lib/server/domain/users';
 import { createWork } from '#lib/server/domain/works';
-import { photos } from '#lib/server/db/schema';
+import { photos, pushSubscriptions } from '#lib/server/db/schema';
 import { createStorage } from '#lib/server/storage/storage';
 // Módulo de mantenimiento compartido con `scripts/cleanup.mjs`.
 import { cleanupOrphans } from '../../scripts/lib/cleanup.mjs';
@@ -83,5 +83,52 @@ await describeWithDatabase('Limpieza de temporales y huérfanos', ({ db, client 
 		await expect(stat(storage.absolute(row.storagePath))).resolves.toBeTruthy();
 		await expect(stat(storage.absolute(row.thumbnailPath))).resolves.toBeTruthy();
 		await expect(stat(storage.absolute('objects/zz/zz/orphan.jpg'))).rejects.toThrow();
+	});
+
+	it('purga solo las suscripciones push revocadas antiguas', async () => {
+		const passwordHash = await hashPassword('contrasena-segura');
+		const { id: admin } = await createFirstAdmin(db, {
+			username: 'admin',
+			displayName: 'Admin',
+			passwordHash
+		});
+
+		const dir = await mkdtemp(path.join(tmpdir(), 'lumen-cleanup-push-'));
+		tempRoots.push(dir);
+		await createStorage(dir).ensure();
+
+		const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+		await db.insert(pushSubscriptions).values([
+			{ userId: admin, endpoint: 'https://push.example.com/active', p256dh: 'a', auth: 'b' },
+			{
+				userId: admin,
+				endpoint: 'https://push.example.com/old',
+				p256dh: 'a',
+				auth: 'b',
+				revokedAt: daysAgo(40)
+			},
+			{
+				userId: admin,
+				endpoint: 'https://push.example.com/recent',
+				p256dh: 'a',
+				auth: 'b',
+				revokedAt: daysAgo(5)
+			}
+		]);
+
+		const result = await cleanupOrphans({
+			root: dir,
+			databaseUrl: TEST_DATABASE_URL,
+			pushRetentionDays: 30
+		});
+		expect(result.pushRevokedRemoved).toBe(1);
+
+		const remaining = await db
+			.select({ endpoint: pushSubscriptions.endpoint })
+			.from(pushSubscriptions);
+		expect(remaining.map((item) => item.endpoint).sort()).toEqual([
+			'https://push.example.com/active',
+			'https://push.example.com/recent'
+		]);
 	});
 });

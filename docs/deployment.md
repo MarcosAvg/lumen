@@ -179,10 +179,13 @@ Con Node en el host también puedes usar `pnpm backup` y `pnpm restore`.
 0 4 * * * cd /opt/lumen && docker compose exec -T app node scripts/cleanup.mjs >>/var/log/lumen-cleanup.log 2>&1
 ```
 
+La limpieza también purga las **suscripciones push revocadas** con más de 30 días de antigüedad
+(las activas nunca se tocan).
+
 ## 10. Mantenimiento y observabilidad
 
 ```bash
-docker compose exec app node scripts/cleanup.mjs   # purga staging/huérfanos y registra uso de disco
+docker compose exec app node scripts/cleanup.mjs   # purga staging/huérfanos, push revocado y registra uso de disco
 docker compose logs -f app
 ```
 

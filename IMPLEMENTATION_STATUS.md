@@ -126,6 +126,8 @@ eliminado y los archivos limpiados.
 - `#lib/server/domain/push.ts`: VAPID (`isPushConfigured`, `getVapidPublicKey`),
   `savePushSubscription`/`removePushSubscription`, `dispatchPushToUsers` **best‑effort** (revoca
   `404/410`, `last_success_at`, nunca lanza) y `assertValidSubscription`.
+- `#lib/server/domain/push-messages.ts`: construcción **pura** (sin entorno ni BD) de los mensajes de
+  inbox/push de entrega y revisión, para no divergir y poder probarla en unitarios.
 - `submissions.ts`: las notificaciones se crean **dentro** de la transacción de envío/revisión; el
   push se dispara **después del commit** (cubre API y acciones de página). Un fallo de push no
   revierte la operación (NOTIF‑01).
@@ -135,7 +137,8 @@ eliminado y los archivos limpiados.
 
 - `GET /api/push/vapid` (config + clave pública), `POST`/`DELETE /api/push/subscriptions`.
 - Bandeja `(app)/notifications` con marcar una/todas como leídas y deep links protegidos; campana
-  con contador en el layout; `(app)/settings` para activar/quitar push por dispositivo.
+  con contador en el layout; `(app)/settings` para activar/quitar push por dispositivo y **enviar
+  una notificación de prueba** (acción `?/test`).
 - PWA: `static/manifest.webmanifest`, iconos 192/512, `static/sw.js` (push + `notificationclick`,
   **sin caché**) y registro del service worker desde el layout.
 - `pnpm vapid:generate` (`scripts/generate-vapid.mjs`) para generar las claves.
@@ -580,7 +583,9 @@ de restauración manual documentado y ejecutado.
   usa el snapshot congelado y el de servicio solo la última entrega aprobada + `resumen.csv`.
 - **CSV administrativo**: solo admin, sin fotos, con BOM y neutralización de fórmulas.
 - **Notificaciones**: internas en la transacción del envío/revisión (idempotentes por
-  `recipient_user_id` + `event_key`); push VAPID best-effort tras el commit con `web-push`.
+  `recipient_user_id` + `event_key`); push VAPID best-effort tras el commit con `web-push`, con
+  **icono/badge** en la notificación y **prueba manual** desde Ajustes. La limpieza purga
+  suscripciones **revocadas** con más de 30 días (las activas nunca se tocan).
 - **Service worker**: sin caché de respuestas (Lumen es online-only); solo push y `notificationclick`.
 - **Procesado de imágenes síncrono**; limpieza por script y por borrado; dependencias externas
   limitadas a `web-push` (canal estándar de Web Push) y `archiver` (ZIP).

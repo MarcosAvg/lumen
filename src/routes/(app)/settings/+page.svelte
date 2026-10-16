@@ -8,7 +8,7 @@
 	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import type { PageProps } from './$types';
 
-	let { data }: PageProps = $props();
+	let { data, form }: PageProps = $props();
 
 	const roleLabel = {
 		admin: 'Administrador',
@@ -25,6 +25,8 @@
 	let error = $state<string | null>(null);
 
 	const configured = $derived(data.push.configured);
+	const testMessage = $derived(form && 'testMessage' in form ? form.testMessage : null);
+	const testError = $derived(form && 'testError' in form ? form.testError : null);
 
 	onMount(async () => {
 		supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -155,6 +157,12 @@
 			{#if error}
 				<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
 			{/if}
+			{#if testMessage}
+				<Alert role="status"><AlertDescription>{testMessage}</AlertDescription></Alert>
+			{/if}
+			{#if testError}
+				<Alert variant="destructive"><AlertDescription>{testError}</AlertDescription></Alert>
+			{/if}
 
 			<div class="flex flex-wrap items-center gap-2">
 				<Badge variant={configured ? 'secondary' : 'destructive'}>
@@ -179,15 +187,22 @@
 					la pantalla de inicio y activarlo desde esa instalación.
 				</p>
 			{:else}
-				{#if currentEndpoint}
-					<Button type="button" variant="outline" disabled={busy} onclick={disable}>
-						{busy ? 'Procesando…' : 'Quitar suscripción de este dispositivo'}
-					</Button>
-				{:else}
-					<Button type="button" disabled={busy} onclick={enable}>
-						{busy ? 'Procesando…' : 'Activar notificaciones push en este dispositivo'}
-					</Button>
-				{/if}
+				<div class="flex flex-wrap gap-2">
+					{#if currentEndpoint}
+						<Button type="button" variant="outline" disabled={busy} onclick={disable}>
+							{busy ? 'Procesando…' : 'Quitar suscripción de este dispositivo'}
+						</Button>
+					{:else}
+						<Button type="button" disabled={busy} onclick={enable}>
+							{busy ? 'Procesando…' : 'Activar notificaciones push en este dispositivo'}
+						</Button>
+					{/if}
+					<form method="POST" action="?/test">
+						<Button type="submit" variant="outline" disabled={busy}>
+							Enviar notificación de prueba
+						</Button>
+					</form>
+				</div>
 			{/if}
 		</Card.Content>
 	</Card.Root>

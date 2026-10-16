@@ -7,6 +7,11 @@ import {
 	services,
 	users
 } from '#lib/server/db/schema';
+import {
+	submissionReviewedMessage,
+	submissionSubmittedMessage,
+	type PushMessage
+} from './push-messages';
 
 /**
  * Notificaciones internas (docs/03 §8): se crean **dentro de la transacción**
@@ -78,7 +83,7 @@ export async function insertNotifications(db: Database, items: NotificationInput
 
 export interface OutboundNotification {
 	recipientIds: string[];
-	message: { title: string; body: string; url: string; tag: string };
+	message: PushMessage;
 }
 
 /** Notificaciones de una entrega para los supervisores asignados (no admins). */
@@ -95,10 +100,7 @@ export async function createSubmissionNotifications(
 	}
 ): Promise<OutboundNotification> {
 	const recipientIds = await resolveServiceRecipients(db, context.serviceId, 'supervisor');
-	const title = `Nueva entrega #${context.sequenceNo}`;
-	const body = describeTarget(context);
-	const deepLink = `/submissions/${context.submissionId}`;
-	const eventKey = `submission:${context.submissionId}:submitted`;
+	const message = submissionSubmittedMessage(context);
 
 	await insertNotifications(
 		db,
@@ -109,17 +111,14 @@ export async function createSubmissionNotifications(
 			submissionId: context.submissionId,
 			reviewId: null,
 			eventType: 'submission.submitted',
-			title,
-			body,
-			deepLink,
-			eventKey
+			title: message.title,
+			body: message.body,
+			deepLink: message.deepLink,
+			eventKey: message.eventKey
 		}))
 	);
 
-	return {
-		recipientIds,
-		message: { title, body, url: deepLink, tag: eventKey }
-	};
+	return { recipientIds, message: message.push };
 }
 
 /** Notificaciones de una decisión para todos los técnicos asignados activos. */
@@ -138,10 +137,7 @@ export async function createReviewNotifications(
 	}
 ): Promise<OutboundNotification> {
 	const recipientIds = await resolveServiceRecipients(db, context.serviceId, 'technician');
-	const approved = context.decision === 'approved';
-	const title = approved ? 'Entrega aprobada' : 'Entrega rechazada';
-	const body = describeTarget(context);
-	const eventKey = `submission:${context.submissionId}:reviewed`;
+	const message = submissionReviewedMessage(context);
 
 	await insertNotifications(
 		db,
@@ -151,24 +147,15 @@ export async function createReviewNotifications(
 			targetId: context.targetId,
 			submissionId: context.submissionId,
 			reviewId: context.reviewId,
-			eventType: approved ? 'submission.approved' : 'submission.rejected',
-			title,
-			body,
-			deepLink: context.targetDeepLink,
-			eventKey
+			eventType: context.decision === 'approved' ? 'submission.approved' : 'submission.rejected',
+			title: message.title,
+			body: message.body,
+			deepLink: message.deepLink,
+			eventKey: message.eventKey
 		}))
 	);
 
-	return {
-		recipientIds,
-		message: { title, body, url: context.targetDeepLink, tag: eventKey }
-	};
-}
-
-function describeTarget(context: { serviceName: string; workName: string; label: string }): string {
-	const parts = [context.serviceName, context.workName];
-	if (context.label && context.label !== context.workName) parts.push(context.label);
-	return parts.join(' · ');
+	return { recipientIds, message: message.push };
 }
 
 export interface NotificationView {

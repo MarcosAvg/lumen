@@ -30,7 +30,7 @@ async function diskReport() {
 try {
 	const result = await cleanupOrphans({ root, databaseUrl });
 	console.log(
-		`Limpieza completada: ${result.orphansRemoved} huérfano(s), ${result.stagingRemoved} temporal(es)${await diskReport()}.`
+		`Limpieza completada: ${result.orphansRemoved} huérfano(s), ${result.stagingRemoved} temporal(es), ${result.pushRevokedRemoved} suscripción(es) push revocada(s)${await diskReport()}.`
 	);
 } catch (error) {
 	console.error('Fallo en la limpieza:', error);

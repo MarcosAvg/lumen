@@ -5,6 +5,9 @@ import { VAPID_PRIVATE_KEY, VAPID_SUBJECT } from '$app/env/private';
 import type { Database } from '#lib/server/db';
 import { pushSubscriptions } from '#lib/server/db/schema';
 import { DomainError } from './errors';
+import type { PushMessage } from './push-messages';
+
+export type { PushMessage };
 
 /**
  * Web Push estándar con VAPID (docs/04 §9). El envío es **best-effort** y ocurre
@@ -92,13 +95,6 @@ export async function countPushSubscriptions(db: Database, userId: string): Prom
 		.from(pushSubscriptions)
 		.where(and(eq(pushSubscriptions.userId, userId), isNull(pushSubscriptions.revokedAt)));
 	return rows.length;
-}
-
-export interface PushMessage {
-	title: string;
-	body: string;
-	url: string;
-	tag: string;
 }
 
 export interface PushDispatchResult {

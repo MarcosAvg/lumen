@@ -30,16 +30,18 @@ async function listFiles(root, dir = root, acc = []) {
 /**
  * Borra temporales de staging y binarios sin referencia en `photos`. Solo elimina
  * archivos con antigüedad mínima (para no competir con subidas en curso) y nunca
- * toca archivos referenciados.
+ * toca archivos referenciados. También purga suscripciones push **revocadas**
+ * antiguas (las activas nunca se tocan).
  *
  * @param {{
  *   root: string,
  *   databaseUrl: string,
  *   minAgeMs?: number,
  *   stagingMaxAgeMs?: number,
+ *   pushRetentionDays?: number,
  *   now?: number
  * }} options
- * @returns {Promise<{ orphansRemoved: number, stagingRemoved: number }>}
+ * @returns {Promise<{ orphansRemoved: number, stagingRemoved: number, pushRevokedRemoved: number }>}
  */
 export async function cleanupOrphans(options) {
 	const {
@@ -47,6 +49,7 @@ export async function cleanupOrphans(options) {
 		databaseUrl,
 		minAgeMs = 60 * 60 * 1000,
 		stagingMaxAgeMs = 60 * 60 * 1000,
+		pushRetentionDays = 30,
 		now = Date.now()
 	} = options;
 
@@ -78,7 +81,14 @@ export async function cleanupOrphans(options) {
 			stagingRemoved += 1;
 		}
 
-		return { orphansRemoved, stagingRemoved };
+		const purged = await client`
+			delete from push_subscriptions
+			where revoked_at is not null
+				and revoked_at < now() - make_interval(days => ${pushRetentionDays})
+			returning id
+		`;
+
+		return { orphansRemoved, stagingRemoved, pushRevokedRemoved: purged.length };
 	} finally {
 		await client.end();
 	}
