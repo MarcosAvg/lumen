@@ -18,6 +18,7 @@
 	import Chip from '#lib/components/app/chip.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
+	import PhotoViewer from '#lib/components/evidence/photo-viewer.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { TargetStatus } from '#lib/types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
@@ -99,7 +100,19 @@
 	let renameValue = $state('');
 	let requirementOpen = $state(false);
 	let requirementTab = $state<'custom' | 'catalog'>('custom');
-	let lightbox = $state<Photo | null>(null);
+	let viewerGroup = $state<Photo[]>([]);
+	let viewerIndex = $state(0);
+	let viewerOpen = $state(false);
+
+	function openViewer(photo: Photo) {
+		const group = groupPhotos(photo.requirementId);
+		viewerGroup = group;
+		viewerIndex = Math.max(
+			0,
+			group.findIndex((item) => item.id === photo.id)
+		);
+		viewerOpen = true;
+	}
 	let adminError = $state<string | null>(null);
 	let newRequirement = $state('');
 	let newRequired = $state(true);
@@ -566,7 +579,7 @@
 							group: groupPhotos(requirement.id),
 							onremove: (photo) => (pendingRemove = photo),
 							onmove: (photoId, direction) => movePhoto(requirement.id, photoId, direction),
-							onopen: (photo) => (lightbox = photo)
+							onopen: openViewer
 						})}
 
 						{#if editable}
@@ -601,7 +614,7 @@
 						group: additionalPhotos,
 						onremove: (photo) => (pendingRemove = photo),
 						onmove: (photoId, direction) => movePhoto(null, photoId, direction),
-						onopen: (photo) => (lightbox = photo)
+						onopen: openViewer
 					})}
 					{#if editable}
 						{@render PhotoInputs({ requirementId: null })}
@@ -882,38 +895,7 @@
 		</Dialog.Content>
 	</Dialog.Root>
 
-	<Dialog.Root
-		open={lightbox !== null}
-		onOpenChange={(open) => {
-			if (!open) lightbox = null;
-		}}
-	>
-		<Dialog.Content class="sm:max-w-2xl">
-			<Dialog.Header>
-				<Dialog.Title class="sr-only">Fotografía de evidencia</Dialog.Title>
-				<Dialog.Description class="sr-only">Vista ampliada de la fotografía.</Dialog.Description>
-			</Dialog.Header>
-			{#if lightbox}
-				<img
-					src={`/api/photos/${lightbox.id}/content`}
-					alt="Fotografía de evidencia"
-					class="mx-auto max-h-[70vh] w-full rounded-lg object-contain"
-				/>
-			{/if}
-			<Dialog.Footer>
-				{#if lightbox}
-					<Button
-						href={`/api/photos/${lightbox.id}/content?download=1`}
-						variant="outline"
-						size="sm"
-					>
-						Descargar
-					</Button>
-				{/if}
-				<Dialog.Close>Cerrar</Dialog.Close>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Root>
+	<PhotoViewer photos={viewerGroup} startIndex={viewerIndex} bind:open={viewerOpen} />
 
 	<!-- Hoja inferior (móvil) con las acciones de foto. -->
 	<Sheet.Root bind:open={addSheetOpen}>
