@@ -1,38 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ensureAdmin, photoFile } from './helpers';
 
 /**
  * Flujo crítico de la aplicación, en escritorio y móvil: primer arranque o
  * acceso, creación de servicio/trabajo, captura, envío, revisión (aprobar y
  * rechazar) y búsqueda.
  */
-const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
-
-const JPEG_BASE64 =
-	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';
-
-function photoFile() {
-	return {
-		name: 'foto.jpg',
-		mimeType: 'image/jpeg',
-		buffer: Buffer.from(JPEG_BASE64, 'base64')
-	};
-}
-
-async function ensureAdmin(page: Page) {
-	await page.goto('/');
-	if (page.url().includes('/setup')) {
-		await page.getByLabel('Nombre visible').fill(ADMIN.displayName);
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN.password);
-		await page.getByLabel('Repetir contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Crear administrador' }).click();
-	} else {
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Entrar' }).click();
-	}
-	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
-}
 
 /** Crea servicio → trabajo directo → sube una foto → envía. Deja la entrega en revisión. */
 async function createPendingSubmission(page: Page, unique: string) {

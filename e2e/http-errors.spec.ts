@@ -1,23 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { ensureAdmin } from './helpers';
 
-const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
 const MISSING = '00000000-0000-4000-8000-000000000000';
-
-async function ensureAdmin(page: Page) {
-	await page.goto('/');
-	if (page.url().includes('/setup')) {
-		await page.getByLabel('Nombre visible').fill(ADMIN.displayName);
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN.password);
-		await page.getByLabel('Repetir contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Crear administrador' }).click();
-	} else {
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Entrar' }).click();
-	}
-	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
-}
 
 test('recursos inexistentes devuelven 404 (no 500)', async ({ page }) => {
 	await ensureAdmin(page);

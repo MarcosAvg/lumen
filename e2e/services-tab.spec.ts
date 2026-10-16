@@ -1,23 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ensureAdmin } from './helpers';
 
-const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
 const TECH_PASSWORD = 'contrasena-segura';
-
-async function ensureAdmin(page: Page) {
-	await page.goto('/');
-	if (page.url().includes('/setup')) {
-		await page.getByLabel('Nombre visible').fill(ADMIN.displayName);
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN.password);
-		await page.getByLabel('Repetir contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Crear administrador' }).click();
-	} else {
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Entrar' }).click();
-	}
-	await expect(page.locator('#page-title')).toContainText('Hola,');
-}
 
 async function createService(page: Page, name: string): Promise<string> {
 	await page.goto('/admin/services');

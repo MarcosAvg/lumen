@@ -1,32 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-
-const ADMIN = { username: 'admin', password: 'contrasena-segura', displayName: 'Admin E2E' };
-const JPEG_BASE64 =
-	'/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AVN//2Q==';
-
-function photoFile() {
-	return {
-		name: 'foto.jpg',
-		mimeType: 'image/jpeg',
-		buffer: Buffer.from(JPEG_BASE64, 'base64')
-	};
-}
-
-async function ensureAdmin(page: Page) {
-	await page.goto('/');
-	if (page.url().includes('/setup')) {
-		await page.getByLabel('Nombre visible').fill(ADMIN.displayName);
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña', { exact: true }).fill(ADMIN.password);
-		await page.getByLabel('Repetir contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Crear administrador' }).click();
-	} else {
-		await page.getByLabel('Usuario').fill(ADMIN.username);
-		await page.getByLabel('Contraseña').fill(ADMIN.password);
-		await page.getByRole('button', { name: 'Entrar' }).click();
-	}
-	await expect(page.locator('#page-title')).toContainText('Hola,');
-}
+import { ensureAdmin, photoFile } from './helpers';
 
 /** Comprueba que la ruta no desborda horizontalmente en el ancho indicado. */
 async function expectNoOverflow(page: Page, route: string, width: number) {
