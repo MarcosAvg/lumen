@@ -514,46 +514,7 @@
 						})}
 
 						{#if editable}
-							<div class="flex flex-wrap gap-2">
-								<label class="cursor-pointer">
-									<span class="sr-only">Tomar foto</span>
-									<input
-										type="file"
-										accept="image/*"
-										capture="environment"
-										disabled={!online}
-										class="hidden"
-										onchange={(event) => {
-											handleFiles(requirement.id, event.currentTarget.files);
-											event.currentTarget.value = '';
-										}}
-									/>
-									<span
-										class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-									>
-										Tomar foto
-									</span>
-								</label>
-								<label class="cursor-pointer">
-									<span class="sr-only">Elegir archivos</span>
-									<input
-										type="file"
-										accept="image/*"
-										multiple
-										disabled={!online}
-										class="hidden"
-										onchange={(event) => {
-											handleFiles(requirement.id, event.currentTarget.files);
-											event.currentTarget.value = '';
-										}}
-									/>
-									<span
-										class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-									>
-										Elegir archivos
-									</span>
-								</label>
-							</div>
+							{@render PhotoInputs({ requirementId: requirement.id })}
 						{/if}
 					</Card.Content>
 				{/if}
@@ -587,25 +548,7 @@
 						onopen: (photo) => (lightbox = photo)
 					})}
 					{#if editable}
-						<label class="cursor-pointer">
-							<span class="sr-only">Agregar fotografía</span>
-							<input
-								type="file"
-								accept="image/*"
-								multiple
-								disabled={!online}
-								class="hidden"
-								onchange={(event) => {
-									handleFiles(null, event.currentTarget.files);
-									event.currentTarget.value = '';
-								}}
-							/>
-							<span
-								class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
-							>
-								Agregar fotografía
-							</span>
-						</label>
+						{@render PhotoInputs({ requirementId: null })}
 					{/if}
 				</Card.Content>
 			{/if}
@@ -916,6 +859,47 @@
 		</Dialog.Content>
 	</Dialog.Root>
 </div>
+
+{#snippet PhotoInputs(options: { requirementId: string | null })}
+	<div class="flex flex-wrap gap-2">
+		<label class="cursor-pointer">
+			<input
+				type="file"
+				accept="image/*"
+				capture="environment"
+				disabled={!online}
+				class="hidden"
+				onchange={(event) => {
+					handleFiles(options.requirementId, event.currentTarget.files);
+					event.currentTarget.value = '';
+				}}
+			/>
+			<span
+				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+			>
+				Tomar foto
+			</span>
+		</label>
+		<label class="cursor-pointer">
+			<input
+				type="file"
+				accept="image/*"
+				multiple
+				disabled={!online}
+				class="hidden"
+				onchange={(event) => {
+					handleFiles(options.requirementId, event.currentTarget.files);
+					event.currentTarget.value = '';
+				}}
+			/>
+			<span
+				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+			>
+				Elegir fotos
+			</span>
+		</label>
+	</div>
+{/snippet}
 
 {#snippet PhotoGrid(options: {
 	editable: boolean;

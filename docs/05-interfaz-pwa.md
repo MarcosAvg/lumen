@@ -138,18 +138,18 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 ├────────────────────────────────────────┤
 │ ▾ Antes                  3 fotografías │
 │   [miniatura][miniatura][miniatura]     │
-│   [+ Tomar foto] [+ Elegir archivos]   │
+│   [+ Tomar foto] [+ Elegir fotos]      │
 │                                        │
 │ ▾ Durante                2 fotografías │
 │   [miniatura][miniatura]               │
-│   [+ Tomar foto]                       │
+│   [+ Tomar foto] [+ Elegir fotos]      │
 │                                        │
 │ ▾ Después                0 fotografías │
 │   Obligatorio · falta evidencia        │
-│   [+ Tomar foto] [+ Elegir archivos]   │
+│   [+ Tomar foto] [+ Elegir fotos]      │
 │                                        │
 │ ▾ Adicionales            0 fotografías │
-│   [+ Agregar fotografía]               │
+│   [+ Tomar foto] [+ Elegir fotos]      │
 ├────────────────────────────────────────┤
 │ [Enviar evidencia]                     │
 └────────────────────────────────────────┘

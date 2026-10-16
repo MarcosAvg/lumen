@@ -74,6 +74,9 @@ async function createPendingSubmission(page: Page, unique: string) {
 	await expect(removeDialog).toBeHidden();
 	// Sin requisitos, el grupo se muestra como «Fotografías», no «Adicionales».
 	await expect(page.getByText('Fotografías').first()).toBeVisible();
+	// El grupo también ofrece cámara y selección múltiple.
+	await expect(page.getByText('Tomar foto').first()).toBeVisible();
+	await expect(page.getByText('Elegir fotos').first()).toBeVisible();
 	await page.getByRole('button', { name: 'Enviar evidencia' }).click();
 	await page.getByRole('button', { name: 'Confirmar envío' }).click();
 	await expect(page.getByText('En revisión').first()).toBeVisible();
