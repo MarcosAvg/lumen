@@ -18,22 +18,35 @@ export interface WorkPdfHeader {
 	mode: 'direct' | 'divided';
 }
 
+export interface PdfMargins {
+	/** Milímetros. */
+	top: number;
+	bottom: number;
+	left: number;
+	right: number;
+}
+
+export const DEFAULT_PDF_MARGINS: PdfMargins = { top: 50, bottom: 50, left: 15, right: 15 };
+
 export interface WorkPdfInput {
 	header: WorkPdfHeader;
 	blocks: PdfBlock[];
 	/** Ruta absoluta del fondo del contrato (PNG) o `null`. */
 	backgroundAbsolutePath: string | null;
+	/** Márgenes del contrato en milímetros. */
+	margins: PdfMargins;
 }
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
-const MARGIN_X = 40;
-/** 5 cm aproximadamente, arriba y abajo. */
-const MARGIN_TOP = 141.7;
-const MARGIN_BOTTOM = 141.7;
 const GAP = 12;
-const COLUMNS = 2;
-const ROWS_PER_PAGE = 2; // máximo 4 fotografías por página
+/** Puntos por milímetro. */
+const MM = 72 / 25.4;
+const MAX_COLUMNS = 2;
+const MAX_ROWS = 2; // tope: 4 fotografías por página
+/** Mínimos para que las fotos se vean: si no caben, se reduce la rejilla. */
+const MIN_CELL_WIDTH = 110;
+const MIN_ROW_AREA = 130;
 const LEGEND_SIZE = 8;
 const LEGEND_OFFSET = 2; // pegada a la imagen
 
@@ -98,13 +111,23 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 		}
 	}
 
-	const contentWidth = PAGE_WIDTH - MARGIN_X * 2;
-	const cellWidth = (contentWidth - GAP) / COLUMNS;
-	const contentTop = PAGE_HEIGHT - MARGIN_TOP;
-	const available = contentTop - MARGIN_BOTTOM;
-	// Reparte las filas dentro del área útil para dejar 5 cm arriba y abajo.
-	const rowArea = available / ROWS_PER_PAGE;
-	const imageArea = rowArea - (LEGEND_SIZE + LEGEND_OFFSET + 6);
+	const marginTop = input.margins.top * MM;
+	const marginBottom = input.margins.bottom * MM;
+	const marginLeft = input.margins.left * MM;
+	const marginRight = input.margins.right * MM;
+	const contentWidth = PAGE_WIDTH - marginLeft - marginRight;
+	const contentTop = PAGE_HEIGHT - marginTop;
+	const contentBottom = marginBottom;
+	const available = contentTop - contentBottom;
+
+	// Si los márgenes dejan poco ancho o alto, se reduce la rejilla (tope 4 fotos).
+	const columns = contentWidth - GAP >= MAX_COLUMNS * MIN_CELL_WIDTH ? MAX_COLUMNS : 1;
+	const cellWidth = (contentWidth - GAP * (columns - 1)) / columns;
+	const rowsPerPage = available >= MAX_ROWS * MIN_ROW_AREA ? MAX_ROWS : 1;
+	const rowArea = available / rowsPerPage;
+	const imageArea = Math.max(60, rowArea - (LEGEND_SIZE + LEGEND_OFFSET + 6));
+	const headerBaseline = contentTop + 16;
+	const pageLabelBaseline = Math.max(contentBottom - 16, 12);
 
 	let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 	let rowsOnPage = 0;
@@ -121,15 +144,15 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 			input.header.workName
 		].filter((part): part is string => Boolean(part && part.trim()));
 		page.drawText(fit(parts.join('  ·  '), bold, 9, contentWidth), {
-			x: MARGIN_X,
-			y: PAGE_HEIGHT - 96,
+			x: marginLeft,
+			y: headerBaseline,
 			size: 9,
 			font: bold,
 			color: HEADER_COLOR
 		});
 		page.drawLine({
-			start: { x: MARGIN_X, y: PAGE_HEIGHT - 106 },
-			end: { x: PAGE_WIDTH - MARGIN_X, y: PAGE_HEIGHT - 106 },
+			start: { x: marginLeft, y: headerBaseline - 10 },
+			end: { x: PAGE_WIDTH - marginRight, y: headerBaseline - 10 },
 			thickness: 0.5,
 			color: LINE_COLOR
 		});
@@ -140,7 +163,7 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 		if (doc.getPageCount() > 0) {
 			page.drawText(String(doc.getPageCount()), {
 				x: PAGE_WIDTH / 2 - 4,
-				y: 60,
+				y: pageLabelBaseline,
 				size: 8,
 				font,
 				color: LEGEND_COLOR
@@ -160,13 +183,13 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 		}))
 	);
 
-	for (let index = 0; index < entries.length; index += COLUMNS) {
-		if (rowsOnPage >= ROWS_PER_PAGE) addPage();
-		const rowEntries = entries.slice(index, index + COLUMNS);
+	for (let index = 0; index < entries.length; index += columns) {
+		if (rowsOnPage >= rowsPerPage) addPage();
+		const rowEntries = entries.slice(index, index + columns);
 		const rowTop = contentTop - rowsOnPage * rowArea;
 		for (let column = 0; column < rowEntries.length; column += 1) {
 			const entry = rowEntries[column];
-			const x = MARGIN_X + column * (cellWidth + GAP);
+			const x = marginLeft + column * (cellWidth + GAP);
 			const image = await embedPhoto(entry.storagePath);
 			if (!image) continue;
 			const scale = Math.min(cellWidth / image.width, imageArea / image.height);
@@ -191,7 +214,7 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 	// Número de página en la última página (las anteriores lo reciben al pasar).
 	page.drawText(String(doc.getPageCount()), {
 		x: PAGE_WIDTH / 2 - 4,
-		y: 60,
+		y: pageLabelBaseline,
 		size: 8,
 		font,
 		color: LEGEND_COLOR

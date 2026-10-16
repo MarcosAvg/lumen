@@ -131,6 +131,7 @@ La ruta exacta se puede ajustar a SvelteKit. **No usar CRUD público genérico**
 | GET | `/api/services/:id/export.zip` | Ámbito de servicio | Últimas aprobadas + resumen |
 | GET | `/api/contracts/:id/export.zip` | Admin o supervisor del contrato | Fotos aprobadas + registro XLSX + PDF (`?variant=simple\|extended&xlsx=0\|1&photos=0\|1&pdf=0\|1`) |
 | GET | `/api/contracts/:id/pdf-background` | Miembros del contrato | Fondo del PDF (PNG) del contrato |
+| — | Ficha del contrato (acción) | Solo admin | `contracts.pdf_margin_*` (mm) del PDF |
 | GET | `/api/works/:id/export.zip` | Admin o supervisor asignado | Ídem, jerarquía por trabajo (mismas opciones) |
 | GET | `/api/services/:id/export.zip` | Admin o supervisor asignado | Ídem, jerarquía por servicio (mismas opciones) |
 | GET | `/api/search?q=...` | Sesión activa | Resultados filtrados por acceso |
@@ -180,7 +181,7 @@ Valores **sugeridos, configurables** para v1: tamaño máximo de subida por arch
 - **ZIP servicio**: recorrer todos los objetivos (trabajo directo o elementos), seleccionar solo última entrega **aprobada**; incluir `resumen.csv` con todas las unidades incluyendo omitidas. Mantener contextos de carpetas trabajo/elemento y tratar nombres repetidos añadiendo identificadores cortos seguros.
 - **Streaming**: preferir salida ZIP bajo demanda y conexión de lectura controlada; alternativa temporal en volumen con cuotas/expiración. Si el cliente corta conexión, cerrar streams/limpiar temporales. Evitar generar ZIP entero en RAM.
 - **Registro XLSX**: cada ZIP puede incluir `<Ámbito>/<Ámbito>.xlsx` en la variante **Simple** o **Extendida** (`?variant=`), una fila por trabajo, generado con **`exceljs`** (MIT) y añadido al ZIP como entrada binaria. Los hipervínculos son **relativos** al libro y apuntan al PDF de evidencia de cada trabajo; Excel/LibreOffice los resuelven, Google Sheets no. Si algún día se admiten datos de usuario, neutralizar celdas que comiencen `=`, `+`, `-`, `@` o caracteres de control.
-- **PDF por trabajo**: generado con **`pdf-lib`** (MIT), sin portada, con cabecera corrida, hasta 4 fotos por página (2×2) y **leyenda pegada** `Trabajo · Elemento · Requisito` (sin fecha ni autor). Márgenes superior e inferior de 5 cm. El **fondo del contrato** (`backgrounds/<contrato>.png`, normalizado con `sharp`, máx. 5 MB) se dibuja **opaco** a página completa. Con fotografías el PDF va en la carpeta del trabajo; sin ellas, directamente en la del servicio.
+- **PDF por trabajo**: generado con **`pdf-lib`** (MIT), sin portada, con cabecera corrida, hasta 4 fotos por página (2×2) y **leyenda pegada** `Trabajo · Elemento · Requisito` (sin fecha ni autor). Márgenes configurables por contrato en mm (10–80, por defecto 50/50/15/15); si el área útil se estrecha, la rejilla baja a 1 columna y/o 1 fila. El **fondo del contrato** (`backgrounds/<contrato>.png`, normalizado con `sharp`, máx. 5 MB) se dibuja **opaco** a página completa. Con fotografías el PDF va en la carpeta del trabajo; sin ellas, directamente en la del servicio.
 - **Archivos históricos**: las rutas del ZIP se derivan de los nombres de grupo guardados **en cada entrega**, no de requisitos actuales.
 
 ## 8. Seguridad de aplicación

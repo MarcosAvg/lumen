@@ -274,7 +274,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Jerarquías: contrato `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; servicio `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; trabajo `Trabajo ▸ (Elemento) ▸ Requisito`.
 - Solo se incluye la **última entrega aprobada** de cada objetivo para las fotos; **no** se generan archivos de resumen.
 - **Evidencia** en el XLSX: hipervínculo relativo al PDF del trabajo. Excel/LibreOffice resuelven rutas relativas; Google Sheets no.
-- **Fondo del PDF**: tarjeta en la ficha del contrato (solo admin) para subir/reemplazar/quitar una imagen PNG/JPG compartida por los PDF de sus servicios.
+- **PDF de evidencia**: tarjeta en la ficha del contrato (solo admin) para subir/reemplazar/quitar el **fondo** (PNG/JPG) y configurar los **márgenes en mm** (arriba · abajo · izquierda · derecha, 10–80) compartidos por los PDF de sus servicios.
 - En descargas grandes, feedback de inicio/error; no prometer barra de progreso si streaming nativo no permite medirlo de manera robusta.
 
 ## 16. Estados de interfaz y accesibilidad

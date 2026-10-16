@@ -567,7 +567,8 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 					mode: 'direct'
 				},
 				blocks: row.photoBlocks,
-				backgroundAbsolutePath: null
+				backgroundAbsolutePath: null,
+				margins: { top: 50, bottom: 50, left: 15, right: 15 }
 			},
 			storage
 		);
@@ -604,12 +605,31 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 					mode: 'direct'
 				},
 				blocks: row.photoBlocks,
-				backgroundAbsolutePath: storage.absolute(backgroundRel)
+				backgroundAbsolutePath: storage.absolute(backgroundRel),
+				margins: { top: 50, bottom: 50, left: 15, right: 15 }
 			},
 			storage
 		);
 		expect((await PDFDocument.load(withBackground)).getPageCount()).toBe(2);
 		expect(withBackground.length).toBeGreaterThan(pdf.length);
+
+		// Márgenes personalizados (amplios): el PDF sigue siendo válido y pagina.
+		const customMargins = await buildWorkPdf(
+			{
+				header: {
+					contractName: 'Contrato',
+					buildingName: null,
+					serviceName: 'UMAs Torre',
+					workName: 'Piso 1',
+					mode: 'direct'
+				},
+				blocks: row.photoBlocks,
+				backgroundAbsolutePath: null,
+				margins: { top: 70, bottom: 70, left: 30, right: 30 }
+			},
+			storage
+		);
+		expect((await PDFDocument.load(customMargins)).getPageCount()).toBe(2);
 	});
 
 	it('sanea nombres de ZIP y desambigua duplicados', () => {

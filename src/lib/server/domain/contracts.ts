@@ -119,18 +119,76 @@ export async function visibleContractIds(
 	return [...new Set(rows.map((row) => row.contractId))];
 }
 
-/** Contexto de PDF de un contrato: nombre y fondo (ruta interna) o `null`. */
+/** Márgenes del PDF del contrato, en milímetros. */
+export interface ContractPdfMargins {
+	top: number;
+	bottom: number;
+	left: number;
+	right: number;
+}
+
+/** Contexto de PDF de un contrato: nombre, fondo (ruta) y márgenes (mm). */
 export async function getContractPdfContext(
 	db: Database,
 	contractId: string
-): Promise<{ name: string; backgroundPath: string | null }> {
+): Promise<{ name: string; backgroundPath: string | null; margins: ContractPdfMargins }> {
 	const [row] = await db
-		.select({ name: contracts.name, backgroundPath: contracts.pdfBackgroundPath })
+		.select({
+			name: contracts.name,
+			backgroundPath: contracts.pdfBackgroundPath,
+			marginTop: contracts.pdfMarginTop,
+			marginBottom: contracts.pdfMarginBottom,
+			marginLeft: contracts.pdfMarginLeft,
+			marginRight: contracts.pdfMarginRight
+		})
 		.from(contracts)
 		.where(eq(contracts.id, contractId))
 		.limit(1);
 	if (!row) throw new DomainError(404, 'Contrato no encontrado.');
-	return { name: row.name, backgroundPath: row.backgroundPath ?? null };
+	return {
+		name: row.name,
+		backgroundPath: row.backgroundPath ?? null,
+		margins: {
+			top: row.marginTop,
+			bottom: row.marginBottom,
+			left: row.marginLeft,
+			right: row.marginRight
+		}
+	};
+}
+
+/** Actualiza los márgenes (mm) del PDF del contrato. */
+export async function updateContractPdfMargins(
+	db: Database,
+	input: { contractId: string; margins: ContractPdfMargins; actorId: string }
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [row] = await tx
+			.select({ id: contracts.id })
+			.from(contracts)
+			.where(eq(contracts.id, input.contractId))
+			.limit(1);
+		if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+
+		await tx
+			.update(contracts)
+			.set({
+				pdfMarginTop: input.margins.top,
+				pdfMarginBottom: input.margins.bottom,
+				pdfMarginLeft: input.margins.left,
+				pdfMarginRight: input.margins.right,
+				updatedAt: new Date()
+			})
+			.where(eq(contracts.id, input.contractId));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'contract',
+			entityId: input.contractId,
+			action: 'contract.pdf_margins_updated',
+			metadata: { ...input.margins }
+		});
+	});
 }
 
 /** Fija (`relPath`) o quita (`null`) el fondo de PDF del contrato. */

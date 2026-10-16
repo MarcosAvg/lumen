@@ -15,13 +15,15 @@ import {
 	listContractAssignments,
 	revokeContractAssignment,
 	setContractPdfBackground,
-	updateContract
+	updateContract,
+	updateContractPdfMargins
 } from '#lib/server/domain/contracts';
 import { listServicesByContract } from '#lib/server/domain/services';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { requireUuidParam } from '#lib/server/params';
 import {
 	assignContractUserSchema,
+	contractPdfMarginsSchema,
 	revokeContractAssignmentSchema,
 	updateContractSchema
 } from '#lib/schemas/services';
@@ -51,7 +53,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		assignments,
 		services,
 		assignable,
-		hasPdfBackground: Boolean(pdfContext.backgroundPath)
+		hasPdfBackground: Boolean(pdfContext.backgroundPath),
+		pdfMargins: pdfContext.margins
 	};
 };
 
@@ -105,6 +108,33 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Fondo del PDF actualizado.' };
+	},
+
+	updateMargins: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(contractPdfMarginsSchema, await event.request.formData());
+		if (!parsed.ok) {
+			return fail(400, {
+				marginErrors: parsed.errors,
+				marginMessage: 'Revisa los márgenes (10–80 mm).'
+			});
+		}
+
+		try {
+			await updateContractPdfMargins(getDatabase().db, {
+				contractId: parsed.data.contractId,
+				margins: {
+					top: parsed.data.marginTop,
+					bottom: parsed.data.marginBottom,
+					left: parsed.data.marginLeft,
+					right: parsed.data.marginRight
+				},
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Márgenes del PDF guardados.' };
 	},
 
 	removeBackground: async (event) => {

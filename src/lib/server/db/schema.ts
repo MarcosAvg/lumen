@@ -157,6 +157,11 @@ export const contracts = pgTable(
 		description: text('description'),
 		/** Fondo compartido de los PDF de evidencia del contrato (ruta interna). */
 		pdfBackgroundPath: text('pdf_background_path'),
+		/** Márgenes del PDF del contrato, en milímetros. */
+		pdfMarginTop: integer('pdf_margin_top').notNull().default(50),
+		pdfMarginBottom: integer('pdf_margin_bottom').notNull().default(50),
+		pdfMarginLeft: integer('pdf_margin_left').notNull().default(15),
+		pdfMarginRight: integer('pdf_margin_right').notNull().default(15),
 		createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()

@@ -3,7 +3,7 @@ import { getContractPdfContext } from '#lib/server/domain/contracts';
 import type { ExportPlan } from '#lib/server/domain/exports';
 import type { Storage } from '#lib/server/storage/storage';
 import type { ExportRequestOptions } from './options';
-import { buildWorkPdf } from './pdf';
+import { DEFAULT_PDF_MARGINS, buildWorkPdf } from './pdf';
 import { buildWorkbook } from './workbook';
 
 /** Entrada binaria generada para el ZIP (registro XLSX o PDF de evidencia). */
@@ -51,7 +51,8 @@ export async function buildExportExtras(
 							mode: row.mode
 						},
 						blocks: row.photoBlocks,
-						backgroundAbsolutePath
+						backgroundAbsolutePath,
+						margins: context?.margins ?? DEFAULT_PDF_MARGINS
 					},
 					storage
 				)

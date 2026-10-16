@@ -177,13 +177,13 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 
 1. Cada trabajo con evidencia aprobada genera un **PDF** con sus fotografías (última entrega aprobada), **sin portada** y con cabecera corrida (contrato · edificio · servicio · trabajo).
 2. Hasta **4 fotografías por página** (2×2). Cada foto lleva su **leyenda pegada debajo**: `Trabajo · Elemento · Requisito` (sin fecha ni autor); sin encabezados de sección.
-3. **Márgenes superior e inferior de 5 cm** (las filas se reparten dentro del área útil). El **fondo del contrato** se dibuja **opaco** en todas las páginas, sin velo.
+3. **Márgenes configurables por contrato** (arriba/abajo/izquierda/derecha, 10–80 mm; por defecto 50/50/15/15), repartiendo las filas dentro del área útil. El **fondo del contrato** se dibuja **opaco** en todas las páginas, sin velo. Si los márgenes dejan poco ancho o alto, la rejilla baja de 2 columnas a 1 y de 2 filas a 1.
 4. Ubicación: **con fotografías**, el PDF vive en la carpeta del trabajo; **sin fotografías**, los PDF caen **directamente en la carpeta del servicio** (`<Servicio>/<Trabajo> - [fecha].pdf`).
 5. Los enlaces del XLSX apuntan a esa misma ruta.
 
 ### Fondo del contrato
 
-El administrador sube una **imagen PNG/JPG** (máx. 5 MB) desde la ficha del contrato; se normaliza y se aplica a los PDF de todos sus servicios. Puede reemplazarse o quitarse.
+El administrador sube una **imagen PNG/JPG** (máx. 5 MB) desde la ficha del contrato; se normaliza y se aplica a los PDF de todos sus servicios. Puede reemplazarse o quitarse. En la misma tarjeta («PDF de evidencia») se configuran los **márgenes en mm** (10–80).
 
 ### Opciones de exportación
 

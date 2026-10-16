@@ -7,9 +7,11 @@ import {
 	createContract,
 	deleteContract,
 	getContractAccess,
+	getContractPdfContext,
 	listContractAssignments,
 	listContractsForUser,
-	revokeContractAssignment
+	revokeContractAssignment,
+	updateContractPdfMargins
 } from '#lib/server/domain/contracts';
 import { DomainError } from '#lib/server/domain/errors';
 import { createService, getServiceForUser, listServicesForUser } from '#lib/server/domain/services';
@@ -176,6 +178,30 @@ await describeWithDatabase('CONTRATOS · ámbito y asignaciones', ({ db, client 
 
 		await expect(getServiceForUser(db, technician, service.id)).rejects.toBeInstanceOf(DomainError);
 		expect(await listContractAssignments(db, contract)).toHaveLength(0);
+	});
+
+	it('CONTRACT-05: los márgenes del PDF tienen valores por defecto y se actualizan', async () => {
+		const admin = await seedAdmin();
+		const contract = await seedContract(admin.id, 'Contrato');
+
+		expect((await getContractPdfContext(db, contract)).margins).toEqual({
+			top: 50,
+			bottom: 50,
+			left: 15,
+			right: 15
+		});
+
+		await updateContractPdfMargins(db, {
+			contractId: contract,
+			margins: { top: 70, bottom: 60, left: 20, right: 25 },
+			actorId: admin.id
+		});
+		expect((await getContractPdfContext(db, contract)).margins).toEqual({
+			top: 70,
+			bottom: 60,
+			left: 20,
+			right: 25
+		});
 	});
 
 	it('CONTRACT-04: no se elimina un contrato con servicios', async () => {

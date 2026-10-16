@@ -14,7 +14,12 @@
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import type { PageProps } from './$types';
 
-	type ActionData = { success?: string; message?: string; backgroundMessage?: string };
+	type ActionData = {
+		success?: string;
+		message?: string;
+		backgroundMessage?: string;
+		marginMessage?: string;
+	};
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
@@ -42,6 +47,12 @@
 		async ({ result, update }) => {
 			await update({ reset: true });
 			if (result.type === 'success') revokeTarget = null;
+		};
+	// Los márgenes se guardan sin recargar y sin resetear los campos.
+	const submitMargins: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
 		};
 </script>
 
@@ -196,11 +207,11 @@
 	{#if data.isAdmin}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title class="text-base">Fondo del PDF</Card.Title>
+				<Card.Title class="text-base">PDF de evidencia</Card.Title>
 			</Card.Header>
-			<Card.Content class="space-y-3">
+			<Card.Content class="space-y-4">
 				<p class="text-sm text-muted-foreground">
-					Imagen de fondo compartida por los PDF de evidencia de todos los servicios de este
+					Fondo y márgenes compartidos por los PDF de evidencia de todos los servicios de este
 					contrato.
 				</p>
 				{#if data.hasPdfBackground}
@@ -237,6 +248,70 @@
 						<Button type="submit" variant="destructive" size="sm">Quitar fondo</Button>
 					</form>
 				{/if}
+
+				<form
+					method="POST"
+					action="?/updateMargins"
+					class="space-y-3 border-t pt-4"
+					use:enhance={submitMargins}
+				>
+					<input type="hidden" name="contractId" value={data.contract.id} />
+					<p class="text-sm font-medium">Márgenes (mm)</p>
+					<div class="grid gap-3 sm:grid-cols-4">
+						<div class="space-y-2">
+							<Label for="margin-top">Arriba</Label>
+							<Input
+								id="margin-top"
+								name="marginTop"
+								type="number"
+								min="10"
+								max="80"
+								value={String(data.pdfMargins.top)}
+								required
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="margin-bottom">Abajo</Label>
+							<Input
+								id="margin-bottom"
+								name="marginBottom"
+								type="number"
+								min="10"
+								max="80"
+								value={String(data.pdfMargins.bottom)}
+								required
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="margin-left">Izquierda</Label>
+							<Input
+								id="margin-left"
+								name="marginLeft"
+								type="number"
+								min="10"
+								max="80"
+								value={String(data.pdfMargins.left)}
+								required
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="margin-right">Derecha</Label>
+							<Input
+								id="margin-right"
+								name="marginRight"
+								type="number"
+								min="10"
+								max="80"
+								value={String(data.pdfMargins.right)}
+								required
+							/>
+						</div>
+					</div>
+					{#if action?.marginMessage}
+						<p class="text-sm text-destructive">{action.marginMessage}</p>
+					{/if}
+					<Button type="submit" variant="outline" size="sm">Guardar márgenes</Button>
+				</form>
 			</Card.Content>
 		</Card.Root>
 	{/if}

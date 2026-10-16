@@ -74,6 +74,21 @@ export const updateContractSchema = z.object({
 		.default('')
 });
 
+const marginMm = z.coerce
+	.number()
+	.int('Los márgenes deben ser números enteros (mm).')
+	.min(10, 'El margen mínimo es 10 mm.')
+	.max(80, 'El margen máximo es 80 mm.');
+
+/** Márgenes del PDF de evidencia del contrato, en milímetros. */
+export const contractPdfMarginsSchema = z.object({
+	contractId: z.uuid('Contrato inválido.'),
+	marginTop: marginMm,
+	marginBottom: marginMm,
+	marginLeft: marginMm,
+	marginRight: marginMm
+});
+
 export const assignContractUserSchema = z.object({
 	contractId: z.uuid('Contrato inválido.'),
 	userId: z.uuid('Usuario inválido.'),

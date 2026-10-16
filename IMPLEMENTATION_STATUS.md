@@ -256,6 +256,10 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 
 ## PDF de evidencia por trabajo y fondo del contrato
 
+- **Márgenes configurables por contrato** (`contracts.pdf_margin_top/bottom/left/right`, mm, 10–80, por defecto
+  50/50/15/15; migración 0011): se editan en la tarjeta **«PDF de evidencia»** junto al fondo. La cabecera corrida y
+  el número de página se colocan dentro de los márgenes, y si el área útil se estrecha la rejilla baja a **1 columna**
+  y/o **1 fila** (nunca más de 4 fotos por página).
 - **Un PDF por trabajo** (`#lib/server/exports/pdf.ts`, con **`pdf-lib`**): **sin portada**, cabecera corrida
   (contrato · edificio · servicio · trabajo), hasta **4 fotografías por página** (2×2) y **leyenda pegada debajo** de
   cada foto (`Trabajo · Elemento · Requisito`, sin fecha ni autor), sin encabezados de sección. **Márgenes de 5 cm**
