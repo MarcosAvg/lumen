@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import Camera from '@lucide/svelte/icons/camera';
+	import ImageIcon from '@lucide/svelte/icons/image';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
@@ -9,6 +11,7 @@
 	import * as Tabs from '#lib/components/ui/tabs';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import * as Dialog from '#lib/components/ui/dialog';
+	import * as Sheet from '#lib/components/ui/sheet';
 	import { Label } from '#lib/components/ui/label';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
@@ -109,6 +112,59 @@
 	let submitError = $state<string | null>(null);
 	// Secciones plegables: por defecto expandidas (`true` = contraída).
 	let collapsedGroups = $state<Record<string, boolean>>({});
+
+	// Hoja inferior de acciones de foto (móvil).
+	let addSheetOpen = $state(false);
+	let addSheetRequirement = $state<string | null>(null);
+
+	// Reordenar en móvil: pulsación larga + arrastre horizontal (fallback ↑/↓).
+	let draggingId = $state<string | null>(null);
+	let dragLastX = 0;
+	let dragMoved = false;
+	let pressTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function beginPress(photo: Photo, event: PointerEvent) {
+		if (!editable || event.pointerType !== 'touch') return;
+		dragMoved = false;
+		dragLastX = event.clientX;
+		if (pressTimer) clearTimeout(pressTimer);
+		pressTimer = setTimeout(() => {
+			draggingId = photo.id;
+			dragLastX = event.clientX;
+		}, 350);
+	}
+
+	function pressMove(
+		photo: Photo,
+		event: PointerEvent,
+		onmove: (id: string, direction: -1 | 1) => void
+	) {
+		if (event.pointerType !== 'touch') return;
+		if (draggingId !== photo.id) {
+			// Movimiento temprano = scroll: cancela la pulsación larga.
+			if (pressTimer && Math.abs(event.clientX - dragLastX) > 12) {
+				clearTimeout(pressTimer);
+				pressTimer = null;
+			}
+			return;
+		}
+		const delta = event.clientX - dragLastX;
+		if (Math.abs(delta) < 64) return;
+		onmove(photo.id, delta > 0 ? 1 : -1);
+		dragLastX = event.clientX;
+		dragMoved = true;
+	}
+
+	function endPress(photo: Photo) {
+		if (pressTimer) {
+			clearTimeout(pressTimer);
+			pressTimer = null;
+		}
+		if (draggingId === photo.id) {
+			draggingId = null;
+			dragMoved = true; // evita que el toque final abra el visor
+		}
+	}
 
 	// Lumen es online-only: sin red se deshabilitan las mutaciones.
 	let online = $state(true);
@@ -858,10 +914,66 @@
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Root>
+
+	<!-- Hoja inferior (móvil) con las acciones de foto. -->
+	<Sheet.Root bind:open={addSheetOpen}>
+		<Sheet.Content side="bottom">
+			<Sheet.Header>
+				<Sheet.Title>Añadir fotos</Sheet.Title>
+				<Sheet.Description>
+					{addSheetRequirement
+						? 'Se añadirán a esta sección.'
+						: 'Se añadirán al grupo de adicionales.'}
+				</Sheet.Description>
+			</Sheet.Header>
+			<div class="grid gap-2">
+				<label
+					class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
+				>
+					<input
+						type="file"
+						accept="image/*"
+						capture="environment"
+						disabled={!online}
+						class="hidden"
+						onchange={(event) => {
+							handleFiles(addSheetRequirement, event.currentTarget.files);
+							event.currentTarget.value = '';
+							addSheetOpen = false;
+						}}
+					/>
+					<Camera class="size-5" aria-hidden="true" />
+					Tomar foto
+				</label>
+				<label
+					class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
+				>
+					<input
+						type="file"
+						accept="image/*"
+						multiple
+						disabled={!online}
+						class="hidden"
+						onchange={(event) => {
+							handleFiles(addSheetRequirement, event.currentTarget.files);
+							event.currentTarget.value = '';
+							addSheetOpen = false;
+						}}
+					/>
+					<ImageIcon class="size-5" aria-hidden="true" />
+					Elegir fotos
+				</label>
+			</div>
+			<p class="text-xs text-muted-foreground">
+				Consejo: mantén pulsada una foto y arrastra para reordenarla; también puedes usar ↑/↓.
+			</p>
+		</Sheet.Content>
+	</Sheet.Root>
 </div>
 
 {#snippet PhotoInputs(options: { requirementId: string | null })}
-	<div class="flex flex-wrap gap-2">
+	<!-- Escritorio: botones directos. -->
+	<div class="hidden flex-wrap gap-2 md:flex">
 		<label class="cursor-pointer">
 			<input
 				type="file"
@@ -875,7 +987,7 @@
 				}}
 			/>
 			<span
-				class="inline-flex h-11 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted md:h-8"
+				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
 			>
 				Tomar foto
 			</span>
@@ -893,12 +1005,25 @@
 				}}
 			/>
 			<span
-				class="inline-flex h-11 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted md:h-8"
+				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
 			>
 				Elegir fotos
 			</span>
 		</label>
 	</div>
+	<!-- Móvil: un botón primario que abre la hoja de acciones. -->
+	<Button
+		type="button"
+		variant="outline"
+		class="w-full md:hidden"
+		disabled={!online}
+		onclick={() => {
+			addSheetRequirement = options.requirementId;
+			addSheetOpen = true;
+		}}
+	>
+		Añadir fotos
+	</Button>
 {/snippet}
 
 {#snippet PhotoGrid(options: {
@@ -913,8 +1038,27 @@
 	{:else}
 		<ul class="flex flex-wrap gap-3">
 			{#each options.group as photo, index (photo.id)}
-				<li class="w-32 space-y-1">
-					<button type="button" class="block w-full" onclick={() => options.onopen(photo)}>
+				<li
+					class="w-32 space-y-1 {draggingId === photo.id
+						? 'opacity-70 outline-2 outline-primary/60 outline-dashed'
+						: ''}"
+					style={draggingId === photo.id ? 'touch-action: none' : ''}
+					onpointerdown={(event) => beginPress(photo, event)}
+					onpointermove={(event) => pressMove(photo, event, options.onmove)}
+					onpointerup={() => endPress(photo)}
+					onpointercancel={() => endPress(photo)}
+				>
+					<button
+						type="button"
+						class="block w-full"
+						onclick={() => {
+							if (dragMoved) {
+								dragMoved = false;
+								return;
+							}
+							options.onopen(photo);
+						}}
+					>
 						<img
 							src={`/api/photos/${photo.id}/thumbnail`}
 							alt={`Foto ${index + 1} de ${options.group.length}`}
@@ -928,6 +1072,7 @@
 								<Button
 									variant="ghost"
 									size="icon-sm"
+									class="max-md:size-11"
 									disabled={index === 0}
 									aria-label="Mover antes"
 									onclick={() => options.onmove(photo.id, -1)}
@@ -937,6 +1082,7 @@
 								<Button
 									variant="ghost"
 									size="icon-sm"
+									class="max-md:size-11"
 									disabled={index === options.group.length - 1}
 									aria-label="Mover después"
 									onclick={() => options.onmove(photo.id, 1)}
@@ -947,6 +1093,7 @@
 							<Button
 								variant="destructive"
 								size="icon-sm"
+								class="max-md:size-11"
 								aria-label="Retirar fotografía"
 								onclick={() => options.onremove(photo)}
 							>
