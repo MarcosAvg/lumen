@@ -1,5 +1,9 @@
 # 06 — Plan de implementación, prioridades y criterios de aceptación
 
+> **Estado: plan cumplido (v1).** Las etapas 0–8 están completadas y verificadas; el estado y las
+> pruebas actuales están en [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md). Este documento
+> se conserva como referencia del plan y de la matriz de aceptación (§12 y §17).
+
 ## 1. Propósito
 
 Implementar Lumen **por entregas verticales verificables**, evitando que un agente construya una UI atractiva sobre reglas de permisos o estados incorrectas. Este plan es guía de ejecución, no un calendario obligatorio.
