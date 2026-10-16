@@ -19,6 +19,9 @@
 	);
 	const rejected = $derived(data.attention.filter((target) => target.status === 'rejected'));
 	const inProgress = $derived(data.attention.filter((target) => target.status !== 'rejected'));
+	const servicesHref = $derived(
+		role === 'admin' ? resolve('/(app)/admin/services') : resolve('/(app)/services')
+	);
 
 	// Muchos pendientes aglomeran el panel: se muestran los primeros y el resto
 	// se despliega bajo demanda. Seleccionar un servicio vive en su propia pestaña.
@@ -42,7 +45,7 @@
 {#snippet targetList(targets: AttentionTarget[])}
 	<ul class="divide-y overflow-hidden rounded-lg border">
 		{#each targets as target (target.targetId)}
-			<li class="relative flex items-start justify-between gap-3 p-3 active:bg-muted/50">
+			<li class="relative flex min-h-14 items-start justify-between gap-3 p-3 active:bg-muted/50">
 				<div class="space-y-0.5">
 					<p class="flex flex-wrap items-center gap-2">
 						<!-- eslint-disable svelte/no-navigation-without-resolve -->
@@ -107,6 +110,19 @@
 			</p>
 		{/if}
 	{:else}
+		<div class="grid gap-2 md:hidden">
+			{#if data.summary.pendingReviews > 0}
+				<Button href={resolve('/(app)/reviews')} class="w-full justify-between">
+					<span>Revisiones pendientes</span>
+					<span class="tnum">{data.summary.pendingReviews}</span>
+				</Button>
+			{/if}
+			<Button href={servicesHref} variant="outline" class="w-full justify-between">
+				<span>Servicios</span>
+				<span class="tnum">{data.summary.serviceCount}</span>
+			</Button>
+		</div>
+
 		<div class="grid gap-3 sm:grid-cols-3">
 			<Card.Root>
 				<Card.Content>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { afterNavigate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Building2 from '@lucide/svelte/icons/building-2';
@@ -28,6 +29,13 @@
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/sw.js').catch(() => {});
 		}
+	});
+
+	// Tras navegar, lleva el foco al contenido para que los lectores de pantalla
+	// (especialmente en móvil) anuncien la nueva vista sin desplazar la página.
+	afterNavigate((navigation) => {
+		if (navigation.type === 'enter') return;
+		document.getElementById('contenido')?.focus({ preventScroll: true });
 	});
 
 	const roleLabel = {
@@ -305,8 +313,9 @@
 
 		<div
 			id="contenido"
+			tabindex="-1"
 			aria-busy={navigating.to !== null}
-			class="mx-auto w-full min-w-0 {shellWidth} px-4 pt-6 pb-28 md:pb-8 lg:px-8 lg:pt-8"
+			class="mx-auto w-full min-w-0 {shellWidth} px-4 pt-6 pb-28 outline-none md:pb-8 lg:px-8 lg:pt-8"
 		>
 			{@render children()}
 		</div>

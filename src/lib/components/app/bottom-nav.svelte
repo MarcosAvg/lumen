@@ -115,10 +115,16 @@
 						href={item.href}
 						aria-current={current ? 'page' : undefined}
 						aria-label={(item.badge ?? 0) > 0 ? `${item.label}: ${item.badge}` : undefined}
-						class="flex w-full flex-col items-center gap-0.5 py-2 text-[11px] {current
+						class="relative flex w-full flex-col items-center gap-0.5 py-2 text-[11px] {current
 							? 'font-medium text-foreground'
 							: 'text-muted-foreground'}"
 					>
+						{#if current}
+							<span
+								class="absolute inset-x-3 top-0 h-0.5 rounded-full bg-primary"
+								aria-hidden="true"
+							></span>
+						{/if}
 						<span class="relative">
 							<item.icon class="size-6" aria-hidden="true" />
 							{#if (item.badge ?? 0) > 0}
