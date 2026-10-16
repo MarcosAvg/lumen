@@ -11,7 +11,7 @@
 - **Escritorio**: el área de contenido crece con la plantilla de la página (listados/tablero/búsqueda más anchos que las fichas); los listados usan **tablas** densas y las fichas se organizan en **dos columnas** (contenido + rail de datos/acciones). El progreso se muestra con un **instrumento medido** por objetivos aprobados. En móvil nada de esto cambia: las capas de escritorio se añaden con `lg:`/`xl:` y las tablas permiten desplazamiento horizontal.
 - No imponer flujos complejos de asignación, validación o aprobación. No requerir interacción en tiempo real ni trabajo offline.
 
-## Sistema de UI (contrato)
+## 2. Sistema de UI (contrato)
 
 - **Título de vista en la cabecera**: el `h1` de cada página vive en la barra superior (`#page-title`, `text-sm font-medium md:text-base`, `truncate`) y lo aporta el `load` de cada ruta (`title`). El contenido usa `PageIntro` (descripción, solo escritorio, + acciones) y **no repite el `h1`**; el `<title>` de la pestaña se mantiene aparte. Ventaja: un único `h1` por vista y cabecera siempre contextual.
 - **Tipo**: secciones `text-base font-medium`; cuerpo `text-sm`; meta `text-xs text-muted-foreground`.
@@ -36,7 +36,7 @@
 - **Errores de campo**: cada mensaje de error se asocia a su control con `aria-invalid` y `aria-describedby` (el `<p>` lleva `id`); los avisos de formulario usan `Alert` (`role="alert"`) y las confirmaciones de acción `Alert role="status"`.
 - **Componentes base en español**: los textos accesibles de los componentes de shadcn-svelte (cerrar diálogo/hoja, alternar menú, paleta de comandos) se traducen en su sitio; divergen de upstream y hay que reevaluarlos al actualizar.
 
-## 2. Mapa de navegación
+## 3. Mapa de navegación
 
 ```text
 Autenticación
@@ -70,7 +70,7 @@ Aplicación (sesión)
 
 El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabajo/elemento, sin multiplicar páginas para la captura.
 
-## 3. Navegación general y layout
+## 4. Navegación general y layout
 
 ### Móvil
 
@@ -86,7 +86,7 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 - Supervisores: cola de revisión con filtros de servicio, estado y fecha.
 - Administradores: acciones de catálogo, asignaciones, exportación y configuración con paneles de detalle.
 
-## 4. Dashboard por rol
+## 5. Dashboard por rol
 
 | Rol | Contenido prioritario | Acciones |
 |---|---|---|
@@ -98,7 +98,7 @@ No mostrar contador «todos los servicios» a supervisores si incluye los no asi
 
 La **selección de servicio vive en su propia pestaña** (`/services`), no en el tablero: así una cola larga de pendientes no la desplaza. En el tablero, «Requiere tu atención» (rechazados) se muestra completo, mientras que **«Pendientes» se limita a 5** con «Mostrar todos (N)».
 
-## 5. Lista y detalle de servicios
+## 6. Lista y detalle de servicios
 
 **Contratos (nivel superior):** `/contracts` lista los contratos del usuario (admin: todos; supervisor: los suyos). La ficha del contrato muestra datos (edición en **modal**, admin), **participantes** (añadir/revocar; solo el admin o un supervisor del contrato) y **servicios** con su avance. Al crear/editar un servicio se exige **contrato**; los participantes asignables a un servicio son los del contrato. El administrador, al asignar un servicio, incorpora al usuario al contrato si faltaba; un supervisor solo usa miembros existentes.
 **Lista:** tarjetas o tabla responsiva, nombre del servicio, edificio opcional, progreso (objetivos aprobados / totales), indicación completado/incompleto. Se sirve en **dos rutas**: `/services` (técnico/supervisor: **solo sus servicios asignados**, orientada a seleccionar y entrar) y `/admin/services` (admin: creación/edición/borrado). El progreso por servicio se agrega en una consulta, sin N+1.
@@ -111,7 +111,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 - Descarga de **ZIP de evidencias aprobadas del servicio** disponible también si no completado, con texto que indica inclusión solo de objetivos aprobados y relación de omitidos.
 - Admin puede editar datos del servicio (**modal** desde la cabecera) y gestionar participantes (**modal** con asignar/revocar), sin forzar a técnicos a atravesar esos formularios.
 
-## 6. Trabajo directo y trabajo dividido
+## 7. Trabajo directo y trabajo dividido
 
 ### Directo
 
@@ -125,7 +125,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 - Si no tiene elementos, estado incompleto y mensaje de vacío; admin con CTA «Agregar elementos».
 - La galería del trabajo padre **no existe**; prohibido agregar carga/fotos al padre.
 
-## 7. Pantalla de evidencia: principal
+## 8. Pantalla de evidencia: principal
 
 ### Estructura orientativa
 
@@ -172,7 +172,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 - Mantener visibles fotos exitosas si una de varias falla; no crear una entrega hasta que terminen las que deban incluirse.
 - Errores accionables: formato no soportado, tamaño excesivo, almacenamiento lleno, conexión perdida, permiso revocado o conflicto de versión.
 
-## 8. Enviar evidencia
+## 9. Enviar evidencia
 
 1. Mostrar botón principal solo si es editable y usuario puede enviar.
 2. Validación cliente orientativa de grupos requeridos para UX rápida, **sin sustituir validación servidor**. El **checklist de envío** (regla compartida servidor/UI) marca cada requisito obligatorio sin evidencia («Falta evidencia») y resume junto al botón lo que falta («Falta evidencia obligatoria en: …»); si nada está completo, el diálogo lo explica y deshabilita «Confirmar envío». El servidor sigue siendo la única fuente autoritativa.
@@ -184,7 +184,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 4. Tras confirmar, deshabilitar doble envío y mostrar progreso. Si servidor devuelve `409`, no fingir éxito: mostrar «La evidencia cambió; actualiza antes de enviar».
 5. En éxito, estado `in_review`, fotos lectura y enlace al historial de Entrega #N.
 
-## 9. Bandeja de revisión
+## 10. Bandeja de revisión
 
 ### Lista
 
@@ -217,7 +217,7 @@ Describe qué deben corregir los técnicos.
 
 Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razonable configurable. Si otro supervisor decidió primero, cerrar diálogo, avisar y recargar; jamás mostrar dos decisiones como exitosas.
 
-## 10. Historial independiente
+## 11. Historial independiente
 
 - Tabs o sección visible: **Evidencia actual | Historial**.
 - La primera vista es **Actual**, aunque haya varios rechazos.
@@ -226,7 +226,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Botones de descarga individual y ZIP por entrega en el detalle histórico (el ZIP por entrega no se ofrece a los técnicos).
 - En versión rechazada, destacar motivo en la pestaña Actual para que técnico sepa qué corregir sin tener que buscarlo en historial.
 
-## 11. Administración de catálogos
+## 12. Administración de catálogos
 
 - Lista de catálogos con búsqueda, **pestañas por tipo** (Todos / Generales / Edificios / Requisitos) y acciones agregar/editar. Al crear o editar (**modal**), se elige el **tipo**. El alta de ítems y el renombrado también son **modales**.
 - Detalle de ítems, relaciones opcionales con ítems de otros catálogos, orden, usos.
@@ -236,7 +236,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Al borrar ítem, diálogo de impacto: «Los trabajos y elementos vinculados conservarán su nombre actual y dejarán de estar vinculados; sus evidencias no se borrarán».
 - Al renombrar trabajo/elemento vinculado, advertir: «Este cambio lo desvinculará del catálogo».
 
-## 12. Administración de servicios/trabajos/elementos
+## 13. Administración de servicios/trabajos/elementos
 
 - Formularios simples: nombre, descripción, edificio opcional, participantes asignados.
 - Selector de modo directo/dividido al crear trabajo, con explicación visible de dónde vivirán fotos y aprobaciones.
@@ -246,7 +246,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Cambiar modo abre asistente de reasignación de fotos y requisitos, **solo si nunca hubo envío**; no crear destino/suprimir fotos automáticamente. Permitir cancelar sin cambios.
 - Acciones de borrado de servicio/trabajo/elemento requieren nombre del recurso, resumen de dependencias afectadas y confirmación explícita (puede requerirse escribir el nombre para recursos con historial).
 
-## 13. Buscar
+## 14. Buscar
 
 - Buscador global desde header o navegación; búsqueda por **nombre** de servicio, trabajo, elemento.
 - Resultados separados o etiquetados por tipo, con rutas contextuales como «UMA 03 — Mantenimiento / Piso 34».
@@ -255,7 +255,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - **Filtros de búsqueda**: por **tipo** (servicios/trabajos/elementos) y por **servicio**; se aplican en servidor y el selector de servicio solo ofrece los servicios del ámbito del usuario.
 - Las listas locales conservan filtros por estado y nombre para navegación detallada.
 
-## 14. Notificaciones y perfil
+## 15. Notificaciones y perfil
 
 - Campana con contador de no leídas en layout principal.
 - Bandeja con eventos de entrega y revisión, fecha, contexto, resumen, marca leído individual y todo leído; clic abre destino protegido.
@@ -264,7 +264,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Si push no está disponible o se deniega, mostrarlo sin tratarlo como fallo de la aplicación; bandeja interna sigue activa.
 - Permitir eliminar suscripción del dispositivo actual y limpiar suscripciones obsoletas.
 
-## 15. Exportaciones en UI
+## 16. Exportaciones en UI
 
 - Foto: menú o icono Descargar en visualizador.
 - Entrega: «Descargar ZIP de esta entrega» tanto en actual enviada como historial.
@@ -278,7 +278,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - **PDF de evidencia**: tarjeta en la ficha del contrato (solo admin) para subir/reemplazar/quitar el **fondo** (PNG/JPG) y configurar los **márgenes en mm** (arriba · abajo · izquierda · derecha, 10–80) compartidos por los PDF de sus servicios.
 - En descargas grandes, feedback de inicio/error; no prometer barra de progreso si streaming nativo no permite medirlo de manera robusta.
 
-## 16. Estados de interfaz y accesibilidad
+## 17. Estados de interfaz y accesibilidad
 
 - **Cargando / vacío / error / sin permiso / conflicto / sin conexión / bloqueado** distinguidos, con acción útil donde corresponda.
 - **Regla de feedback**: el **resultado de una acción de página** (formulario) se confirma con un
@@ -296,7 +296,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Controles grandes para dedos y suficiente contraste sobre fondos claros/oscuros.
 - Diseño de botones destructivos con jerarquía visual distinta de acciones positivas.
 
-## 17. PWA y experiencia de red
+## 18. PWA y experiencia de red
 
 - Manifest e instalación correctos en Android/escritorio/iOS compatible; verificar modo standalone y deep links.
 - La aplicación es **online-only**. Sin red, mostrar pantalla o banner de desconexión; **no** indicar que las fotos quedaron enviadas ni guardadas en servidor.
@@ -304,7 +304,7 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - Para notificaciones push, permitir activación informada; en iOS compatible suele requerir instalación en pantalla de inicio.
 - Pérdida de red durante upload: fallos claros y reintento, sin dejar recursos `processing` indefinidos.
 
-## 18. Textos de interfaz sugeridos
+## 19. Textos de interfaz sugeridos
 
 | Caso | Mensaje |
 |---|---|

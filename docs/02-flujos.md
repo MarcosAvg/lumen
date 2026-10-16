@@ -224,6 +224,6 @@ Retirada por ahora como CSV; el registro de datos se entrega en **XLSX** dentro 
 - Eliminar ítem de catálogo → nombre preservado en instancias, ninguna foto perdida.
 - Dos técnicos compiten por ordenar y enviar → una operación gana, la otra responde conflicto, snapshot consistente.
 - Dos supervisores revisan misma entrega → solo una revisión aceptada.
-- Exportar ZIP de servicio incompleto → solo aprobados + `resumen.csv` de pendientes.
+- Exportar ZIP de servicio incompleto → solo la última entrega aprobada de cada objetivo; el **registro XLSX** del ZIP lista todo el estado (incluidos pendientes/omitidos).
 - No permitir editar requisitos tras primer envío, aunque actualmente rechazado.
 - Intentar enviar sin requeridos o con foto sin terminar de procesar → error; no crear entrega parcial.

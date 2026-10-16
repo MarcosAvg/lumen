@@ -3,6 +3,9 @@
 Guía operativa para **autoalojar** Lumen, ponerlo detrás de HTTPS, actualizarlo,
 respaldarlo y restaurarlo. Complementa `docs/04-arquitectura.md` y el `README.md`.
 
+> Para desplegar **sin clonar el repositorio**, usa la guía autocontenida
+> [`../DEPLOY.md`](../DEPLOY.md). Índice de toda la documentación: [`README.md`](README.md).
+
 ## 1. Requisitos
 
 - **Docker + Docker Compose** (todo lo demás va en contenedores). No hace falta Node en el servidor.

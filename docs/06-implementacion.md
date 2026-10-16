@@ -173,7 +173,7 @@ Una función se considera terminada cuando:
 - Búsqueda global por nombre visible actual en servicios/trabajos/elementos, filtrada por sesión, rol y asignaciones.
 - Descarga de foto optimizada en evidencia actual e histórica.
 - ZIP de entrega desde snapshot: requisitos, Adicionales, números en orden.
-- ZIP de servicio: última entrega aprobada por target, jerarquía de carpetas y `resumen.csv` con omitidos.
+- ZIP de servicio: última entrega aprobada por target, jerarquía de carpetas y el **registro XLSX** con todo el estado (omitidos incluidos).
 - ZIP de contrato/servicio/trabajo con la última entrega aprobada, más el **registro XLSX** (variantes Simple y Extendida, fila por trabajo, enlaces relativos al PDF de evidencia) elegible junto a las fotografías desde el modal de exportación.
 - Streaming o temporal controlado y nombres seguros para ZIP.
 
@@ -298,16 +298,18 @@ Separar comando `seed:dev` explícito de `migrate`, `start` y primer arranque pr
 
 ## 17. Lista de verificación para revisión final
 
-- [ ] Todos los permisos de lectura, escritura, fotos, búsqueda y exportación se verifican en servidor.
-- [ ] Dos técnicos pueden trabajar sin locks exclusivos y sin pisarse silenciosamente.
-- [ ] Las fotos históricas no desaparecen al retirar fotos del borrador.
-- [ ] Los snapshots registran grupo y orden exactos al enviar.
-- [ ] El rechazo exige motivo; la UI confirma aprobación y rechazo.
-- [ ] Requisitos bloqueados por **historia de envíos**, no por estado actual.
-- [ ] Un trabajo dividido vacío y servicio vacío no aparecen completados.
-- [ ] La estructura puede cambiar sin reescribir aprobaciones históricas.
-- [ ] Borrar ítem catálogo nunca borra fotos; borrados destructivos sí requieren confirmación.
-- [ ] ZIP de servicio solo incluye entregas aprobadas y reporta lo omitido.
-- [ ] El ZIP de contrato agrupa por edificio y servicio, y no incluye objetivos no aprobados.
-- [ ] Bandeja interna persiste sin Web Push y enlaces se reautorizan.
-- [ ] Compose, migraciones, backups/restore y documentación son reproducibles.
+Verificada en la implementación actual: el detalle por etapa y sus pruebas están en [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) y en la matriz de pruebas (§12) ejecutada con `pnpm test` / `pnpm test:integration` / `pnpm test:e2e`.
+
+- [x] Todos los permisos de lectura, escritura, fotos, búsqueda y exportación se verifican en servidor.
+- [x] Dos técnicos pueden trabajar sin locks exclusivos y sin pisarse silenciosamente.
+- [x] Las fotos históricas no desaparecen al retirar fotos del borrador.
+- [x] Los snapshots registran grupo y orden exactos al enviar.
+- [x] El rechazo exige motivo; la UI confirma aprobación y rechazo.
+- [x] Requisitos bloqueados por **historia de envíos**, no por estado actual.
+- [x] Un trabajo dividido vacío y servicio vacío no aparecen completados.
+- [x] La estructura puede cambiar sin reescribir aprobaciones históricas.
+- [x] Borrar ítem catálogo nunca borra fotos; borrados destructivos sí requieren confirmación.
+- [x] ZIP de servicio solo incluye entregas aprobadas y reporta lo omitido.
+- [x] El ZIP de contrato agrupa por edificio y servicio, y no incluye objetivos no aprobados.
+- [x] Bandeja interna persiste sin Web Push y enlaces se reautorizan.
+- [x] Compose, migraciones, backups/restore y documentación son reproducibles.

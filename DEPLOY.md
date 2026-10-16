@@ -4,8 +4,9 @@ Guía **autocontenida** para levantar Lumen en un servidor con un único
 `docker compose up`. No requiere clonar el repositorio: el `compose.yaml` de más
 abajo incluye todo (aplicación, PostgreSQL, migraciones y el proxy HTTPS Caddy).
 
-> Detalle operativo completo (seguridad, backup/restauración, mantenimiento,
-> resolución de problemas): [`docs/deployment.md`](docs/deployment.md).
+> Esta es la versión **autocontenida** (sirve sin clonar el repo). La referencia
+> operativa **canónica** es [`docs/deployment.md`](docs/deployment.md) (seguridad,
+> backup/restauración, mantenimiento y resolución de problemas).
 
 ## 1. Requisitos
 

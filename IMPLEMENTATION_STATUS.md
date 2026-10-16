@@ -1,5 +1,14 @@
 # Estado de implementación de Lumen
 
+## Índice
+
+- [Resumen](#resumen)
+- [Stack real en uso](#stack-real-en-uso)
+- [Convenciones del proyecto](#convenciones-del-proyecto-sveltekit-3)
+- [Etapas de implementación](#etapas-de-implementación)
+- [Desarrollos posteriores a la etapa 8](#desarrollos-posteriores-a-la-etapa-8)
+- [Operación, pruebas y estado](#operación-pruebas-y-estado)
+
 > Documento de seguimiento para que cualquier agente continúe el desarrollo sin perder contexto.
 > Última actualización: **Etapa 8 completada**.
 
@@ -34,37 +43,41 @@
 - CSRF de SvelteKit activo: las peticiones mutantes (POST/DELETE) deben llevar `Origin` acorde
   al origen de build (los navegadores lo hacen automáticamente).
 
-## Etapa 4 — Envíos, revisiones e historial inmutable
+## Etapas de implementación
 
-### Modelo de datos (`drizzle/0004_submissions.sql`)
+Las etapas 0–3 (proyecto, identidad, catálogos/servicios/trabajos y captura fotográfica) se resumen en «Resumen» y en [`docs/06-implementacion.md`](docs/06-implementacion.md). Aquí se detallan desde la etapa 4.
+
+### Etapa 4 — Envíos, revisiones e historial inmutable
+
+#### Modelo de datos (`drizzle/0004_submissions.sql`)
 
 `evidence_submissions` (UNIQUE `target_id, sequence_no`), `submission_photos` (`photo_id`
 **RESTRICT**, UNIQUE `submission_id, photo_id`, snapshots de grupo/orden/autoría), `reviews`
 (UNIQUE `submission_id`, CHECK rechazo ⇒ motivo), y `evidence_targets.latest_submission_id`.
 
-### Dominio (`#lib/server/domain/submissions.ts`)
+#### Dominio (`#lib/server/domain/submissions.ts`)
 
 `submitEvidence` (transacción + `FOR UPDATE`, valida estado/versión, exige ≥1 foto por requisito
 obligatorio o ≥1 total, congela grupos/orden/IDs), `reviewSubmission` (una sola decisión),
 `getHistory`, `getSubmissionDetail`, `getLatestRejection`, `listPendingReviews`.
 
-### Corrección PHOTO‑04 (regresión de Etapa 4, arreglada en Etapa 5)
+#### Corrección PHOTO‑04 (regresión de Etapa 4, arreglada en Etapa 5)
 
 `getPhotoAccessContext` expone `historicalReference` (EXISTS sobre `submission_photos`) y
 `isPhotoAvailable` permite descargar una foto retirada del borrador **si quedó congelada en una
 entrega**. Antes, `content`/`thumbnail` devolvían `404` al mirar solo `removedAt`, rompiendo el
 criterio «foto histórica visible y descargable».
 
-### Corrección del rechazo (regresión de Etapa 4)
+#### Corrección del rechazo (regresión de Etapa 4)
 
 El formulario de rechazo no enviaba `decision`, pero la acción validaba con `reviewSchema` (que la
 exige), así que **fallaba en silencio** y la entrega quedaba `in_review`. Se añadió `rejectSchema`
 (solo valida el motivo) y la decisión se fija en servidor; se añadió cobertura unitaria y E2E del
 rechazo.
 
-## Etapa 5 — Cambios estructurales y destrucción explícita
+### Etapa 5 — Cambios estructurales y destrucción explícita
 
-### Dominio (`#lib/server/domain/structure.ts`)
+#### Dominio (`#lib/server/domain/structure.ts`)
 
 - `getElementImpact` / `getWorkImpact` / `getServiceImpact`: recuento (trabajos, elementos,
   objetivos, entregas, fotos vigentes/totales) para el resumen previo.
@@ -77,13 +90,13 @@ evidence_targets → works/elements/service`). El orden es obligatorio: confiar 
   fotos adicionales (`409` si el conjunto no coincide) y cancela sin cambios, o no hace nada.
 - `getWorkForConversion`: datos del asistente (modo, requisitos y fotos por objetivo), sin mutar.
 
-### Limpieza diferida (`#lib/server/storage/orphans.ts`)
+#### Limpieza diferida (`#lib/server/storage/orphans.ts`)
 
 `removeUnreferencedFiles` borra, **después del commit** y best-effort, los binarios que quedaron
 sin fila en `photos`. Si falla, `scripts/cleanup.mjs` los recoge más tarde. Los paths son UUID por
 foto, por lo que no se reutilizan.
 
-### API
+#### API
 
 - `GET`/`DELETE /api/elements/[elementId]`
 - `GET`/`DELETE /api/works/[workId]`
@@ -93,7 +106,7 @@ foto, por lo que no se reutilizan.
 Todas exigen **administrador**; el `GET` devuelve el impacto y el `DELETE` responde `200` con lo
 eliminado y los archivos limpiados.
 
-### UI
+#### UI
 
 - `#lib/components/destructive-delete.svelte`: botón que consulta el impacto y exige confirmación
   con el resumen antes de borrar.
@@ -102,21 +115,21 @@ eliminado y los archivos limpiados.
 - Páginas: `services/[serviceId]` (eliminar trabajo), `works/[workId]` (eliminar elemento +
   conversión), `admin/services/[serviceId]` (eliminar servicio).
 
-### Requisitos ya cubiertos desde etapas previas
+#### Requisitos ya cubiertos desde etapas previas
 
 - Congelado de requisitos tras el primer envío (REQ‑04) y borrado de requisito preenvío
   trasladando sus fotos a Adicionales (REQ‑03): implementados en `requirements.ts`.
 
-## Etapa 6 — Bandeja interna y Web Push
+### Etapa 6 — Bandeja interna y Web Push
 
-### Modelo de datos (`drizzle/0005_notifications.sql`)
+#### Modelo de datos (`drizzle/0005_notifications.sql`)
 
 | Tabla                | Notas                                                                                                                                                                                                                            |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `notifications`      | `recipient_user_id`, `service_id`/`target_id`/`submission_id`/`review_id` (todos **cascade**), `event_type`, `title`, `body`, `deep_link`, `event_key`, `read_at`; **UNIQUE(`recipient_user_id`,`event_key`)** para idempotencia |
 | `push_subscriptions` | `user_id`, `endpoint` **único**, `p256dh`, `auth`, `user_agent`, `last_success_at`, `revoked_at`                                                                                                                                 |
 
-### Dominio
+#### Dominio
 
 - `#lib/server/domain/notifications.ts`: `resolveServiceRecipients` (usuarios **activos** con
   asignación **vigente** del rol), `createSubmissionNotifications` (supervisores, **sin admins**),
@@ -133,7 +146,7 @@ eliminado y los archivos limpiados.
   revierte la operación (NOTIF‑01).
 - `structure.ts`: el resumen de impacto incluye el número de notificaciones vinculadas.
 
-### API y UI
+#### API y UI
 
 - `GET /api/push/vapid` (config + clave pública), `POST`/`DELETE /api/push/subscriptions`.
 - Bandeja `(app)/notifications` con marcar una/todas como leídas y deep links protegidos; campana
@@ -143,15 +156,15 @@ eliminado y los archivos limpiados.
   **sin caché**) y registro del service worker desde el layout.
 - `pnpm vapid:generate` (`scripts/generate-vapid.mjs`) para generar las claves.
 
-## Etapa 7 — Búsqueda, exportaciones y paginación
+### Etapa 7 — Búsqueda, exportaciones y paginación
 
-### Búsqueda global
+#### Búsqueda global
 
 - `#lib/server/domain/search.ts` (`searchByName`): nombre visible actual de servicios, trabajos y
   elementos, `ILIKE` con comillas escapadas y **ámbito resuelto en servidor** (admin todo; resto,
   asignación vigente). `GET /api/search?q=...` y página `(app)/search` con formulario en el header.
 
-### Exportaciones (`archiver`, streaming)
+#### Exportaciones (`archiver`, streaming)
 
 - `#lib/server/exports/names.ts`: saneado anti-traversal y desambiguación de nombres.
 - `#lib/server/exports/csv.ts`: comillas/escapes, UTF-8 con BOM y **neutralización de fórmulas**.
@@ -165,21 +178,21 @@ eliminado y los archivos limpiados.
   `GET /api/admin/exports/services.csv` (solo admin). Autorización por ámbito revalidada al descargar.
 - UI: botones «Descargar ZIP de esta entrega», «Exportar evidencias aprobadas (ZIP)» y «Exportar CSV».
 
-### Filtros y paginación
+#### Filtros y paginación
 
 - `listPendingReviews` admite filtros (servicio, rango de fechas, texto) y `limit/offset` con total;
   la cola de revisión los expone con paginación.
 - `listNotifications`/`countNotifications` con paginación en la bandeja.
 
-### Pendientes menores cerrados
+#### Pendientes menores cerrados
 
 - Secciones **plegables** por grupo en la captura.
 - Prueba dedicada **NOTIF‑02** (tras revocar el acceso, el recurso enlazado deja de autorizarse).
 - `hasSubmissions` simplificado (sin el guard `to_regclass`) y comentario del layout corregido.
 
-## Etapa 8 — Calidad, operaciones y publicación
+### Etapa 8 — Calidad, operaciones y publicación
 
-### Seguridad
+#### Seguridad
 
 - `#lib/server/security/rate-limit.ts`: limitador de **ventana deslizante en memoria** (por
   instancia) aplicado a **login**, **setup** y **subida de fotos** → `429` con `Retry-After`.
@@ -188,13 +201,13 @@ eliminado y los archivos limpiados.
   configuración de SvelteKit (`csp` mode `auto`) en `vite.config.ts`.
 - Validación de imágenes por **contenido** con allowlist JPEG/PNG/WebP (ya en `images.ts`).
 
-### Accesibilidad y sin conexión
+#### Accesibilidad y sin conexión
 
 - Banner «sin conexión» global (`offline-banner.svelte`); en la captura se **deshabilitan** la
   subida y el envío sin red, sin fingir éxito (Lumen es online-only).
 - Enlace «Saltar al contenido» y `main#contenido` en el layout de la app.
 
-### Operaciones
+#### Operaciones
 
 - `scripts/backup.mjs` / `scripts/restore.mjs` (+ `scripts/lib/backup.mjs`): `pg_dump`/`pg_restore`
   y tar del volumen de fotos con `manifest.json` (tamaños y `sha256`); usan `pg_dump` local o el
@@ -203,7 +216,7 @@ eliminado y los archivos limpiados.
   en un directorio nuevo, verificando filas y archivos.
 - `maintenance:cleanup` ahora **registra el uso de disco** del volumen de fotos.
 
-### E2E, dependencias y publicación
+#### E2E, dependencias y publicación
 
 - **Playwright** (`e2e/`, `playwright.config.ts`, `scripts/e2e-server.mjs`): flujo crítico en
   **escritorio y móvil** (acceso, servicio, trabajo, captura, envío, revisión, búsqueda) y
@@ -214,7 +227,9 @@ eliminado y los archivos limpiados.
 - `docs/deployment.md`: HTTPS/proxy, `ADDRESS_HEADER`/`XFF_DEPTH`, migraciones, VAPID,
   backups/restauración, mantenimiento, seguridad y GHCR.
 
-## Rediseño de UI/UX (post-etapa 8)
+## Desarrollos posteriores a la etapa 8
+
+### Rediseño de UI/UX (post-etapa 8)
 
 Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni permisos:
 
@@ -257,7 +272,7 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
   servicio (`/admin/services/[serviceId]` redirige a la ficha).
 
-## PDF de evidencia por trabajo y fondo del contrato
+### PDF de evidencia por trabajo y fondo del contrato
 
 - **Márgenes configurables por contrato** (`contracts.pdf_margin_top/bottom/left/right`, mm, 10–80, por defecto
   50/50/15/15; migración 0011): se editan en la tarjeta **«PDF de evidencia»** junto al fondo. La cabecera corrida y
@@ -278,7 +293,7 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
 - Pruebas: integración EXP-07 (agrupación por requisito, 5 fotos → 2 páginas, `photos:false` → PDF en la carpeta del
   servicio, fondo aplicado) y E2E `tech-export` (el ZIP trae el PDF en la ruta de la carpeta del trabajo / del servicio).
 
-## Registro XLSX dentro de las exportaciones
+### Registro XLSX dentro de las exportaciones
 
 Cada ZIP (contrato, servicio y trabajo) puede incluir `<Ámbito>/<Ámbito>.xlsx`, generado con **`exceljs@4.4.0`**
 (MIT), con **una fila por trabajo**:
@@ -299,7 +314,7 @@ Cada ZIP (contrato, servicio y trabajo) puede incluir `<Ámbito>/<Ámbito>.xlsx`
   (superencabezados, tinte por columna, bordes, color de estado, chip de PDF, pestaña, fila `TOTAL` y barra de
   avance); E2E `tech-export` (modal, `xlsx=0`, `photos=0`, `variant=simple`).
 
-## Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
+### Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
 
 Jerarquía de carpetas consistente en todos los niveles, solo con la **última entrega aprobada** de cada objetivo:
 
@@ -320,7 +335,7 @@ Jerarquía de carpetas consistente en todos los niveles, solo con la **última e
   servicio desbordaba +42px a 360px con «Editar servicio/Gestionar asignaciones/Exportar ZIP»). E2E
   `no-overflow` sobre listados **y fichas** (servicio/trabajo/elemento/entrega) a 320/360/390/768/1280px.
 
-## Contratos (nivel superior de ámbito)
+### Contratos (nivel superior de ámbito)
 
 Se introdujo el **contrato** como jerarquía superior: agrupa servicios y define a sus participantes.
 
@@ -341,9 +356,9 @@ Se introdujo el **contrato** como jerarquía superior: agrupa servicios y define
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.
 
-## Tablero por rol, checklist de envío y accesibilidad
+### Tablero por rol, checklist de envío y accesibilidad
 
-- **Tablero por rol** (`docs/05 §4`): el técnico ve «Requiere tu atención» (rechazados, con motivo y
+- **Tablero por rol** (`docs/05 §5`): el técnico ve «Requiere tu atención» (rechazados, con motivo y
   «Corregir») y «Pendientes» (avance `X/Y` requisitos); el supervisor, «Entregas por revisar» y
   totales; el administrador, resumen global (servicios, objetivos aprobados, revisiones pendientes).
   Se calcula en servidor acotado por ámbito (`#lib/server/domain/dashboard.ts`, sin N+1).
@@ -359,7 +374,7 @@ textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, s
 - Pruebas: unit del checklist; integración `tests/integration/dashboard.spec.ts` (ámbito, rechazos,
   contador, filtros); E2E `dashboard-roles`, `submit-checklist`, `form-a11y`, `search-filters`.
 
-## Catálogos: selección en dos pasos y usos
+### Catálogos: selección en dos pasos y usos
 
 Se eliminó el volcado plano de catálogos en selectores:
 
@@ -523,7 +538,9 @@ abierto con el error visible y solo se cierra cuando la acción confirma éxito,
 los cierre o vacíe los campos. La firma histórica queda **congelada** (el renombrado no reescribe el
 pasado). El helper de integración cierra su cliente de Postgres para no agotar el pool.
 
-## Cómo ejecutar
+## Operación, pruebas y estado
+
+### Cómo ejecutar
 
 Guía completa en el [`README.md`](README.md) (§ «Desarrollo local»). Resumen:
 
@@ -538,7 +555,7 @@ Scripts: `dev`, `build`, `start`, `check`, `lint`, `format`, `test`, `test:integ
 `test:e2e`, `db:generate`, `db:migrate`, `db:studio`, `maintenance:cleanup`, `backup`, `restore`,
 `vapid:generate`.
 
-## Pruebas realizadas y resultados
+### Pruebas realizadas y resultados
 
 | Prueba                                         | Resultado                                                                                                                                                                                        |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -573,7 +590,7 @@ Pruebas de la Etapa 8: unit `rate-limit.spec.ts` (ventana deslizante y bloqueo c
 E2E Playwright del flujo crítico en escritorio y móvil y de las cabeceras de seguridad/CSP; drill
 de restauración manual documentado y ejecutado.
 
-## Decisiones tomadas
+### Decisiones tomadas
 
 - **Borrado destructivo**: orden explícito dentro de transacción; limpieza de archivos best-effort
   tras el commit, con `maintenance:cleanup` como red de seguridad.
@@ -594,14 +611,14 @@ de restauración manual documentado y ejecutado.
 - **Backup/restore** con `pg_dump`/`pg_restore` (local o contenedor `db`) + tar del volumen y
   `manifest.json` con checksums; restauración verificada en entorno separado.
 
-## Problemas conocidos / consideraciones
+### Problemas conocidos / consideraciones
 
 - El rate limiting es por instancia (suficiente para un contenedor; documentado en despliegue).
 - `scripts/cleanup.mjs` debe programarse (cron) para garantizar la purga de huérfanos antiguos.
 - La autorización se evalúa antes que la validación de contenido (p. ej. un revisor no asignado
   recibe `404` aunque el motivo esté vacío), lo que es intencional (no filtra recursos).
 
-## Próximos pasos (mantenimiento v1)
+### Próximos pasos (mantenimiento v1)
 
 1. Programar `pnpm backup` y `pnpm maintenance:cleanup` por cron y ejecutar pruebas de restauración
    periódicas.

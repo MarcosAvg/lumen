@@ -176,6 +176,7 @@ Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
 | Archivo                                                  | Propósito                                                                           |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [`AGENTS.md`](AGENTS.md)                                 | Reglas de trabajo para el agente de programación, prioridades y criterios generales |
+| [`docs/README.md`](docs/README.md)                       | Índice de la documentación (especificación, operación y estado)                     |
 | [`DEPLOY.md`](DEPLOY.md)                                 | Guía autocontenida de despliegue con `docker compose` (sin clonar el repo)          |
 | [`docs/01-producto.md`](docs/01-producto.md)             | Modelo funcional, reglas, permisos e invariantes                                    |
 | [`docs/02-flujos.md`](docs/02-flujos.md)                 | Flujos paso a paso y errores esperados                                              |
