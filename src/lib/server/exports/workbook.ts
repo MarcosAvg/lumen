@@ -14,6 +14,9 @@ import type { ExportPlan, ExportPlanRow, UnitAggregate } from '#lib/server/domai
  *   Evidencia · Notas` (sin `Resumen`).
  *
  * Solo se usan **valores** (sin fórmulas) para que el resultado sea determinista.
+ * El estilizado es estático (superencabezados, tinte por columna, color por
+ * estado y chip de PDF), también sin fórmulas ni formato condicional dependiente
+ * de referencias.
  */
 
 export type WorkbookVariant = 'simple' | 'extended';
@@ -152,6 +155,24 @@ const EXTENDED_SET: ColumnSet = {
 	includeSummary: true
 };
 
+/** Columnas centradas por variante (el resto del bloque se alinea a la izquierda). */
+const SIMPLE_CENTER = new Set(['status', 'evidence']);
+const EXTENDED_CENTER = new Set([
+	'mode',
+	'elements',
+	'status',
+	'requirements',
+	'photos',
+	'lastDelivery',
+	'decision',
+	'reviewedAt',
+	'evidence'
+]);
+
+/** Columnas con ajuste de texto (se calcula su alto de fila). */
+const SIMPLE_WRAP = new Set(['building', 'work', 'notes']);
+const EXTENDED_WRAP = new Set(['building', 'service', 'work', 'reason', 'notes']);
+
 function columnSet(variant: WorkbookVariant): ColumnSet {
 	return variant === 'simple' ? SIMPLE_SET : EXTENDED_SET;
 }
@@ -159,7 +180,61 @@ function columnSet(variant: WorkbookVariant): ColumnSet {
 const TITLE_FILL = 'FF1B365D';
 const INSPECTION_FILL = 'FF4338CA';
 const RESULTS_FILL = 'FF0D9488';
-const LINK_COLOR = 'FF0563C1';
+const INSPECTION_TINT = 'FFEEF0FB';
+const RESULTS_TINT = 'FFE5F5F2';
+const TITLE_TINT = 'FFE9EDF4';
+const PDF_FILL = 'FFC0392B';
+const BORDER_COLOR = 'FFD0D7DE';
+
+/** Alturas de fila (en puntos). */
+const TITLE_HEIGHT = 26;
+const LEGEND_HEIGHT = 16;
+const SUPER_HEIGHT = 16;
+const HEADER_HEIGHT = 22;
+const ROW_HEIGHT = 22;
+
+/** Color de texto y relleno suave por estado (estático, sin formato condicional). */
+const STATUS_STYLE: Record<TargetStatus, { font: string; fill: string }> = {
+	approved: { font: 'FF0F7B3A', fill: 'FFE7F6EC' },
+	rejected: { font: 'FFB42318', fill: 'FFFEE4E2' },
+	in_review: { font: 'FFB54708', fill: 'FFFEF0C7' },
+	in_progress: { font: 'FF1D4ED8', fill: 'FFDBEAFE' },
+	pending: { font: 'FF475467', fill: 'FFF2F4F7' }
+};
+
+interface SuperBlock {
+	from: number;
+	to: number;
+	label: string;
+	fill: string;
+	tint: string;
+}
+
+/** Bloques de superencabezado de una hoja de servicio según su variante. */
+function serviceBlocks(variant: WorkbookVariant): SuperBlock[] {
+	const set = columnSet(variant);
+	return [
+		{ from: 1, to: set.split, label: 'Inspección', fill: INSPECTION_FILL, tint: INSPECTION_TINT },
+		{
+			from: set.split + 1,
+			to: set.columns.length,
+			label: variant === 'simple' ? 'Evidencia' : 'Resultados y evidencia',
+			fill: RESULTS_FILL,
+			tint: RESULTS_TINT
+		}
+	];
+}
+
+const SUMMARY_BLOCKS: SuperBlock[] = [
+	{ from: 1, to: 2, label: 'Servicio', fill: TITLE_FILL, tint: TITLE_TINT },
+	{ from: 3, to: 8, label: 'Avance', fill: TITLE_FILL, tint: TITLE_TINT }
+];
+
+/** Tinte claro de la columna (1-based) según el bloque al que pertenece. */
+function tintOf(blocks: SuperBlock[], columnIndex: number): string {
+	const block = blocks.find((item) => columnIndex >= item.from && columnIndex <= item.to);
+	return block?.tint ?? 'FFFFFFFF';
+}
 
 /** El libro vive en la raíz del ZIP; los enlaces son relativos a esa raíz. */
 function relativeToRoot(plan: ExportPlan, path: string): string {
@@ -195,6 +270,44 @@ function sheetName(base: string, used: Set<string>): string {
 	return candidate;
 }
 
+function thinBorder(): Partial<ExcelJS.Borders> {
+	return {
+		top: { style: 'thin', color: { argb: BORDER_COLOR } },
+		left: { style: 'thin', color: { argb: BORDER_COLOR } },
+		bottom: { style: 'thin', color: { argb: BORDER_COLOR } },
+		right: { style: 'thin', color: { argb: BORDER_COLOR } }
+	};
+}
+
+function formatStamp(date: Date): string {
+	const pad = (value: number) => String(value).padStart(2, '0');
+	return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Alto de fila estimado a partir del texto de las columnas con ajuste (sin fórmulas). */
+function estimatedHeight(entries: { text: string; width: number }[], base = ROW_HEIGHT): number {
+	let lines = 1;
+	for (const { text, width } of entries) {
+		if (!text) continue;
+		const perLine = Math.max(8, Math.floor(width - 2));
+		const needed = text.length > perLine ? Math.ceil(text.length / perLine) : 1;
+		if (needed > lines) lines = needed;
+	}
+	return Math.min(88, Math.max(base, lines * 15 + 6));
+}
+
+function applyStatusStyle(cell: ExcelJS.Cell, status: TargetStatus): void {
+	const style = STATUS_STYLE[status];
+	cell.font = { bold: true, color: { argb: style.font } };
+	cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: style.fill } };
+}
+
+/** Chip de PDF: fondo rojo y texto blanco, conservando el hipervínculo. */
+function applyPdfStyle(cell: ExcelJS.Cell): void {
+	cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+	cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: PDF_FILL } };
+}
+
 function styleTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, columns: number): void {
 	ws.mergeCells(`A1:${lastColumnLetter(columns)}1`);
 	ws.mergeCells(`A2:${lastColumnLetter(columns)}2`);
@@ -203,11 +316,29 @@ function styleTitle(ws: ExcelJS.Worksheet, title: string, subtitle: string, colu
 	titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
 	titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TITLE_FILL } };
 	titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-	ws.getRow(1).height = 26;
+	ws.getRow(1).height = TITLE_HEIGHT;
 	const subtitleCell = ws.getCell('A2');
 	subtitleCell.value = subtitle;
 	subtitleCell.font = { italic: true, color: { argb: 'FF444444' } };
 	subtitleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+	ws.getRow(2).height = LEGEND_HEIGHT;
+}
+
+/** Fila de superencabezados: bloques combinados que rotulan cada área de la hoja. */
+function styleSuperHeader(ws: ExcelJS.Worksheet, rowNumber: number, blocks: SuperBlock[]): void {
+	const row = ws.getRow(rowNumber);
+	for (const block of blocks) {
+		for (let column = block.from; column <= block.to; column += 1) {
+			row.getCell(column).border = thinBorder();
+		}
+		if (block.to > block.from) ws.mergeCells(rowNumber, block.from, rowNumber, block.to);
+		const cell = row.getCell(block.from);
+		cell.value = block.label;
+		cell.font = { bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+		cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: block.fill } };
+		cell.alignment = { horizontal: 'center', vertical: 'middle' };
+	}
+	row.height = SUPER_HEIGHT;
 }
 
 function styleHeader(ws: ExcelJS.Worksheet, rowNumber: number, set: ColumnSet): void {
@@ -219,10 +350,11 @@ function styleHeader(ws: ExcelJS.Worksheet, rowNumber: number, set: ColumnSet): 
 		cell.fill = {
 			type: 'pattern',
 			pattern: 'solid',
-			fgColor: { argb: index <= set.split ? INSPECTION_FILL : RESULTS_FILL }
+			fgColor: { argb: index > set.split ? RESULTS_FILL : INSPECTION_FILL }
 		};
+		cell.border = thinBorder();
 	}
-	row.height = 20;
+	row.height = HEADER_HEIGHT;
 }
 
 function addServiceSheet(
@@ -230,90 +362,125 @@ function addServiceSheet(
 	plan: ExportPlan,
 	service: { id: string; name: string; buildingName: string | null },
 	usedNames: Set<string>,
-	variant: WorkbookVariant
+	variant: WorkbookVariant,
+	generatedAt: Date
 ): void {
 	const rows = plan.rows.filter((row) => row.serviceId === service.id);
 	if (rows.length === 0) return;
 	const set = columnSet(variant);
+	const center = variant === 'simple' ? SIMPLE_CENTER : EXTENDED_CENTER;
+	const wrap = variant === 'simple' ? SIMPLE_WRAP : EXTENDED_WRAP;
+	const blocks = serviceBlocks(variant);
 
 	const ws = wb.addWorksheet(sheetName(service.name, usedNames), {
-		views: [{ state: 'frozen', ySplit: 3 }]
+		views: [{ state: 'frozen', ySplit: 4, showGridLines: false }],
+		properties: { tabColor: { argb: RESULTS_FILL } }
 	});
-	ws.columns = set.columns;
+	// Solo `key`/`width`: los encabezados se escriben explícitamente más abajo.
+	ws.columns = set.columns.map(({ key, width }) => ({ key, width }));
 
 	const scopeLabel = plan.kind === 'contract' ? `Contrato: ${plan.title} | ` : '';
+	const scopeText = `${scopeLabel}Servicio: ${service.name}${service.buildingName ? ` | Edificio: ${service.buildingName}` : ''}`;
 	styleTitle(
 		ws,
 		'REGISTRO DE EVIDENCIAS',
-		`${scopeLabel}Servicio: ${service.name}${service.buildingName ? ` | Edificio: ${service.buildingName}` : ''}`,
+		`${scopeText} | Generado el ${formatStamp(generatedAt)}`,
 		set.columns.length
 	);
 
-	const headerRow = ws.getRow(3);
+	styleSuperHeader(ws, 3, blocks);
+
+	const headerRow = ws.getRow(4);
 	set.columns.forEach((column, index) => {
 		headerRow.getCell(index + 1).value = column.header;
 	});
-	styleHeader(ws, 3, set);
+	styleHeader(ws, 4, set);
 	ws.autoFilter = {
-		from: { row: 3, column: 1 },
-		to: { row: 3, column: set.columns.length }
+		from: { row: 4, column: 1 },
+		to: { row: 4, column: set.columns.length }
 	};
 
 	for (const row of rows) {
 		const derived = deriveRow(row);
 		const evidence = { text: 'PDF', hyperlink: relativeToRoot(plan, row.pdfPath) };
+		const added =
+			variant === 'simple'
+				? ws.addRow({
+						building: service.buildingName ?? 'Sin edificio',
+						work: row.workName,
+						status: STATUS_LABEL[derived.status],
+						evidence,
+						notes: ''
+					})
+				: ws.addRow({
+						building: service.buildingName ?? 'Sin edificio',
+						service: service.name,
+						work: row.workName,
+						mode: row.mode === 'direct' ? 'Directo' : 'Dividido',
+						elements:
+							row.mode === 'divided' ? `${derived.elementApproved}/${derived.elementTotal}` : '—',
+						status: STATUS_LABEL[derived.status],
+						requirements:
+							derived.requiredTotal > 0
+								? `${derived.requiredSatisfied}/${derived.requiredTotal}`
+								: '—',
+						photos: derived.photoCount,
+						lastDelivery: derived.lastSubmissionAt ?? null,
+						decision:
+							derived.decision === 'approved'
+								? 'Aprobada'
+								: derived.decision === 'rejected'
+									? 'Rechazada'
+									: derived.status === 'in_review'
+										? 'En revisión'
+										: '—',
+						reviewer: derived.reviewerName ?? '',
+						reviewedAt: derived.reviewedAt ?? null,
+						reason: derived.rejectionReason ?? '',
+						evidence,
+						notes: ''
+					});
 
-		if (variant === 'simple') {
-			const added = ws.addRow({
-				building: service.buildingName ?? 'Sin edificio',
-				work: row.workName,
-				status: STATUS_LABEL[derived.status],
-				evidence,
-				notes: ''
-			});
-			added.getCell('status').alignment = { horizontal: 'center' };
-			added.getCell('evidence').font = { color: { argb: LINK_COLOR }, underline: true, bold: true };
-			added.getCell('evidence').alignment = { horizontal: 'center' };
-			continue;
-		}
-
-		const added = ws.addRow({
-			building: service.buildingName ?? 'Sin edificio',
-			service: service.name,
-			work: row.workName,
-			mode: row.mode === 'direct' ? 'Directo' : 'Dividido',
-			elements: row.mode === 'divided' ? `${derived.elementApproved}/${derived.elementTotal}` : '—',
-			status: STATUS_LABEL[derived.status],
-			requirements:
-				derived.requiredTotal > 0 ? `${derived.requiredSatisfied}/${derived.requiredTotal}` : '—',
-			photos: derived.photoCount,
-			lastDelivery: derived.lastSubmissionAt ?? null,
-			decision:
-				derived.decision === 'approved'
-					? 'Aprobada'
-					: derived.decision === 'rejected'
-						? 'Rechazada'
-						: derived.status === 'in_review'
-							? 'En revisión'
-							: '—',
-			reviewer: derived.reviewerName ?? '',
-			reviewedAt: derived.reviewedAt ?? null,
-			reason: derived.rejectionReason ?? '',
-			evidence,
-			notes: ''
+		const wrapEntries: { text: string; width: number }[] = [];
+		set.columns.forEach((column, index) => {
+			const cell = added.getCell(column.key);
+			cell.border = thinBorder();
+			cell.alignment = {
+				vertical: 'middle',
+				horizontal: center.has(column.key) ? 'center' : 'left',
+				wrapText: wrap.has(column.key)
+			};
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: tintOf(blocks, index + 1) }
+			};
+			if (wrap.has(column.key) && typeof cell.value === 'string') {
+				wrapEntries.push({ text: cell.value, width: column.width });
+			}
 		});
+		added.height = estimatedHeight(wrapEntries);
 
-		added.getCell('lastDelivery').numFmt = 'DD-MM-YYYY';
-		added.getCell('reviewedAt').numFmt = 'DD-MM-YYYY';
-		added.getCell('evidence').font = { color: { argb: LINK_COLOR }, underline: true, bold: true };
-		added.getCell('evidence').alignment = { horizontal: 'center' };
-		added.getCell('status').alignment = { horizontal: 'center' };
-		added.getCell('mode').alignment = { horizontal: 'center' };
+		applyPdfStyle(added.getCell('evidence'));
+		applyStatusStyle(added.getCell('status'), derived.status);
+
+		if (variant === 'extended') {
+			added.getCell('lastDelivery').numFmt = 'DD-MM-YYYY';
+			added.getCell('reviewedAt').numFmt = 'DD-MM-YYYY';
+			const decisionCell = added.getCell('decision');
+			if (derived.decision === 'approved') applyStatusStyle(decisionCell, 'approved');
+			else if (derived.decision === 'rejected') applyStatusStyle(decisionCell, 'rejected');
+			else if (derived.status === 'in_review') applyStatusStyle(decisionCell, 'in_review');
+			else applyStatusStyle(decisionCell, 'pending');
+		}
 	}
 }
 
-function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan): void {
-	const ws = wb.addWorksheet('Resumen', { views: [{ state: 'frozen', ySplit: 4 }] });
+function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan, generatedAt: Date): void {
+	const ws = wb.addWorksheet('Resumen', {
+		views: [{ state: 'frozen', ySplit: 5, showGridLines: false }],
+		properties: { tabColor: { argb: TITLE_FILL } }
+	});
 	const headers = [
 		'Edificio',
 		'Servicio',
@@ -324,29 +491,37 @@ function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan): void {
 		'Pendientes',
 		'% avance'
 	];
-	ws.columns = [
-		{ key: 'building', width: 26 },
-		{ key: 'service', width: 30 },
-		{ key: 'works', width: 11 },
-		{ key: 'approved', width: 11 },
-		{ key: 'inReview', width: 12 },
-		{ key: 'rejected', width: 12 },
-		{ key: 'pending', width: 12 },
-		{ key: 'percent', width: 11 }
+	const columns: ColumnDef[] = [
+		{ header: headers[0], key: 'building', width: 26 },
+		{ header: headers[1], key: 'service', width: 30 },
+		{ header: headers[2], key: 'works', width: 11 },
+		{ header: headers[3], key: 'approved', width: 11 },
+		{ header: headers[4], key: 'inReview', width: 12 },
+		{ header: headers[5], key: 'rejected', width: 12 },
+		{ header: headers[6], key: 'pending', width: 12 },
+		{ header: headers[7], key: 'percent', width: 11 }
 	];
+	ws.columns = columns.map(({ key, width }) => ({ key, width }));
 
 	const label = plan.kind === 'contract' ? `Contrato: ${plan.title}` : plan.title;
-	styleTitle(ws, 'RESUMEN DE EVIDENCIAS', label, headers.length);
+	const scopeText = `${label} | Generado el ${formatStamp(generatedAt)}`;
+	styleTitle(ws, 'RESUMEN DE EVIDENCIAS', scopeText, headers.length);
 
-	const headerRow = ws.getRow(4);
+	styleSuperHeader(ws, 4, SUMMARY_BLOCKS);
+
+	const headerRow = ws.getRow(5);
 	headers.forEach((header, index) => {
 		const cell = headerRow.getCell(index + 1);
 		cell.value = header;
 		cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
 		cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 		cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TITLE_FILL } };
+		cell.border = thinBorder();
 	});
-	headerRow.height = 20;
+	headerRow.height = HEADER_HEIGHT;
+
+	const centerKeys = new Set(['works', 'approved', 'inReview', 'rejected', 'pending', 'percent']);
+	const wrapKeys = new Set(['building', 'service']);
 
 	let totalWorks = 0;
 	let totalApproved = 0;
@@ -385,7 +560,54 @@ function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan): void {
 			pending,
 			percent: rows.length > 0 ? approved / rows.length : 0
 		});
+
+		const wrapEntries: { text: string; width: number }[] = [];
+		columns.forEach((column, index) => {
+			const cell = row.getCell(column.key);
+			cell.border = thinBorder();
+			cell.alignment = {
+				vertical: 'middle',
+				horizontal: centerKeys.has(column.key) ? 'center' : 'left',
+				wrapText: wrapKeys.has(column.key)
+			};
+			cell.fill = {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: tintOf(SUMMARY_BLOCKS, index + 1) }
+			};
+			if (wrapKeys.has(column.key) && typeof cell.value === 'string') {
+				wrapEntries.push({ text: cell.value, width: column.width });
+			}
+		});
+		row.height = estimatedHeight(wrapEntries);
 		row.getCell('percent').numFmt = '0%';
+		if (approved > 0) applyStatusStyle(row.getCell('approved'), 'approved');
+		if (inReview > 0) applyStatusStyle(row.getCell('inReview'), 'in_review');
+		if (rejected > 0) applyStatusStyle(row.getCell('rejected'), 'rejected');
+		if (pending > 0) applyStatusStyle(row.getCell('pending'), 'pending');
+	}
+
+	const lastDataRow = ws.rowCount;
+	if (lastDataRow >= 6) {
+		// La regla `dataBar` admite `color` en tiempo de ejecución, pero el tipo
+		// publicado de `exceljs@4.4.0` todavía no lo declara.
+		ws.addConditionalFormatting({
+			ref: `H6:H${lastDataRow}`,
+			rules: [
+				{
+					type: 'dataBar',
+					cfvo: [
+						{ type: 'num', value: 0 },
+						{ type: 'num', value: 1 }
+					],
+					color: { argb: RESULTS_FILL },
+					minLength: 0,
+					maxLength: 100,
+					gradient: true,
+					showValue: true
+				} as unknown as ExcelJS.ConditionalFormattingRule
+			]
+		});
 	}
 
 	const totals = ws.addRow({
@@ -398,7 +620,17 @@ function addSummarySheet(wb: ExcelJS.Workbook, plan: ExportPlan): void {
 		pending: '',
 		percent: totalWorks > 0 ? totalApproved / totalWorks : 0
 	});
-	totals.font = { bold: true };
+	for (let index = 1; index <= columns.length; index += 1) {
+		const cell = totals.getCell(index);
+		cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+		cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TITLE_FILL } };
+		cell.border = thinBorder();
+		cell.alignment = {
+			vertical: 'middle',
+			horizontal: index >= 3 ? 'center' : 'left'
+		};
+	}
+	totals.height = ROW_HEIGHT;
 	totals.getCell('percent').numFmt = '0%';
 }
 
@@ -407,16 +639,23 @@ export async function buildWorkbook(
 	plan: ExportPlan,
 	variant: WorkbookVariant = 'extended'
 ): Promise<Buffer> {
+	const generatedAt = new Date();
 	const wb = new ExcelJS.Workbook();
 	wb.creator = 'Lumen';
-	wb.created = new Date();
+	wb.lastModifiedBy = 'Lumen';
+	wb.created = generatedAt;
+	wb.modified = generatedAt;
+	wb.title = 'Registro de evidencias';
+	wb.subject = plan.kind === 'contract' ? `Contrato: ${plan.title}` : plan.title;
+	wb.company = 'Lumen';
+	wb.description = 'Registro XLSX de evidencias generado por Lumen.';
 
 	const set = columnSet(variant);
-	if (set.includeSummary) addSummarySheet(wb, plan);
+	if (set.includeSummary) addSummarySheet(wb, plan, generatedAt);
 
 	const usedNames = new Set<string>(['resumen']);
 	for (const service of plan.services) {
-		addServiceSheet(wb, plan, service, usedNames, variant);
+		addServiceSheet(wb, plan, service, usedNames, variant, generatedAt);
 	}
 	// Ámbito de trabajo: si el servicio no aporta filas, se crea su hoja.
 	if (wb.worksheets.length === (set.includeSummary ? 1 : 0) && plan.rows.length > 0) {
@@ -426,7 +665,8 @@ export async function buildWorkbook(
 			plan,
 			{ id: first.serviceId, name: first.serviceName, buildingName: first.buildingName },
 			usedNames,
-			variant
+			variant,
+			generatedAt
 		);
 	}
 

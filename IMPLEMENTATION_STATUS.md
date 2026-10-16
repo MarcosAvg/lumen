@@ -266,7 +266,8 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   arriba y abajo, repartiendo las filas dentro del área útil. Solo la última entrega aprobada; un trabajo sin evidencia
   aprobada no genera PDF.
 - **Ubicación**: con fotografías, el PDF va en la raíz de la carpeta del trabajo; **sin fotografías**, cae directamente
-  en la carpeta del servicio. `buildExportPlan(scope, { photos })` calcula `pdfPath` y el XLSX usa esa misma ruta.
+  en la carpeta del servicio. El archivo se nombra solo con el nombre del trabajo (`<Trabajo>.pdf`).
+  `buildExportPlan(scope, { photos })` calcula `pdfPath` y el XLSX usa esa misma ruta.
 - **Fondo del contrato**: `contracts.pdf_background_path` (migración 0010) + tarjeta en la ficha del contrato (admin)
   para subir/reemplazar/quitar una imagen PNG/JPG (máx. 5 MB, normalizada con `sharp` a `backgrounds/<contrato>.png`);
   se dibuja **opaca** a página completa. Endpoint `GET /api/contracts/:id/pdf-background`.
@@ -286,12 +287,14 @@ Cada ZIP (contrato, servicio y trabajo) puede incluir `<Ámbito>/<Ámbito>.xlsx`
 - **Estado derivado** en trabajos divididos (aprobado si todos; si no, el más prioritario + contador de elementos).
   Refleja todo el estado; las fotos del ZIP siguen siendo solo las aprobadas.
 - **Evidencia** = hipervínculo relativo al PDF del trabajo en su carpeta (PDF pendiente de generar).
+- **Estilizado** estático (sin fórmulas ni formato condicional dependiente de referencias): **superencabezados por área** combinados (`Inspección` / `Resultados y evidencia`; `Servicio` / `Avance` en el `Resumen`), **tinte claro por columna** según su bloque, bordes finos, color suave por estado en `Estado`/`Decisión` y en los contadores del `Resumen`, pestaña por hoja, barra de datos en `% avance`, columna `Evidencia` como **chip rojo con texto blanco** (conserva el hipervínculo), alto de fila ajustado al texto y `showGridLines` desactivado. Sin reglas de impresión.
 - **Modal de exportación** (`app/export-dialog.svelte`) en las tres fichas: variante, incluir/no XLSX, incluir/no
   fotografías (al menos una), recordando la última elección en el dispositivo. Los endpoints aceptan
   `?variant=simple|extended&xlsx=0|1&photos=0|1`; `buildExportPlan(scope, { aggregates })` evita las consultas de más
   en la variante simple.
-- Pruebas: integración EXP-05 (extendida) y EXP-06 (simple, sin `Resumen`, 5 columnas); E2E `tech-export` (modal,
-  `xlsx=0`, `photos=0`, `variant=simple`).
+- Pruebas: integración EXP-05 (extendida), EXP-06 (simple, sin `Resumen`, 5 columnas) y comprobación del estilizado
+  (superencabezados, tinte por columna, bordes, color de estado, chip de PDF, pestaña, fila `TOTAL` y barra de
+  avance); E2E `tech-export` (modal, `xlsx=0`, `photos=0`, `variant=simple`).
 
 ## Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
 

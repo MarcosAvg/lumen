@@ -172,13 +172,14 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
    - **Extendida**: hoja `Resumen` (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) + una hoja por servicio con todas las columnas (tipo, elementos, requisitos, fotografías, última entrega, decisión, revisor, fecha y motivo de rechazo).
 3. En ambas, **una fila por trabajo** y columna **Evidencia** con **hipervínculo relativo** al PDF del trabajo (que vivirá en su carpeta).
 4. Se incluye **todo el estado** (pendientes y rechazados también); las **fotos del ZIP siguen siendo solo las aprobadas**.
+5. Presentación cuidada y **determinista** (sin fórmulas): **superencabezados por área** (`Inspección` / `Resultados y evidencia`), **tinte claro por columna** según su bloque, bordes finos, color suave por estado en `Estado`/`Decisión` y en los contadores del `Resumen`, color de pestaña por hoja, `% avance` con barra de datos, columna **Evidencia** como chip rojo con texto blanco (mantiene el hipervínculo) y filas con alto ajustado al texto.
 
 ### PDF de evidencia (uno por trabajo)
 
 1. Cada trabajo con evidencia aprobada genera un **PDF** con sus fotografías (última entrega aprobada), **sin portada** y con cabecera corrida (contrato · edificio · servicio · trabajo).
 2. Hasta **4 fotografías por página** (2×2). Cada foto lleva su **leyenda pegada debajo**: `Trabajo · Elemento · Requisito` (sin fecha ni autor); sin encabezados de sección.
 3. **Márgenes configurables por contrato** (arriba/abajo/izquierda/derecha, 10–80 mm; por defecto 50/50/15/15), repartiendo las filas dentro del área útil. El **fondo del contrato** se dibuja **opaco** en todas las páginas, sin velo. Si los márgenes dejan poco ancho o alto, la rejilla baja de 2 columnas a 1 y de 2 filas a 1.
-4. Ubicación: **con fotografías**, el PDF vive en la carpeta del trabajo; **sin fotografías**, los PDF caen **directamente en la carpeta del servicio** (`<Servicio>/<Trabajo> - [fecha].pdf`).
+4. Ubicación: **con fotografías**, el PDF vive en la carpeta del trabajo; **sin fotografías**, los PDF caen **directamente en la carpeta del servicio** (`<Servicio>/<Trabajo>.pdf`).
 5. Los enlaces del XLSX apuntan a esa misma ruta.
 
 ### Fondo del contrato

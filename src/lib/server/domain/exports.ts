@@ -606,23 +606,9 @@ function buildPhotoBlocks(state: LoadedUnits, work: WorkRef): PdfBlock[] {
 	return blocks;
 }
 
-/** Nombre del PDF de evidencia de un trabajo. */
-function pdfNameFor(workName: string, date: Date | null): string {
-	const dd = String(date ? date.getDate() : 0).padStart(2, '0');
-	const mm = String(date ? date.getMonth() + 1 : 0).padStart(2, '0');
-	const yy = String(date ? date.getFullYear() : 0).slice(-2);
-	return `${sanitizeSegment(workName, 'trabajo')} - [${dd}-${mm}-${yy}].pdf`;
-}
-
-/** Última fecha de entrega de un trabajo (para nombrar el PDF). */
-function lastDeliveryDate(units: UnitAggregate[]): Date | null {
-	let last: Date | null = null;
-	for (const unit of units) {
-		if (unit.lastSubmissionAt && (!last || unit.lastSubmissionAt > last)) {
-			last = unit.lastSubmissionAt;
-		}
-	}
-	return last;
+/** Nombre del PDF de evidencia de un trabajo: solo el nombre del trabajo. */
+function pdfNameFor(workName: string): string {
+	return `${sanitizeSegment(workName, 'trabajo')}.pdf`;
 }
 
 export interface ExportPlanOptions {
@@ -749,10 +735,7 @@ export async function buildExportPlan(
 		// Con fotografías el PDF va en la carpeta del trabajo; sin ellas, cae en la
 		// carpeta del servicio (no hay carpetas de elemento/requisito).
 		const pdfDir = options.photos === false ? servicePath : workPath;
-		const pdfName = getRegistry(dirRegistries, pdfDir).unique(
-			pdfNameFor(work.name, lastDeliveryDate(unitAggregates)),
-			work.id
-		);
+		const pdfName = getRegistry(dirRegistries, pdfDir).unique(pdfNameFor(work.name), work.id);
 		return {
 			workId: work.id,
 			workName: work.name,

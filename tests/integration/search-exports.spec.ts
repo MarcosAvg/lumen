@@ -423,8 +423,10 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 
 		// Hoja del servicio directo.
 		const sheetA = wb.getWorksheet('UMAs Torre');
-		expect(sheetA?.getRow(3).getCell(1).value).toBe('Edificio');
-		const rowA = sheetA?.getRow(4);
+		expect(sheetA?.getRow(3).getCell(1).value).toBe('Inspección'); // superencabezado
+		expect(sheetA?.getRow(3).getCell(9).value).toBe('Resultados y evidencia');
+		expect(sheetA?.getRow(4).getCell(1).value).toBe('Edificio');
+		const rowA = sheetA?.getRow(5);
 		expect(rowA?.getCell(3).value).toBe('Piso 1'); // Trabajo
 		expect(rowA?.getCell(4).value).toBe('Directo');
 		expect(rowA?.getCell(6).value).toBe('Aprobado');
@@ -435,7 +437,7 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 
 		// Hoja del trabajo dividido: estado derivado y contador de elementos.
 		const sheetB = wb.getWorksheet('Bombas Torre');
-		const rowB = sheetB?.getRow(4);
+		const rowB = sheetB?.getRow(5);
 		expect(rowB?.getCell(4).value).toBe('Dividido');
 		expect(rowB?.getCell(5).value).toBe('1/2'); // Elementos aprobados/total
 		expect(rowB?.getCell(6).value).toBe('Rechazado');
@@ -443,9 +445,47 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 
 		// Resumen con una fila por servicio y total.
 		const summary = wb.getWorksheet('Resumen');
-		expect(summary?.getRow(5).getCell(2).value).toBe('UMAs Torre');
-		expect(summary?.getRow(6).getCell(2).value).toBe('Bombas Torre');
-		expect(summary?.getRow(7).getCell(2).value).toBe('TOTAL');
+		expect(summary?.getRow(6).getCell(2).value).toBe('UMAs Torre');
+		expect(summary?.getRow(7).getCell(2).value).toBe('Bombas Torre');
+		expect(summary?.getRow(8).getCell(2).value).toBe('TOTAL');
+
+		// Estilizado: título, superencabezados, cabeceras con borde y color por estado.
+		expect(sheetA?.getCell('A1').fill).toMatchObject({
+			type: 'pattern',
+			pattern: 'solid',
+			fgColor: { argb: 'FF1B365D' }
+		});
+		expect(sheetA?.getRow(3).getCell(1).fill).toMatchObject({ fgColor: { argb: 'FF4338CA' } });
+		expect(sheetA?.getRow(3).getCell(9).fill).toMatchObject({ fgColor: { argb: 'FF0D9488' } });
+		const headerA = sheetA?.getRow(4).getCell(1);
+		expect(headerA?.fill).toMatchObject({ fgColor: { argb: 'FF4338CA' } });
+		expect(headerA?.border?.top?.style).toBe('thin');
+		expect(sheetA?.getRow(4).getCell(9).fill).toMatchObject({ fgColor: { argb: 'FF0D9488' } });
+		// Tinte claro por columna según su bloque.
+		expect(rowA?.getCell(1).fill).toMatchObject({ fgColor: { argb: 'FFEEF0FB' } });
+		expect(rowA?.getCell(9).fill).toMatchObject({ fgColor: { argb: 'FFE5F5F2' } });
+		// Estado «Aprobado»: texto verde sobre relleno suave.
+		expect(rowA?.getCell(6).font?.color?.argb).toBe('FF0F7B3A');
+		expect(rowA?.getCell(6).fill).toMatchObject({ fgColor: { argb: 'FFE7F6EC' } });
+		expect(rowA?.getCell(1).border?.bottom?.style).toBe('thin');
+		// Chip rojo de PDF con texto blanco.
+		expect(rowA?.getCell(14).fill).toMatchObject({ fgColor: { argb: 'FFC0392B' } });
+		expect(rowA?.getCell(14).font?.color?.argb).toBe('FFFFFFFF');
+
+		// Pestaña y cuadrícula oculta (sin reglas de impresión).
+		expect(sheetA?.properties.tabColor?.argb).toBe('FF0D9488');
+		expect((sheetA?.views?.[0] as { showGridLines?: boolean }).showGridLines).toBe(false);
+
+		// Hoja Resumen: superencabezados, pestaña propia y TOTAL destacado.
+		expect(summary?.getRow(4).getCell(1).value).toBe('Servicio');
+		expect(summary?.getRow(4).getCell(3).value).toBe('Avance');
+		expect(summary?.properties.tabColor?.argb).toBe('FF1B365D');
+		expect(summary?.getRow(8).getCell(2).font?.color?.argb).toBe('FFFFFFFF');
+		expect(summary?.getRow(8).getCell(2).fill).toMatchObject({ fgColor: { argb: 'FF1B365D' } });
+		const summaryCf = (
+			summary as unknown as { conditionalFormattings?: { ref: string }[] } | undefined
+		)?.conditionalFormattings;
+		expect(summaryCf?.some((cf) => cf.ref.startsWith('H6:'))).toBe(true);
 	});
 
 	it('EXP-06: la variante simple omite el Resumen y usa 5 columnas', async () => {
@@ -491,12 +531,20 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		expect(wb.worksheets.map((ws) => ws.name)).toEqual(['UMAs Torre']);
 		const sheet = wb.getWorksheet('UMAs Torre');
 		expect(sheet?.columnCount).toBe(5);
-		const row = sheet?.getRow(4);
+		expect(sheet?.getRow(3).getCell(1).value).toBe('Inspección');
+		expect(sheet?.getRow(3).getCell(4).value).toBe('Evidencia');
+		const row = sheet?.getRow(5);
 		expect(row?.getCell(2).value).toBe('Piso 1'); // Trabajo
 		expect(row?.getCell(3).value).toBe('Aprobado'); // Estado derivado
 		const evidence = row?.getCell(4).value as { text: string; hyperlink: string };
 		expect(evidence.text).toBe('PDF');
 		expect(evidence.hyperlink.endsWith('.pdf')).toBe(true);
+		// Estilizado aplicado también en la variante simple.
+		expect(row?.getCell(3).fill).toMatchObject({ fgColor: { argb: 'FFE7F6EC' } });
+		expect(row?.getCell(2).fill).toMatchObject({ fgColor: { argb: 'FFEEF0FB' } });
+		expect(row?.getCell(4).fill).toMatchObject({ fgColor: { argb: 'FFC0392B' } });
+		expect(row?.getCell(2).border?.bottom?.style).toBe('thin');
+		expect(sheet?.properties.tabColor?.argb).toBe('FF0D9488');
 	});
 
 	it('EXP-07: el PDF por trabajo agrupa por requisito y pagina de 4 en 4', async () => {
@@ -552,7 +600,7 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 			}
 		);
 		const row = withPhotos.rows[0];
-		expect(row.pdfPath.startsWith('UMAs Torre/Piso 1/')).toBe(true);
+		expect(row.pdfPath).toBe('UMAs Torre/Piso 1/Piso 1.pdf');
 		expect(row.photoBlocks).toHaveLength(1);
 		expect(row.photoBlocks[0].requirementName).toBe('Antes');
 		expect(row.photoBlocks[0].photos).toHaveLength(5);
@@ -583,7 +631,7 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 			{ kind: 'service', serviceId: service.id },
 			{ photos: false }
 		);
-		expect(withoutPhotos.rows[0].pdfPath.startsWith('UMAs Torre/Piso 1 - [')).toBe(true);
+		expect(withoutPhotos.rows[0].pdfPath).toBe('UMAs Torre/Piso 1.pdf');
 
 		// El fondo del contrato se aplica (PDF válido y más pesado).
 		const backgroundRel = storage.backgroundRelPath(contractId);
