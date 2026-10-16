@@ -1,15 +1,21 @@
 import { fail } from '@sveltejs/kit';
 import { z } from 'zod';
-import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
+import {
+	requireAdmin,
+	requireContractManage,
+	requireServiceAccess,
+	requireUser
+} from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import {
 	assignUser,
-	listAssignableUsers,
+	getAssignmentServiceId,
 	listServiceAssignments,
 	revokeAssignment
 } from '#lib/server/domain/assignments';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
-import { listParticipants, updateService } from '#lib/server/domain/services';
+import { listContractMembers, listContractsForUser } from '#lib/server/domain/contracts';
+import { getServiceContractId, listParticipants, updateService } from '#lib/server/domain/services';
 import {
 	createWork,
 	getServiceProgress,
@@ -39,14 +45,18 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { service, access } = await requireServiceAccess(locals, serviceId);
 	const db = getDatabase().db;
 
-	const [participants, works, progress, catalogs, assignments, assignable] = await Promise.all([
-		listParticipants(db, serviceId),
-		listWorksDetailed(db, serviceId),
-		getServiceProgress(db, serviceId),
-		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([]),
-		user.role === 'admin' ? listServiceAssignments(db, serviceId) : Promise.resolve([]),
-		user.role === 'admin' ? listAssignableUsers(db) : Promise.resolve([])
-	]);
+	const isAdmin = user.role === 'admin';
+	const canManageAssignments = isAdmin || access === 'supervisor';
+	const [participants, works, progress, catalogs, assignments, members, contracts] =
+		await Promise.all([
+			listParticipants(db, serviceId),
+			listWorksDetailed(db, serviceId),
+			getServiceProgress(db, serviceId),
+			isAdmin ? listCatalogsWithItems(db) : Promise.resolve([]),
+			canManageAssignments ? listServiceAssignments(db, serviceId) : Promise.resolve([]),
+			canManageAssignments ? listContractMembers(db, service.contractId) : Promise.resolve([]),
+			isAdmin ? listContractsForUser(db, user) : Promise.resolve([])
+		]);
 
 	return {
 		title: service.name,
@@ -57,9 +67,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		progress,
 		catalogs,
 		assignments,
-		technicians: assignable.filter((candidate) => candidate.role === 'technician'),
-		supervisors: assignable.filter((candidate) => candidate.role === 'supervisor'),
-		isAdmin: user.role === 'admin'
+		members,
+		contracts,
+		isAdmin,
+		canManageAssignments
 	};
 };
 
@@ -75,6 +86,7 @@ export const actions: Actions = {
 				name: parsed.data.name,
 				description: parsed.data.description,
 				buildingCatalogItemId: parsed.data.buildingItemId || null,
+				contractId: parsed.data.contractId,
 				actorId: admin.id
 			});
 		} catch (error) {
@@ -168,12 +180,15 @@ export const actions: Actions = {
 	},
 
 	assign: async (event) => {
-		const admin = requireAdmin(event.locals);
 		const parsed = parseForm(assignUserSchema, await event.request.formData());
 		if (!parsed.ok) return fail(400, { message: 'Datos de asignación inválidos.' });
+		const db = getDatabase().db;
 
 		try {
-			await assignUser(getDatabase().db, { ...parsed.data, actorId: admin.id });
+			const contractId = await getServiceContractId(db, parsed.data.serviceId);
+			const actor = requireUser(event.locals);
+			await requireContractManage(event.locals, contractId);
+			await assignUser(db, { ...parsed.data, actorId: actor.id });
 		} catch (error) {
 			return failFrom(error);
 		}
@@ -182,15 +197,16 @@ export const actions: Actions = {
 	},
 
 	revoke: async (event) => {
-		const admin = requireAdmin(event.locals);
 		const parsed = parseForm(revokeAssignmentSchema, await event.request.formData());
 		if (!parsed.ok) return fail(400, { message: 'Asignación inválida.' });
+		const db = getDatabase().db;
 
 		try {
-			await revokeAssignment(getDatabase().db, {
-				assignmentId: parsed.data.assignmentId,
-				actorId: admin.id
-			});
+			const serviceId = await getAssignmentServiceId(db, parsed.data.assignmentId);
+			const contractId = await getServiceContractId(db, serviceId);
+			const actor = requireUser(event.locals);
+			await requireContractManage(event.locals, contractId);
+			await revokeAssignment(db, { assignmentId: parsed.data.assignmentId, actorId: actor.id });
 		} catch (error) {
 			return failFrom(error);
 		}

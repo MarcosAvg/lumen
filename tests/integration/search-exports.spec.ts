@@ -25,6 +25,7 @@ import { searchByName } from '#lib/server/domain/search';
 import { DomainError } from '#lib/server/domain/errors';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -83,7 +84,11 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 
 	it('SEARCH-01: no devuelve recursos fuera del ámbito del usuario', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Mantenimiento Central', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Mantenimiento Central',
+			actorId: admin
+		});
 		await createWork(db, { serviceId: service.id, mode: 'direct', name: 'UMA 03', actorId: admin });
 
 		const outsider = {
@@ -104,7 +109,11 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 	it('EXP-01: el ZIP de entrega usa grupos y orden del snapshot', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -146,7 +155,11 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 	it('EXP-01b: una entrega sin requisitos usa la carpeta «Fotografías»', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -168,7 +181,11 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 	it('EXP-02: el ZIP de servicio incluye solo aprobados y resume los omitidos', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const approved = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -212,7 +229,11 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 	it('el CSV administrativo neutraliza fórmulas y respeta el filtro de estado', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -253,8 +274,16 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 	it('la cola de revisión filtra y pagina en servidor', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const serviceA = await createService(db, { name: 'Alfa', actorId: admin });
-		const serviceB = await createService(db, { name: 'Beta', actorId: admin });
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Alfa',
+			actorId: admin
+		});
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Beta',
+			actorId: admin
+		});
 
 		for (const [service, name] of [
 			[serviceA, 'W1'],

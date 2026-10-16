@@ -12,16 +12,22 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 
 **Errores:** BD inaccesible → pantalla de indisponibilidad sin datos sensibles; credenciales inválidas → mensaje neutro; no permitir creación de otro admin mediante el asistente después del primer éxito.
 
-## 2. Administración de usuarios y asignaciones
+## 2. Contratos, usuarios y asignaciones
 
-1. Admin crea cuenta con rol `admin`, `supervisor` o `technician`.
-2. Desde servicio, selecciona técnicos y supervisores **activos** y guarda asignaciones sin duplicados.
-3. Una desasignación revoca acceso de inmediato; las entregas o fotos del usuario mantienen su autoría.
-4. Desactivar usuario invalida sesiones al momento de la siguiente petición y bloquea nuevas; puede volver a activarse.
-5. Si cambia el rol, mostrar asignaciones incompatibles antes de confirmar, resolverlas en la misma transacción y conservar historial.
-6. No dejar el sistema sin administrador activo.
+1. Admin crea **contratos** (nombre y descripción). Todo servicio pertenece a un contrato.
+2. Admin añade **participantes** al contrato (técnicos y supervisores). Un usuario puede estar en varios contratos.
+3. Admin **o un supervisor del contrato** asignan servicios del contrato a sus participantes; los avisos se limitan al ámbito del contrato.
+4. Asignar un servicio a quien no es participante del contrato: un **supervisor** recibe `409` ("añádelo al contrato primero"); un **administrador** lo incorpora al contrato automáticamente.
+5. Mover un servicio a otro contrato **revoca** las asignaciones de sus usuarios que no pertenezcan al nuevo, con confirmación.
+6. Revocar a alguien del contrato **revoca en cascada** sus asignaciones de servicio dentro del contrato: deja de verlos de inmediato.
+7. Una desasignación revoca acceso al momento; las entregas o fotos del usuario mantienen su autoría.
+8. Desactivar usuario invalida sesiones al momento de la siguiente petición y bloquea nuevas; puede volver a activarse.
+9. Si cambia el rol global, mostrar asignaciones incompatibles (de contrato y de servicio) antes de confirmar, resolverlas en la misma transacción y conservar historial.
+10. No dejar el sistema sin administrador activo.
 
-**Ejemplo crítico:** técnico A retira del servicio con la galería abierta → siguiente subida o envío falla con `403`; no confiar en que cierre su pestaña.
+**Ejemplo crítico:** supervisor S del contrato C intenta asignar el servicio de C a un técnico que pertenece al contrato D → `409`; el técnico no aparece como opción en el modal (solo se ofrecen participantes de C).
+
+**Ejemplo crítico 2:** se revoca a un técnico del contrato → sus asignaciones de servicio en ese contrato quedan revocadas; la siguiente lectura o subida responde `404`/`403` aunque tuviera la galería abierta.
 
 ## 3. Construir catálogo y generar trabajos
 

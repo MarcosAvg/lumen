@@ -1,3 +1,4 @@
+import { seedContract } from './helpers/contracts';
 import { afterAll, beforeEach, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -88,7 +89,11 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 	}
 
 	async function seedServiceWithDirectWork(actorId: string) {
-		const service = await createService(db, { name: 'Servicio', actorId });
+		const service = await createService(db, {
+			contractId: await seedContract(db, actorId),
+			name: 'Servicio',
+			actorId
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

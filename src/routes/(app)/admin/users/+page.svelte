@@ -20,6 +20,7 @@
 		userId: string;
 		role: Role;
 		assignments: { id: string; serviceName: string; assignmentRole: string }[];
+		contracts: { id: string; contractName: string; assignmentRole: string }[];
 	};
 
 	type ActionData = {
@@ -413,6 +414,9 @@
 							<AlertDescription>
 								<p class="mb-2">Al cambiar el rol se revocarán estas asignaciones incompatibles:</p>
 								<ul class="list-inside list-disc">
+									{#each conflict.contracts as contract (contract.id)}
+										<li>Contrato: {contract.contractName} · {contract.assignmentRole}</li>
+									{/each}
 									{#each conflict.assignments as assignment (assignment.id)}
 										<li>{assignment.serviceName} · {assignment.assignmentRole}</li>
 									{/each}

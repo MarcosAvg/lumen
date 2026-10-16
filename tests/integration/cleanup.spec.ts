@@ -14,6 +14,7 @@ import { createStorage } from '#lib/server/storage/storage';
 // Módulo de mantenimiento compartido con `scripts/cleanup.mjs`.
 import { cleanupOrphans } from '../../scripts/lib/cleanup.mjs';
 import { describeWithDatabase, TEST_DATABASE_URL, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 await describeWithDatabase('Limpieza de temporales y huérfanos', ({ db, client }) => {
 	const tempRoots: string[] = [];
@@ -33,7 +34,11 @@ await describeWithDatabase('Limpieza de temporales y huérfanos', ({ db, client 
 			displayName: 'Admin',
 			passwordHash
 		});
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

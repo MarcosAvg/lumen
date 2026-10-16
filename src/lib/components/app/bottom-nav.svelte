@@ -6,6 +6,7 @@
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import House from '@lucide/svelte/icons/house';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import { useSidebar } from '#lib/components/ui/sidebar';
 	import type { Role } from '#lib/types';
@@ -61,9 +62,15 @@
 			icon: UserRound,
 			href: resolve('/(app)/settings')
 		};
+		const contracts = {
+			key: 'contracts',
+			label: 'Contratos',
+			icon: ShieldCheck,
+			href: resolve('/(app)/contracts')
+		};
 
 		if (role === 'technician') return [home, services, notifications, profile];
-		if (role === 'supervisor') return [home, reviews, services, notifications, profile];
+		if (role === 'supervisor') return [home, reviews, contracts, notifications, profile];
 		return [
 			home,
 			{

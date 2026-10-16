@@ -37,7 +37,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 
 ## Invariantes que nunca deben romperse
 
-1. El **ámbito de acceso** se verifica en cada lectura, escritura, descarga, exportación, búsqueda y enlace profundo. Supervisor/técnico solo en servicios asignados; administrador global.
+1. El **ámbito de acceso** se verifica en cada lectura, escritura, descarga, exportación, búsqueda y enlace profundo. La jerarquía es **contrato → servicio → trabajo/elemento**: el contrato agrupa servicios y define a sus participantes (técnicos y supervisores). Solo administradores (global) y participantes del contrato acceden a sus servicios; asignar un servicio exige que el usuario sea participante del contrato.
 2. **Solo técnicos asignados y administradores** pueden editar fotos o enviar entregas; los supervisores asignados solo revisan/consultan.
 3. Una unidad de evidencia es **el trabajo directo** o **cada elemento** del trabajo dividido, nunca ambos a la vez.
 4. Una entrega es una **instantánea inmutable** de las fotos, secciones y orden. Las revisiones se anexan, no editan entregas antiguas.

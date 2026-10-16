@@ -11,6 +11,7 @@ import { createService } from '#lib/server/domain/services';
 import { createFirstAdmin } from '#lib/server/domain/users';
 import { createWork } from '#lib/server/domain/works';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -41,7 +42,11 @@ await describeWithDatabase('Catálogos · búsqueda, usos y orden', ({ db, clien
 		await createCatalogItem(db, { catalogId: catalog.id, name: 'Piso 36', actorId: admin });
 
 		// Un trabajo vinculado a un ítem cuenta como uso.
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

@@ -149,10 +149,54 @@ export const catalogItemRelations = pgTable(
 	]
 );
 
+export const contracts = pgTable(
+	'contracts',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		name: text('name').notNull(),
+		description: text('description'),
+		createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [uniqueIndex('contracts_name_unique').on(table.name)]
+);
+
+/**
+ * Participantes de un contrato: define **quién puede ser asignado** a sus
+ * servicios y **quién gestiona** sus asignaciones (supervisores). Un usuario
+ * puede pertenecer a varios contratos.
+ */
+export const contractAssignments = pgTable(
+	'contract_assignments',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		contractId: uuid('contract_id')
+			.notNull()
+			.references(() => contracts.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		assignmentRole: assignmentRole('assignment_role').notNull(),
+		assignedBy: uuid('assigned_by').references(() => users.id, { onDelete: 'set null' }),
+		assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+		revokedAt: timestamp('revoked_at', { withTimezone: true })
+	},
+	(table) => [
+		uniqueIndex('contract_assignments_active_unique')
+			.on(table.contractId, table.userId, table.assignmentRole)
+			.where(sql`${table.revokedAt} is null`),
+		index('contract_assignments_user_revoked_idx').on(table.userId, table.revokedAt)
+	]
+);
+
 export const services = pgTable(
 	'services',
 	{
 		id: uuid('id').primaryKey().defaultRandom(),
+		contractId: uuid('contract_id')
+			.notNull()
+			.references(() => contracts.id, { onDelete: 'restrict' }),
 		name: text('name').notNull(),
 		description: text('description'),
 		buildingCatalogItemId: uuid('building_catalog_item_id').references(() => catalogItems.id, {
@@ -163,7 +207,10 @@ export const services = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
-	(table) => [index('services_building_item_idx').on(table.buildingCatalogItemId)]
+	(table) => [
+		index('services_building_item_idx').on(table.buildingCatalogItemId),
+		index('services_contract_idx').on(table.contractId)
+	]
 );
 
 export const serviceAssignments = pgTable(

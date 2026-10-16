@@ -81,13 +81,22 @@ Evitar bloquear implementación en números de versión supuestos. Usar lockfile
 
 ### Autenticación y autorización
 
-`getSessionUser(request)` debe devolver usuario activo real desde sesión; `requireAdmin()`, `requireServiceAccess(serviceId)`, `requireCapture(targetId)` y `requireReview(submissionId)` actúan **antes** de recuperar/transferir datos sensibles.
+`getSessionUser(request)` debe devolver usuario activo real desde sesión; `requireAdmin()`, `requireContractAccess(contractId)`, `requireContractManage(contractId)`, `requireServiceAccess(serviceId)`, `requireCapture(targetId)` y `requireReview(submissionId)` actúan **antes** de recuperar/transferir datos sensibles.
 
 - Admin: todas las operaciones autorizadas por rol.
-- Técnico: `capture`/`submit` y consulta/descargas sobre servicio asignado.
-- Supervisor: `review` y consulta/descargas sobre servicio asignado; nunca captura.
+- Técnico: `capture`/`submit` y consulta/descargas sobre servicio asignado **y siendo miembro de su contrato**.
+- Supervisor: `review` y consulta/descargas sobre servicio asignado (miembro de su contrato); nunca captura. Además, dentro de sus contratos, **gestiona asignaciones de servicio**.
 - Usuario desactivado: sin acceso aun con cookie no expirada.
 - Comprobar alcance en búsqueda, endpoints de imágenes/miniaturas, ZIP, CSV, historial, push deep links y mutation actions.
+
+### Ámbito por contrato
+
+La jerarquía es **contrato → servicio → trabajo/elemento**. El contrato agrupa servicios y define a sus participantes:
+
+- `getContractAccess` / `visibleContractIds` resuelven la pertenencia (admin global; si no, `contract_assignments` activas) y devuelven `404` opaco fuera de ámbito.
+- La visibilidad de un servicio exige **asignación de servicio activa** *y* **pertenencia activa al contrato** con el mismo rol (`listAllowedServiceIds`), lo que retira el acceso al salir del contrato aunque la asignación siguiera marcada.
+- Asignar un servicio valida la pertenencia al contrato: el admin incorpora al usuario si falta; un supervisor del contrato solo puede usar miembros existentes.
+- Revocar una asignación de contrato revoca en cascada las de servicio dentro del contrato.
 
 ### Servicios y catálogos
 

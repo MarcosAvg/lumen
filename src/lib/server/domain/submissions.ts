@@ -1,11 +1,13 @@
 import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
+	contractAssignments,
 	evidenceSubmissions,
 	evidenceTargets,
 	photos,
 	reviews,
 	serviceAssignments,
+	services,
 	submissionPhotos,
 	users
 } from '#lib/server/db/schema';
@@ -613,8 +615,18 @@ export async function listPendingReviews(
 	let allowedServiceIds: string[] | null = null;
 	if (user.role !== 'admin') {
 		const rows = await db
-			.select({ serviceId: serviceAssignments.serviceId })
-			.from(serviceAssignments)
+			.select({ serviceId: services.id })
+			.from(services)
+			.innerJoin(serviceAssignments, eq(serviceAssignments.serviceId, services.id))
+			.innerJoin(
+				contractAssignments,
+				and(
+					eq(contractAssignments.contractId, services.contractId),
+					eq(contractAssignments.userId, serviceAssignments.userId),
+					eq(contractAssignments.assignmentRole, serviceAssignments.assignmentRole),
+					isNull(contractAssignments.revokedAt)
+				)
+			)
 			.where(
 				and(
 					eq(serviceAssignments.userId, user.id),
@@ -622,7 +634,7 @@ export async function listPendingReviews(
 					isNull(serviceAssignments.revokedAt)
 				)
 			);
-		allowedServiceIds = rows.map((row) => row.serviceId);
+		allowedServiceIds = [...new Set(rows.map((row) => row.serviceId))];
 		if (allowedServiceIds.length === 0) return { items: [], total: 0 };
 	}
 

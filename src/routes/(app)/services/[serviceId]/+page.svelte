@@ -65,6 +65,8 @@
 	let assignmentsOpen = $state(false);
 	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
 	const assignmentLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
+	const technicians = $derived(data.members.filter((member) => member.role === 'technician'));
+	const supervisors = $derived(data.members.filter((member) => member.role === 'supervisor'));
 	const submitAssign: NonNullable<Parameters<typeof enhance>[1]> =
 		() =>
 		async ({ update }) => {
@@ -170,6 +172,10 @@
 			</div>
 		</div>
 		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+			<span class="flex items-baseline gap-1.5">
+				<span class="text-muted-foreground">Contrato</span>
+				<span class="font-medium text-foreground">{data.service.contractName}</span>
+			</span>
 			{#if data.service.buildingName}
 				<span class="flex items-baseline gap-1.5">
 					<span class="text-muted-foreground">Edificio</span>
@@ -332,7 +338,7 @@
 		</div>
 	</div>
 
-	{#if data.isAdmin}
+	{#if data.canManageAssignments}
 		<Dialog.Root bind:open={assignmentsOpen}>
 			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
 				<Dialog.Header>
@@ -352,17 +358,15 @@
 								id="technician"
 								name="userId"
 								required
-								disabled={data.technicians.length === 0}
+								disabled={technicians.length === 0}
 							>
-								{#each data.technicians as candidate (candidate.id)}
+								{#each technicians as candidate (candidate.id)}
 									<option value={candidate.id}>{candidate.displayName}</option>
 								{:else}
 									<option value="">Sin técnicos disponibles</option>
 								{/each}
 							</NativeSelect>
-							<Button type="submit" size="sm" disabled={data.technicians.length === 0}
-								>Asignar</Button
-							>
+							<Button type="submit" size="sm" disabled={technicians.length === 0}>Asignar</Button>
 						</div>
 					</form>
 
@@ -375,17 +379,15 @@
 								id="supervisor"
 								name="userId"
 								required
-								disabled={data.supervisors.length === 0}
+								disabled={supervisors.length === 0}
 							>
-								{#each data.supervisors as candidate (candidate.id)}
+								{#each supervisors as candidate (candidate.id)}
 									<option value={candidate.id}>{candidate.displayName}</option>
 								{:else}
 									<option value="">Sin supervisores disponibles</option>
 								{/each}
 							</NativeSelect>
-							<Button type="submit" size="sm" disabled={data.supervisors.length === 0}
-								>Asignar</Button
-							>
+							<Button type="submit" size="sm" disabled={supervisors.length === 0}>Asignar</Button>
 						</div>
 					</form>
 
@@ -476,6 +478,23 @@
 							bind:value={buildingItemId}
 							itemPlaceholder="Sin edificio"
 						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="svc-contract">Contrato</Label>
+						<NativeSelect
+							id="svc-contract"
+							name="contractId"
+							value={data.service.contractId}
+							required
+						>
+							{#each data.contracts as contract (contract.id)}
+								<option value={contract.id}>{contract.name}</option>
+							{/each}
+						</NativeSelect>
+						<p class="text-xs text-muted-foreground">
+							Al cambiar de contrato se revocan las asignaciones de usuarios que no pertenezcan al
+							nuevo.
+						</p>
 					</div>
 					{#if action?.message}
 						<p class="text-sm text-destructive">{action.message}</p>

@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { listContractsForUser } from '#lib/server/domain/contracts';
 import { createService, listServicesForUser } from '#lib/server/domain/services';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { createServiceSchema } from '#lib/schemas/services';
@@ -8,7 +9,12 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const admin = requireAdmin(locals);
-	return { title: 'Servicios', services: await listServicesForUser(getDatabase().db, admin) };
+	const db = getDatabase().db;
+	const [services, contracts] = await Promise.all([
+		listServicesForUser(db, admin),
+		listContractsForUser(db, admin)
+	]);
+	return { title: 'Servicios', services, contracts };
 };
 
 export const actions: Actions = {
@@ -19,6 +25,7 @@ export const actions: Actions = {
 
 		try {
 			await createService(getDatabase().db, {
+				contractId: parsed.data.contractId,
 				name: parsed.data.name,
 				description: parsed.data.description,
 				actorId: admin.id

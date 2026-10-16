@@ -42,6 +42,7 @@ async function expectNoOverflow(page: Page, route: string, width: number) {
 const LIST_ROUTES = [
 	'/dashboard',
 	'/services',
+	'/contracts',
 	'/admin/services',
 	'/admin/catalogs',
 	'/admin/users',

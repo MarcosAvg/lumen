@@ -64,6 +64,13 @@
       "when": 1792010805184,
       "tag": "0008_requirement_catalog_link",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792109207797,
+      "tag": "0009_handy_sunfire",
+      "breakpoints": true
     }
   ]
 }

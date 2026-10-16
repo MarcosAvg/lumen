@@ -34,6 +34,7 @@ import {
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import { removeUnreferencedFiles } from '#lib/server/storage/orphans';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -93,7 +94,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 	it('WORK-03: la conversión es imposible con cualquier entrega histórica', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -135,7 +140,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 	it('WORK-04: sin entregas exige reasignar todo o no cambia nada', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -229,7 +238,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 
 	it('convierte de dividido a directo unificando la evidencia', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -289,7 +302,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 	it('DEL-01: borra un servicio con historial sin referencias inválidas y aísla otros', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const serviceA = await createService(db, { name: 'A', actorId: admin });
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'A',
+			actorId: admin
+		});
 		const workA = await createWork(db, {
 			serviceId: serviceA.id,
 			mode: 'direct',
@@ -311,7 +328,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 		});
 
 		// Otro servicio que no debe verse afectado.
-		const serviceB = await createService(db, { name: 'B', actorId: admin });
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'B',
+			actorId: admin
+		});
 		await createWork(db, { serviceId: serviceB.id, mode: 'direct', name: 'WB', actorId: admin });
 
 		const impact = await getWorkImpact(db, workA.id);
@@ -346,7 +367,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 	it('borra elemento/trabajo y limpia sus binarios huérfanos', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -376,7 +401,11 @@ await describeWithDatabase('Cambios estructurales y destrucción', ({ db, client
 	it('getWorkForConversion informa requisitos y fotos sin mutar', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

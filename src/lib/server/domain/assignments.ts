@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import { serviceAssignments, services, users } from '#lib/server/db/schema';
+import { contractAssignments, serviceAssignments, services, users } from '#lib/server/db/schema';
 import type { AssignmentRole, Role } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
@@ -65,7 +65,7 @@ export async function assignUser(
 ): Promise<{ id: string; created: boolean }> {
 	return db.transaction(async (tx) => {
 		const [service] = await tx
-			.select({ id: services.id })
+			.select({ id: services.id, contractId: services.contractId })
 			.from(services)
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
@@ -83,6 +83,41 @@ export async function assignUser(
 				409,
 				'El rol de la asignación no coincide con el rol global del usuario.'
 			);
+		}
+
+		// Solo pueden asignarse servicios a participantes del contrato del servicio.
+		// El administrador (ámbito global) incorpora al usuario al contrato si no lo
+		// estaba; un supervisor solo puede asignar a miembros existentes.
+		const [member] = await tx
+			.select({ id: contractAssignments.id })
+			.from(contractAssignments)
+			.where(
+				and(
+					eq(contractAssignments.contractId, service.contractId),
+					eq(contractAssignments.userId, input.userId),
+					eq(contractAssignments.assignmentRole, input.role),
+					isNull(contractAssignments.revokedAt)
+				)
+			)
+			.limit(1);
+		if (!member) {
+			const [actor] = await tx
+				.select({ role: users.role })
+				.from(users)
+				.where(eq(users.id, input.actorId))
+				.limit(1);
+			if (actor?.role !== 'admin') {
+				throw new DomainError(
+					409,
+					'El usuario no es participante del contrato de este servicio. Añádelo al contrato primero.'
+				);
+			}
+			await tx.insert(contractAssignments).values({
+				contractId: service.contractId,
+				userId: input.userId,
+				assignmentRole: input.role,
+				assignedBy: input.actorId
+			});
 		}
 
 		const [existing] = await tx
@@ -120,6 +155,17 @@ export async function assignUser(
 
 		return { id: created.id, created: true };
 	});
+}
+
+/** Servicio al que pertenece una asignación (para autorizar antes de revocar). */
+export async function getAssignmentServiceId(db: Database, assignmentId: string): Promise<string> {
+	const [row] = await db
+		.select({ serviceId: serviceAssignments.serviceId })
+		.from(serviceAssignments)
+		.where(eq(serviceAssignments.id, assignmentId))
+		.limit(1);
+	if (!row) throw new DomainError(404, 'Asignación no encontrada.');
+	return row.serviceId;
 }
 
 export interface RevokeAssignmentInput {

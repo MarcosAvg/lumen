@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { canExportZip, type SessionUser } from '#lib/types';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
+import { getContractAccess, type ContractAccess } from '#lib/server/domain/contracts';
 import { getPhotoAccessContext, type PhotoAccessContext } from '#lib/server/domain/photos';
 import { getServiceForUser, type ServiceAccessResult } from '#lib/server/domain/services';
 import { getSubmissionContext, type SubmissionContext } from '#lib/server/domain/submissions';
@@ -40,6 +41,33 @@ export async function requireServiceAccess(
 ): Promise<ServiceAccessResult> {
 	const user = requireUser(locals);
 	return orHttp(getServiceForUser(getDatabase().db, user, serviceId));
+}
+
+/**
+ * Acceso a un contrato: administrador o miembro activo. Fuera de ámbito
+ * responde `404` opaco.
+ */
+export async function requireContractAccess(
+	locals: App.Locals,
+	contractId: string
+): Promise<ContractAccess> {
+	const user = requireUser(locals);
+	return orHttp(getContractAccess(getDatabase().db, user, contractId));
+}
+
+/**
+ * Autoriza gestionar las asignaciones de un contrato: administrador o
+ * **supervisor del contrato**. En su defecto responde `403`.
+ */
+export async function requireContractManage(
+	locals: App.Locals,
+	contractId: string
+): Promise<ContractAccess> {
+	const access = await requireContractAccess(locals, contractId);
+	if (!access.canManage) {
+		throw error(403, 'Solo el administrador o un supervisor del contrato puede asignar.');
+	}
+	return access;
 }
 
 /**

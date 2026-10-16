@@ -71,6 +71,19 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await createDialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 
+	// Añadirlo al contrato «General» antes de asignarle el servicio.
+	await page.goto('/contracts');
+	await page
+		.locator('tr, li')
+		.filter({ visible: true })
+		.filter({ hasText: 'General' })
+		.getByRole('link', { name: 'General' })
+		.first()
+		.click();
+	await page.locator('#member-technician').selectOption({ label: techName });
+	await page.getByRole('button', { name: 'Añadir' }).first().click();
+	await expect(page.getByText('Participante añadido.')).toBeVisible();
+
 	await page.goto(serviceHref ?? '/admin/services');
 	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
 	const assignDialog = page.getByRole('dialog');

@@ -11,6 +11,7 @@
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -58,6 +59,28 @@
 					</Dialog.Description>
 				</Dialog.Header>
 				<div class="space-y-2">
+					<Label for="contractId">Contrato</Label>
+					<NativeSelect
+						id="contractId"
+						name="contractId"
+						required
+						aria-invalid={action?.createErrors?.contractId ? true : undefined}
+						aria-describedby={action?.createErrors?.contractId ? 'contractId-error' : undefined}
+					>
+						{#each data.contracts as contract (contract.id)}
+							<option value={contract.id}>{contract.name}</option>
+						{/each}
+					</NativeSelect>
+					{#if action?.createErrors?.contractId}
+						<p id="contractId-error" class="text-sm text-destructive">
+							{action.createErrors.contractId}
+						</p>
+					{/if}
+					{#if data.contracts.length === 0}
+						<p class="text-xs text-muted-foreground">Crea primero un contrato en «Contratos».</p>
+					{/if}
+				</div>
+				<div class="space-y-2">
 					<Label for="name">Nombre</Label>
 					<Input
 						id="name"
@@ -101,15 +124,9 @@
 								{#if service.description}
 									<p class="text-sm text-muted-foreground">{service.description}</p>
 								{/if}
+								<p class="mt-1 text-xs text-muted-foreground">Contrato: {service.contractName}</p>
 							</div>
 							<div class="relative z-10 flex flex-wrap items-center gap-2">
-								<Button
-									href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
-									variant="outline"
-									size="sm"
-								>
-									Asignaciones
-								</Button>
 								<DestructiveDelete
 									label="Eliminar"
 									endpoint={`/api/services/${service.id}`}
@@ -128,6 +145,7 @@
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Servicio</Table.Head>
+						<Table.Head class="hidden lg:table-cell">Contrato</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Edificio</Table.Head>
 						<Table.Head class="w-px text-right">Acciones</Table.Head>
 					</Table.Row>
@@ -149,17 +167,13 @@
 								{/if}
 							</Table.Cell>
 							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
+								{service.contractName}
+							</Table.Cell>
+							<Table.Cell class="hidden text-muted-foreground lg:table-cell">
 								{service.buildingName ?? '—'}
 							</Table.Cell>
 							<Table.Cell class="relative z-10 text-right">
 								<div class="flex items-center justify-end gap-2">
-									<Button
-										href={resolve('/(app)/admin/services/[serviceId]', { serviceId: service.id })}
-										variant="outline"
-										size="sm"
-									>
-										Asignaciones
-									</Button>
 									<DestructiveDelete
 										label="Eliminar"
 										endpoint={`/api/services/${service.id}`}

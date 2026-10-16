@@ -1,6 +1,12 @@
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import { notifications, serviceAssignments, users } from '#lib/server/db/schema';
+import {
+	contractAssignments,
+	notifications,
+	serviceAssignments,
+	services,
+	users
+} from '#lib/server/db/schema';
 
 /**
  * Notificaciones internas (docs/03 §8): se crean **dentro de la transacción**
@@ -12,8 +18,9 @@ export type NotificationEventType =
 	'submission.submitted' | 'submission.approved' | 'submission.rejected';
 
 /**
- * Usuarios **activos** con asignación **vigente** del rol indicado en el servicio.
- * Base del ámbito de notificaciones: desactivar o desasignar excluye del evento.
+ * Usuarios **activos** con asignación **vigente** del rol indicado en el
+ * servicio y **miembros del contrato** de ese servicio. Desactivar, desasignar
+ * o salir del contrato excluye del evento.
  */
 export async function resolveServiceRecipients(
 	db: Database,
@@ -23,6 +30,16 @@ export async function resolveServiceRecipients(
 	const rows = await db
 		.select({ userId: serviceAssignments.userId })
 		.from(serviceAssignments)
+		.innerJoin(services, eq(services.id, serviceAssignments.serviceId))
+		.innerJoin(
+			contractAssignments,
+			and(
+				eq(contractAssignments.contractId, services.contractId),
+				eq(contractAssignments.userId, serviceAssignments.userId),
+				eq(contractAssignments.assignmentRole, serviceAssignments.assignmentRole),
+				isNull(contractAssignments.revokedAt)
+			)
+		)
 		.innerJoin(users, eq(users.id, serviceAssignments.userId))
 		.where(
 			and(

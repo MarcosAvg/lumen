@@ -45,6 +45,8 @@ Autenticación
 Aplicación (sesión)
   ├── Inicio (dashboard adaptado al rol)
   ├── Buscar (global)
+  ├── Contratos (admin: todos; supervisor: los suyos)
+  │    └── Detalle del contrato: datos, participantes y servicios
   ├── Servicios
   │    └── Detalle del servicio
   │         ├── Resumen / participantes / avance
@@ -57,6 +59,7 @@ Aplicación (sesión)
   ├── Notificaciones / Bandeja interna
   ├── Perfil / Activar notificaciones push
   └── Administración (solo admin)
+       ├── Contratos (crear/editar/eliminar y participantes)
        ├── Usuarios y roles
        ├── Catálogos e ítems / relaciones
        ├── Servicios y asignaciones
@@ -70,7 +73,7 @@ El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabaj
 
 ### Móvil
 
-- **Barra inferior por rol**: Técnico **Inicio · Servicios · Avisos · Perfil**; Supervisor **Inicio · Revisiones · Servicios · Avisos · Perfil**; Admin **Inicio · Servicios · Revisiones · Avisos · Más**. «Revisiones» lleva **contador** (solo admin/supervisor) y «Avisos» el de no leídas, acotados por ámbito. La **búsqueda no es pestaña**: vive en la cabecera (campo en `md+`, icono en móvil).
+- **Barra inferior por rol**: Técnico **Inicio · Servicios · Avisos · Perfil**; Supervisor **Inicio · Revisiones · Contratos · Avisos · Perfil**; Admin **Inicio · Servicios · Revisiones · Avisos · Más**. «Revisiones» lleva **contador** (solo admin/supervisor) y «Avisos» el de no leídas, acotados por ámbito. La **búsqueda no es pestaña**: vive en la cabecera (campo en `md+`, icono en móvil). En el sidebar, admin y supervisor ven «Contratos».
 - Buscador global accesible desde el menú superior o inicio.
 - Cards de servicios/trabajos con estado legible y progreso; objetivo táctil amplio.
 - Acción primaria de captura/envío claramente accesible sin tapar galerías; respetar safe area del teléfono.
@@ -96,6 +99,7 @@ La **selección de servicio vive en su propia pestaña** (`/services`), no en el
 
 ## 5. Lista y detalle de servicios
 
+**Contratos (nivel superior):** `/contracts` lista los contratos del usuario (admin: todos; supervisor: los suyos). La ficha del contrato muestra datos (edición en **modal**, admin), **participantes** (añadir/revocar; solo el admin o un supervisor del contrato) y **servicios** con su avance. Al crear/editar un servicio se exige **contrato**; los participantes asignables a un servicio son los del contrato. El administrador, al asignar un servicio, incorpora al usuario al contrato si faltaba; un supervisor solo usa miembros existentes.
 **Lista:** tarjetas o tabla responsiva, nombre del servicio, edificio opcional, progreso (objetivos aprobados / totales), indicación completado/incompleto. Se sirve en **dos rutas**: `/services` (técnico/supervisor: **solo sus servicios asignados**, orientada a seleccionar y entrar) y `/admin/services` (admin: creación/edición/borrado). El progreso por servicio se agrega en una consulta, sin N+1.
 
 **Detalle de servicio:**

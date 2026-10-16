@@ -19,9 +19,11 @@ const TABLES = [
 	'notifications',
 	'push_subscriptions',
 	'service_assignments',
+	'contract_assignments',
 	'audit_events',
 	'sessions',
 	'services',
+	'contracts',
 	'users',
 	'catalogs',
 	'catalog_items',
@@ -53,6 +55,8 @@ const env = { ...process.env, DATABASE_URL: TEST_DATABASE_URL, ORIGIN };
 run('node', ['scripts/migrate.mjs'], env);
 const sql = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
 await sql.unsafe(`truncate table ${TABLES.join(', ')} restart identity cascade`);
+// Contrato por defecto: los E2E crean servicios sin pasar por «Contratos».
+await sql`insert into contracts (name, description) values ('General', 'Contrato por defecto de las pruebas E2E')`;
 await sql.end();
 
 // Construye con el ORIGIN de E2E (CSRF/URLs absolutas) y arranca el servidor.

@@ -20,6 +20,7 @@ import { getTargetForElement } from '#lib/server/domain/targets';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import type { SessionUser } from '#lib/types';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -96,8 +97,16 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 		const storage = await makeStorage();
 		const technician = await seedUser(admin.id, 'technician');
 
-		const serviceA = await createService(db, { name: 'Alfa', actorId: admin.id });
-		const serviceB = await createService(db, { name: 'Beta', actorId: admin.id });
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Alfa',
+			actorId: admin.id
+		});
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Beta',
+			actorId: admin.id
+		});
 		await assignUser(db, {
 			serviceId: serviceA.id,
 			userId: technician.id,
@@ -144,7 +153,11 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 
 	it('DASH-02: los objetivos de elementos se resuelven con su trabajo padre', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio',
+			actorId: admin.id
+		});
 		const divided = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -169,7 +182,11 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 	it('DASH-04: el progreso por servicio se agrega en una consulta', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio',
+			actorId: admin.id
+		});
 		const direct = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
@@ -208,8 +225,16 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 		const supervisorB = await seedUser(admin.id, 'supervisor');
 		const technician = await seedUser(admin.id, 'technician');
 
-		const serviceA = await createService(db, { name: 'Alfa', actorId: admin.id });
-		const serviceB = await createService(db, { name: 'Beta', actorId: admin.id });
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Alfa',
+			actorId: admin.id
+		});
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Beta',
+			actorId: admin.id
+		});
 		await assignUser(db, {
 			serviceId: serviceA.id,
 			userId: supervisorA.id,
@@ -265,8 +290,16 @@ await describeWithDatabase('SEARCH · filtros por tipo y servicio', ({ db, clien
 
 	it('SEARCH-02: filtra por tipo y por servicio dentro del ámbito', async () => {
 		const admin = await seedAdmin();
-		const serviceA = await createService(db, { name: 'Central', actorId: admin.id });
-		const serviceB = await createService(db, { name: 'Central', actorId: admin.id });
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Central',
+			actorId: admin.id
+		});
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Central',
+			actorId: admin.id
+		});
 		await createWork(db, {
 			serviceId: serviceA.id,
 			mode: 'direct',

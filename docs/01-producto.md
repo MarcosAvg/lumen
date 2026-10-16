@@ -2,9 +2,10 @@
 
 ## 1. Visión y lenguaje del dominio
 
-**Lumen** registra evidencia fotográfica del trabajo realizado y controla su revisión. No intenta administrar órdenes de compra, inventario físico, contratos, facturación o mantenimiento predictivo. Se dirige a **decenas de usuarios internos** en una instancia autohospedada.
+**Lumen** registra evidencia fotográfica del trabajo realizado y controla su revisión. No intenta administrar órdenes de compra, inventario físico, facturación o mantenimiento predictivo; el **contrato** es solo la agrupación de servicios y participantes (sin datos legales/comerciales). Se dirige a **decenas de usuarios internos** en una instancia autohospedada.
 
-- **Servicio:** unidad contenedora; tiene nombre, descripción opcional, edificio opcional, técnicos y supervisores asignados, y una colección de trabajos. Su avance es **derivado**.
+- **Contrato:** nivel jerárquico superior; agrupa varios servicios y define **qué técnicos y supervisores participan** en ellos. Un usuario puede pertenecer a varios contratos. Quien no es miembro no ve nada del contrato (`404` opaco).
+- **Servicio:** unidad contenedora; pertenece **siempre a un contrato** y tiene nombre, descripción opcional, edificio opcional, técnicos y supervisores asignados, y una colección de trabajos. Su avance es **derivado**.
 - **Trabajo:** actividad o unidad organizada bajo un servicio; posee nombre, descripción opcional y un modo excluyente: `direct` o `divided`.
 - **Elemento:** subunidad de un trabajo `divided` (p. ej. UMA 01). Cada elemento tiene evidencia y revisiones propias.
 - **Unidad de evidencia / objetivo (`target`):** un trabajo `direct` **o** un elemento de trabajo `divided`. Requisitos, fotografías, entregas, revisión y estado se administran por objetivo.
@@ -33,7 +34,7 @@
 | Descargar entrega ZIP / servicio ZIP | Sí | Sí | No |
 | Exportar CSV administrativo | Sí | No | No |
 
-Un usuario debe estar **activo** y disponer de sesión válida para cualquier operación. Los administradores tienen permiso global sin necesitar asignación a un servicio. Los supervisores y técnicos solamente acceden a servicios **activos en su asignación**, no a todos los existentes. La vista de participantes expone nombre visible y rol pertinente, nunca credenciales ni datos sensibles. Los **técnicos no exportan ZIP** (capturan y envían evidencia); las descargas de ZIP de entrega y de servicio quedan para administradores y supervisores asignados.
+Un usuario debe estar **activo** y disponer de sesión válida para cualquier operación. Los administradores tienen permiso global sin necesitar asignación. Los supervisores y técnicos acceden **solo a los servicios activos en su asignación y cuyo contrato sigue contando con ellos como miembros activos** (salir del contrato retira el acceso, aunque la asignación de servicio siguiera marcada). Los **participantes de un contrato** (técnicos y supervisores) son la única población asignable a sus servicios; los administradores pueden asignar e **incorporan al usuario al contrato** si no lo estaba, mientras que un **supervisor del contrato** solo puede asignar servicios del suyo a miembros existentes. La vista de participantes expone nombre visible y rol pertinente, nunca credenciales ni datos sensibles. Los **técnicos no exportan ZIP** (capturan y envían evidencia); las descargas de ZIP de entrega y de servicio quedan para administradores y supervisores asignados.
 
 ### Usuarios
 
@@ -49,9 +50,10 @@ Un usuario debe estar **activo** y disponer de sesión válida para cualquier op
 
 ### Campos y ciclo de vida
 
+- `contrato` **obligatorio**: todo servicio pertenece a un contrato (la migración inicial crea «General» y mueve los servicios previos). Cambiar de contrato revoca las asignaciones de usuarios que no pertenezcan al nuevo, con confirmación previa.
 - `nombre` requerido, `descripción` opcional, vínculo opcional a un ítem de catálogo de edificios (sin jerarquía obligatoria), auditoría de creador y fechas.
-- El administrador puede modificar nombre, descripción o edificio **en cualquier momento**, incluso tras aprobaciones, sin alterar las entregas ni revisiones.
-- Puede añadir/quitar técnicos y supervisores por servicio; una persona puede pertenecer a múltiples servicios.
+- El administrador puede modificar nombre, descripción, edificio o contrato **en cualquier momento**, incluso tras aprobaciones, sin alterar las entregas ni revisiones.
+- Puede añadir/quitar técnicos y supervisores por servicio, **entre los participantes del contrato**; una persona puede pertenecer a múltiples servicios.
 - Puede añadir/quitar trabajos incluso cuando el servicio se había completado. El avance/estado se recalcula automáticamente.
 - Puede borrar el servicio completo con confirmación que enumere impacto: **trabajos, elementos, fotos vigentes e históricas, entregas, revisiones, asignaciones y notificaciones vinculadas**. No se borran usuarios ni catálogos globales.
 

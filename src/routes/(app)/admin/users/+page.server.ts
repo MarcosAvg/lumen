@@ -97,8 +97,10 @@ export const actions: Actions = {
 			});
 			return {
 				success:
-					result.revokedAssignmentIds.length > 0
-						? `Rol actualizado. Se revocaron ${result.revokedAssignmentIds.length} asignación(es) incompatible(s).`
+					result.revokedAssignmentIds.length + result.revokedContractAssignmentIds.length > 0
+						? `Rol actualizado. Se revocaron ${
+								result.revokedAssignmentIds.length + result.revokedContractAssignmentIds.length
+							} asignación(es) incompatible(s).`
 						: 'Rol actualizado.'
 			};
 		} catch (error) {

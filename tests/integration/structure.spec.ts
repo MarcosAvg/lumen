@@ -25,6 +25,7 @@ import {
 } from '#lib/server/domain/works';
 import { evidenceTargets } from '#lib/server/db/schema';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -49,7 +50,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('un trabajo directo crea un objetivo propio y cero elementos', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 
 		const work = await createWork(db, {
 			serviceId: service.id,
@@ -72,7 +77,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('un trabajo dividido con dos elementos crea dos objetivos y ninguno en el padre', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -100,12 +109,20 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('un servicio vacío y un trabajo dividido sin elementos nunca se completan', async () => {
 		const admin = await seedAdmin();
-		const empty = await createService(db, { name: 'Vacío', actorId: admin });
+		const empty = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Vacío',
+			actorId: admin
+		});
 		const emptyProgress = await getServiceProgress(db, empty.id);
 		expect(emptyProgress.completed).toBe(false);
 		expect(emptyProgress.totalTargets).toBe(0);
 
-		const service = await createService(db, { name: 'Con dividido vacío', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Con dividido vacío',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -119,7 +136,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('CAT-01: renombrar el ítem maestro actualiza los objetos aún vinculados', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const catalog = await createCatalog(db, { name: 'Pisos', actorId: admin });
 		const item = await seedItem(catalog.id, 'Piso 1', admin);
 		const work = await createWork(db, {
@@ -137,7 +158,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('CAT-02: renombrar una instancia la desvincula y conserva su nombre propio', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const catalog = await createCatalog(db, { name: 'Pisos', actorId: admin });
 		const item = await seedItem(catalog.id, 'Piso 1', admin);
 		const work = await createWork(db, {
@@ -159,7 +184,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 		const catalog = await createCatalog(db, { name: 'Edificios', actorId: admin });
 		const building = await seedItem(catalog.id, 'Edificio A', admin);
 
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		await updateService(db, {
 			serviceId: service.id,
 			name: 'Servicio',
@@ -273,7 +302,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('generación 34×4 crea la estructura esperada', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Edificio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Edificio',
+			actorId: admin
+		});
 		const floors = await createCatalog(db, { name: 'Pisos', actorId: admin });
 		const umas = await createCatalog(db, { name: 'UMAs', actorId: admin });
 
@@ -314,7 +347,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('WORK-01/WORK-02: aprobar un dividido y añadir un elemento lo vuelve incompleto sin revertir aprobaciones', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'divided',
@@ -351,7 +388,11 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('editar el edificio o el nombre del servicio no altera los trabajos', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const catalog = await createCatalog(db, { name: 'Edificios', actorId: admin });
 		const building = await seedItem(catalog.id, 'Edificio A', admin);
 		const work = await createWork(db, {

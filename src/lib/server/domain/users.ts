@@ -2,6 +2,8 @@ import { and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	auditEvents,
+	contractAssignments,
+	contracts,
 	evidenceSubmissions,
 	photos,
 	reviews,
@@ -181,6 +183,13 @@ export interface IncompatibleAssignment {
 	assignmentRole: AssignmentRole;
 }
 
+export interface IncompatibleContractAssignment {
+	id: string;
+	contractId: string;
+	contractName: string;
+	assignmentRole: AssignmentRole;
+}
+
 /**
  * Asignaciones activas incompatibles con el nuevo rol global. Un usuario
  * `technician` solo admite asignaciones de técnico; `supervisor`, de supervisor;
@@ -205,6 +214,26 @@ export async function listIncompatibleAssignments(
 	return rows.filter((row) => row.assignmentRole !== newRole);
 }
 
+/** Asignaciones de contrato activas incompatibles con el nuevo rol global. */
+export async function listIncompatibleContractAssignments(
+	db: Database,
+	userId: string,
+	newRole: Role
+): Promise<IncompatibleContractAssignment[]> {
+	const rows = await db
+		.select({
+			id: contractAssignments.id,
+			contractId: contractAssignments.contractId,
+			contractName: contracts.name,
+			assignmentRole: contractAssignments.assignmentRole
+		})
+		.from(contractAssignments)
+		.innerJoin(contracts, eq(contracts.id, contractAssignments.contractId))
+		.where(and(eq(contractAssignments.userId, userId), isNull(contractAssignments.revokedAt)));
+
+	return rows.filter((row) => row.assignmentRole !== newRole);
+}
+
 export interface ChangeUserRoleInput {
 	userId: string;
 	role: Role;
@@ -214,6 +243,7 @@ export interface ChangeUserRoleInput {
 
 export interface ChangeUserRoleResult {
 	revokedAssignmentIds: string[];
+	revokedContractAssignmentIds: string[];
 }
 
 export async function changeUserRole(
@@ -225,7 +255,8 @@ export async function changeUserRole(
 
 		const [target] = await tx.select().from(users).where(eq(users.id, input.userId)).limit(1);
 		if (!target) throw new DomainError(404, 'Usuario no encontrado.');
-		if (target.role === input.role) return { revokedAssignmentIds: [] };
+		if (target.role === input.role)
+			return { revokedAssignmentIds: [], revokedContractAssignmentIds: [] };
 
 		if (target.role === 'admin' && target.isActive && input.role !== 'admin') {
 			const others = await countActiveAdmins(tx, target.id);
@@ -235,11 +266,17 @@ export async function changeUserRole(
 		}
 
 		const incompatible = await listIncompatibleAssignments(tx, input.userId, input.role);
-		if (incompatible.length > 0 && !input.confirmRevoke) {
+		const incompatibleContracts = await listIncompatibleContractAssignments(
+			tx,
+			input.userId,
+			input.role
+		);
+		if ((incompatible.length > 0 || incompatibleContracts.length > 0) && !input.confirmRevoke) {
 			throw new DomainError(409, 'Este cambio de rol revoca asignaciones incompatibles.', {
 				userId: input.userId,
 				role: input.role,
-				assignments: incompatible
+				assignments: incompatible,
+				contracts: incompatibleContracts
 			});
 		}
 
@@ -251,6 +288,17 @@ export async function changeUserRole(
 					inArray(
 						serviceAssignments.id,
 						incompatible.map((assignment) => assignment.id)
+					)
+				);
+		}
+		if (incompatibleContracts.length > 0) {
+			await tx
+				.update(contractAssignments)
+				.set({ revokedAt: new Date() })
+				.where(
+					inArray(
+						contractAssignments.id,
+						incompatibleContracts.map((assignment) => assignment.id)
 					)
 				);
 		}
@@ -268,11 +316,15 @@ export async function changeUserRole(
 			metadata: {
 				from: target.role,
 				to: input.role,
-				revokedAssignmentIds: incompatible.map((assignment) => assignment.id)
+				revokedAssignmentIds: incompatible.map((assignment) => assignment.id),
+				revokedContractAssignmentIds: incompatibleContracts.map((assignment) => assignment.id)
 			}
 		});
 
-		return { revokedAssignmentIds: incompatible.map((assignment) => assignment.id) };
+		return {
+			revokedAssignmentIds: incompatible.map((assignment) => assignment.id),
+			revokedContractAssignmentIds: incompatibleContracts.map((assignment) => assignment.id)
+		};
 	});
 }
 

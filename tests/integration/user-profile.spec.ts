@@ -17,6 +17,7 @@ import {
 import { createWork } from '#lib/server/domain/works';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -119,7 +120,11 @@ await describeWithDatabase('Edición de usuarios', ({ db, client }) => {
 		});
 
 		const storage = await makeStorage();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

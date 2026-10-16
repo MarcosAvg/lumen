@@ -11,6 +11,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Search from '@lucide/svelte/icons/search';
 	import Settings from '@lucide/svelte/icons/settings';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import Tags from '@lucide/svelte/icons/tags';
 	import Users from '@lucide/svelte/icons/users';
 	import * as Sidebar from '#lib/components/ui/sidebar';
@@ -80,8 +81,16 @@
 				badge: data.reviewsCount
 			});
 		}
+		if (data.user.role === 'supervisor') {
+			general.splice(2, 0, {
+				href: resolve('/(app)/contracts'),
+				label: 'Contratos',
+				icon: ShieldCheck,
+				badge: 0
+			});
+		}
 		if (data.user.role !== 'admin') {
-			general.splice(1, 0, {
+			general.splice(data.user.role === 'supervisor' ? 3 : 1, 0, {
 				href: resolve('/(app)/services'),
 				label: 'Servicios',
 				icon: Building2,
@@ -98,6 +107,7 @@
 			list.push({
 				label: 'Administración',
 				items: [
+					{ href: resolve('/(app)/contracts'), label: 'Contratos', icon: ShieldCheck, badge: 0 },
 					{ href: resolve('/(app)/admin/services'), label: 'Servicios', icon: Building2, badge: 0 },
 					{ href: resolve('/(app)/admin/users'), label: 'Usuarios', icon: Users, badge: 0 },
 					{ href: resolve('/(app)/admin/catalogs'), label: 'Catálogos', icon: Tags, badge: 0 }

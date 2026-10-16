@@ -26,6 +26,7 @@ import { createElement, createWork } from '#lib/server/domain/works';
 import { reviews, submissionPhotos } from '#lib/server/db/schema';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -61,7 +62,11 @@ await describeWithDatabase('Entregas y revisiones', ({ db, client }) => {
 			displayName: 'Admin',
 			passwordHash
 		});
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',

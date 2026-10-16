@@ -16,18 +16,18 @@ Este documento define el **modelo lógico recomendado** para PostgreSQL + Drizzl
 ```text
 users ──< sessions
   │
-  ├──< service_assignments >── services >── catalog_items (edificio opcional)
-  │                               │
-  │                               └──< works ────────────────┐
-  │                                       └──< elements       │
-  │                                               │          │
-  │                                               └──────────┴──> evidence_targets
-  │                                                               │
-  │                                    ┌──────────────────────────┼─────────────────────────┐
-  │                                    ▼                          ▼                         ▼
-  │                              photo_requirements            photos                evidence_submissions
-  │                                    │                          │                         │
-  │                                    └──────────────────────────┴──< submission_photos    └──< reviews
+  ├──< contract_assignments >── contracts ──< services >── catalog_items (edificio opcional)
+  │                                  │            │
+  ├──< service_assignments >─────────┘            └──< works ────────────────┐
+  │                                                      └──< elements       │
+  │                                                              │          │
+  │                                                              └──────────┴──> evidence_targets
+  │                                                                                 │
+  │                                        ┌────────────────────────────────────────┼───────────────────────┐
+  │                                        ▼                                        ▼                       ▼
+  │                                  photo_requirements                          photos            evidence_submissions
+  │                                        │                                        │                       │
+  │                                        └────────────────────────────────────────┴──< submission_photos   └──< reviews
   │
   ├──< notifications
   ├──< push_subscriptions
@@ -38,6 +38,8 @@ catalogs ──< catalog_items ──< catalog_item_relations >── catalog_it
 ```
 
 **Nota:** un `evidence_target` se enlaza **o** con un trabajo directo **o** con un elemento; no se crean targets de ambos niveles para el mismo trabajo dividido.
+
+**Nota de ámbito:** `service_assignments` (quién captura/revisa un servicio) está subordinado a `contract_assignments` (quién puede ser asignado): una asignación de servicio solo es efectiva si el usuario sigue siendo **miembro activo del contrato del servicio** con el mismo rol.
 
 ## 3. Identidad y acceso
 
@@ -60,6 +62,29 @@ Restricción lógica transaccional: **siempre ≥1 admin activo** una vez termin
 
 `id` (o hash del token), `user_id`, `created_at`, `expires_at`, `revoked_at`, metadatos mínimos opcionales. Cookies `HttpOnly`, `Secure` bajo HTTPS, `SameSite=Lax` o más estricto, expiración, rotación al iniciar sesión y protección CSRF/origen según método. Cada petición valida **`users.is_active` y rol actual**, no confiar en permisos cacheados en la cookie.
 
+### `contracts`
+
+`id`, `name` (único), `description`, `created_by`, `created_at`, `updated_at`.
+
+- Nivel jerárquico superior: agrupa servicios. Un servicio pertenece **siempre** a un contrato (`services.contract_id NOT NULL`).
+- Solo el administrador crea/edita/elimina contratos. **No se elimina un contrato con servicios** (409): primero se mueven o eliminan.
+
+### `contract_assignments`
+
+`id`, `contract_id`, `user_id`, `assignment_role` (`technician`/`supervisor`), `assigned_by`, `assigned_at`, `revoked_at` nullable.
+
+- Define **quién puede ser asignado** a los servicios del contrato y **quién gestiona** sus asignaciones (supervisores del contrato).
+- Índice único parcial sobre `(contract_id, user_id, assignment_role)` con `revoked_at IS NULL`.
+- Al **revocar** una asignación de contrato se **revocan en cascada** las asignaciones de servicio de ese usuario dentro del contrato (deja de ver sus servicios), registrando el impacto en auditoría.
+- Un cambio de rol global que deje asignaciones de contrato incompatibles exige confirmación y las revoca.
+
+### `services` (nivel de contrato)
+
+`contract_id` (FK a `contracts`, `ON DELETE RESTRICT`), `name`, `description`, `building_catalog_item_id`, `building_name_snapshot`, auditoría.
+
+- **Cambiar de contrato** un servicio revoca las asignaciones de servicio cuyos usuarios no pertenezcan al nuevo contrato.
+- El administrador que asigna un servicio **incorpora al usuario al contrato** si no lo estaba; un supervisor del contrato solo puede asignar a miembros existentes.
+
 ### `service_assignments`
 
 `id`, `service_id`, `user_id`, `assignment_role` (`technician`/`supervisor`), `assigned_by`, `assigned_at`, `revoked_at` nullable.
@@ -67,6 +92,7 @@ Restricción lógica transaccional: **siempre ≥1 admin activo** una vez termin
 - La asignación está activa cuando `revoked_at IS NULL` y `user.is_active`.
 - Índice único parcial sobre `(service_id, user_id, assignment_role)` con `revoked_at IS NULL` para prevenir duplicados.
 - Validación de compatibilidad entre `assignment_role` y `users.role` (en aplicación/transacción); administradores acceden globalmente y no requieren asignación.
+- **Solo asignable a miembros activos del contrato del servicio** con el rol correspondiente.
 - Mantener historial de altas/revocaciones; toda consulta autorizada debe comprobar asignación **activa**.
 - Al cambiar rol, resolver/eliminar las asignaciones incompatibles marcándolas revocadas, sin borrar acciones del usuario.
 

@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
-import { catalogItems, elements, serviceAssignments, services, works } from '#lib/server/db/schema';
+import { catalogItems, elements, services, works } from '#lib/server/db/schema';
 import type { SessionUser } from '#lib/types';
+import { listAllowedServiceIds } from './services';
 
 /**
  * Búsqueda global por nombre visible actual (docs/02 §12, docs/06 §10).
@@ -36,12 +37,7 @@ function likePattern(query: string): string {
 }
 
 async function allowedServiceIds(db: Database, user: SessionUser): Promise<string[] | null> {
-	if (user.role === 'admin') return null;
-	const rows = await db
-		.select({ serviceId: serviceAssignments.serviceId })
-		.from(serviceAssignments)
-		.where(and(eq(serviceAssignments.userId, user.id), isNull(serviceAssignments.revokedAt)));
-	return [...new Set(rows.map((row) => row.serviceId))];
+	return listAllowedServiceIds(db, user);
 }
 
 export async function searchByName(

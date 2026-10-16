@@ -258,6 +258,24 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   **tarjetas en móvil** y **acciones de cabecera** en columna/envueltas sin `shrink-0` (antes la ficha de
   servicio desbordaba +42px a 360px con «Editar servicio/Gestionar asignaciones/Exportar ZIP»). E2E
   `no-overflow` sobre listados **y fichas** (servicio/trabajo/elemento/entrega) a 320/360/390/768/1280px.
+
+## Contratos (nivel superior de ámbito)
+
+Se introdujo el **contrato** como jerarquía superior: agrupa servicios y define a sus participantes.
+
+- Esquema `contracts` + `contract_assignments` + `services.contract_id` (NOT NULL). Migración `0009`: crea «General»,
+  mueve los servicios existentes y **siembra `contract_assignments`** desde `service_assignments` activas.
+- Dominio `#lib/server/domain/contracts.ts`: CRUD (admin), `listContractsForUser`, `getContractAccess` (404 opaco),
+  `listContractAssignments`, `listContractMembers`, `assignContractUser`, `revokeContractAssignment` (revoca en
+  cascada las asignaciones de servicio del contrato) y `deleteContract` (409 si tiene servicios).
+- Ámbito: `listServicesForUser`/`getServiceForUser`/`listAllowedServiceIds` exigen asignación activa **y** pertenencia
+  activa al contrato con el mismo rol; notificaciones, búsqueda, tablero y conteos de revisión aplican lo mismo.
+- `assignUser`: valida pertenencia al contrato; el **admin** incorpora al usuario al contrato si falta, un **supervisor
+  del contrato** recibe `409` (guards `requireContractAccess` / `requireContractManage`).
+- UI: `/contracts` (lista + ficha con participantes y servicios), selector de contrato en el alta/edición de servicio,
+  nav de admin/supervisor. Cambiar el contrato de un servicio revoca asignaciones incompatibles.
+- Pruebas: integración `contracts.spec.ts` (aislamiento, asignación cruzada, cascada, borrado) y E2E actualizados.
+
 - Componentes nuevos instalados: `sidebar, dialog, alert-dialog, sheet, dropdown-menu, tabs, select,
 textarea, table, breadcrumb, tooltip, avatar, collapsible, skeleton, progress, sonner`.
 - E2E actualizado (selectores de sidebar y diálogos): 6/6 en escritorio y móvil.

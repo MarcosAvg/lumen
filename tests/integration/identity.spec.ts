@@ -17,6 +17,7 @@ import {
 	setUserPassword
 } from '#lib/server/domain/users';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -121,7 +122,11 @@ await describeWithDatabase('AUTH · identidad, sesiones y último admin', ({ db,
 	it('el cambio de rol exige confirmación y revoca asignaciones incompatibles', async () => {
 		const admin = await seedAdmin();
 		const supervisor = await seedUser(admin, 'supervisor');
-		const service = await createService(db, { name: 'Mantenimiento', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Mantenimiento',
+			actorId: admin
+		});
 		await assignUser(db, {
 			serviceId: service.id,
 			userId: supervisor.id,

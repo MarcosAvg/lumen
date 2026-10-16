@@ -10,6 +10,7 @@ import { DomainError } from '#lib/server/domain/errors';
 import { createService, getServiceForUser, listServicesForUser } from '#lib/server/domain/services';
 import { createFirstAdmin, createUser, setUserActive } from '#lib/server/domain/users';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -47,7 +48,11 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 	it('AUTH-01: un técnico no asignado no accede al servicio', async () => {
 		const admin = await seedAdmin();
 		const technician = await seedUser(admin.id, 'technician');
-		const service = await createService(db, { name: 'Servicio A', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio A',
+			actorId: admin.id
+		});
 
 		await expect(getServiceForUser(db, technician, service.id)).rejects.toBeInstanceOf(DomainError);
 		expect(await listServicesForUser(db, technician)).toHaveLength(0);
@@ -56,7 +61,11 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 	it('un técnico asignado accede y aparece en su lista', async () => {
 		const admin = await seedAdmin();
 		const technician = await seedUser(admin.id, 'technician');
-		const service = await createService(db, { name: 'Servicio A', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio A',
+			actorId: admin.id
+		});
 		await assignUser(db, {
 			serviceId: service.id,
 			userId: technician.id,
@@ -72,7 +81,11 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 	it('un supervisor accede solo tras ser asignado', async () => {
 		const admin = await seedAdmin();
 		const supervisor = await seedUser(admin.id, 'supervisor');
-		const service = await createService(db, { name: 'Servicio B', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio B',
+			actorId: admin.id
+		});
 
 		await expect(getServiceForUser(db, supervisor, service.id)).rejects.toBeInstanceOf(DomainError);
 
@@ -87,14 +100,22 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 
 	it('el administrador accede a cualquier servicio sin asignación', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio C', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio C',
+			actorId: admin.id
+		});
 		expect((await getServiceForUser(db, admin, service.id)).access).toBe('admin');
 	});
 
 	it('revocar la asignación retira el acceso de inmediato', async () => {
 		const admin = await seedAdmin();
 		const technician = await seedUser(admin.id, 'technician');
-		const service = await createService(db, { name: 'Servicio D', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio D',
+			actorId: admin.id
+		});
 		const assignment = await assignUser(db, {
 			serviceId: service.id,
 			userId: technician.id,
@@ -111,7 +132,11 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 	it('rechaza una asignación cuyo rol no coincide con el rol global', async () => {
 		const admin = await seedAdmin();
 		const technician = await seedUser(admin.id, 'technician');
-		const service = await createService(db, { name: 'Servicio E', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio E',
+			actorId: admin.id
+		});
 
 		await expect(
 			assignUser(db, {
@@ -126,7 +151,11 @@ await describeWithDatabase('AUTH · ámbito por servicio y asignaciones', ({ db,
 	it('no asigna usuarios inactivos y evita duplicados activos', async () => {
 		const admin = await seedAdmin();
 		const technician = await seedUser(admin.id, 'technician');
-		const service = await createService(db, { name: 'Servicio F', actorId: admin.id });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Servicio F',
+			actorId: admin.id
+		});
 
 		const first = await assignUser(db, {
 			serviceId: service.id,

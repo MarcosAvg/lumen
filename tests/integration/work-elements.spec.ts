@@ -7,6 +7,7 @@ import { createFirstAdmin } from '#lib/server/domain/users';
 import { createWork, listElementsDetailed } from '#lib/server/domain/works';
 import { evidenceTargets } from '#lib/server/db/schema';
 import { describeWithDatabase, truncateAll } from './helpers/db';
+import { seedContract } from './helpers/contracts';
 
 const PASSWORD = 'contrasena-segura';
 
@@ -27,7 +28,11 @@ await describeWithDatabase('Trabajos · creación con elementos', ({ db, client 
 
 	it('crea un trabajo dividido con sus elementos y objetivos', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 
 		const work = await createWork(db, {
 			serviceId: service.id,
@@ -57,7 +62,11 @@ await describeWithDatabase('Trabajos · creación con elementos', ({ db, client 
 
 	it('un trabajo directo no admite elementos', async () => {
 		const admin = await seedAdmin();
-		const service = await createService(db, { name: 'Servicio', actorId: admin });
+		const service = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio',
+			actorId: admin
+		});
 
 		await expect(
 			createWork(db, {

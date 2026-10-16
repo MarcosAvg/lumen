@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
 import {
 	catalogItems,
+	contractAssignments,
 	elements,
 	evidenceSubmissions,
 	evidenceTargets,
@@ -14,21 +15,18 @@ import {
 	works
 } from '#lib/server/db/schema';
 import type { SessionUser, TargetStatus } from '#lib/types';
+import { listAllowedServiceIds } from './services';
 
 /**
  * Tablero por rol (docs/05 §4). Todo se calcula dentro del **ámbito** del
- * usuario: administrador (global) o asignación vigente. Nunca se expone un
- * total que incluya servicios ajenos.
+ * usuario: administrador (global) o asignación vigente **dentro de un contrato**
+ * del que siga siendo miembro. Nunca se expone un total que incluya servicios
+ * ajenos.
  */
 
 /** Servicios visibles: `null` = todos (admin); array = asignados vigentes. */
 async function visibleServiceIds(db: Database, user: SessionUser): Promise<string[] | null> {
-	if (user.role === 'admin') return null;
-	const rows = await db
-		.select({ serviceId: serviceAssignments.serviceId })
-		.from(serviceAssignments)
-		.where(and(eq(serviceAssignments.userId, user.id), isNull(serviceAssignments.revokedAt)));
-	return [...new Set(rows.map((row) => row.serviceId))];
+	return listAllowedServiceIds(db, user);
 }
 
 export interface AttentionTarget {
@@ -190,8 +188,18 @@ export async function countPendingReviews(db: Database, user: SessionUser): Prom
 	let allowed: string[] | null = null;
 	if (user.role !== 'admin') {
 		const rows = await db
-			.select({ serviceId: serviceAssignments.serviceId })
-			.from(serviceAssignments)
+			.select({ serviceId: services.id })
+			.from(services)
+			.innerJoin(serviceAssignments, eq(serviceAssignments.serviceId, services.id))
+			.innerJoin(
+				contractAssignments,
+				and(
+					eq(contractAssignments.contractId, services.contractId),
+					eq(contractAssignments.userId, serviceAssignments.userId),
+					eq(contractAssignments.assignmentRole, serviceAssignments.assignmentRole),
+					isNull(contractAssignments.revokedAt)
+				)
+			)
 			.where(
 				and(
 					eq(serviceAssignments.userId, user.id),
