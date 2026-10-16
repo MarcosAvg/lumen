@@ -1,27 +1,45 @@
 name: lumen
 
-# Autoalojamiento en un solo `docker compose up -d`:
-#   - `db`      PostgreSQL con volumen persistente (no publicado al exterior).
-#   - `migrate` aplica migraciones una vez y termina.
+# Lumen · autoalojamiento en un solo `docker compose up -d`.
+#
+# Servicios:
+#   - `db`      PostgreSQL 17 con volumen persistente (no publicado al exterior).
+#   - `migrate` aplica las migraciones de Drizzle una vez y termina.
 #   - `app`     Lumen (imagen GHCR por defecto; ver `compose.build.yaml`).
-#   - `caddy`   proxy de entrada: sirve http://localhost y, con `DOMAIN`, HTTPS
+#   - `caddy`   único ingreso: sirve http://localhost y, con `DOMAIN`, HTTPS
 #               automático (Let's Encrypt). La app no se publica directamente.
 #
-# Todos los valores tienen un default razonable; `.env` es opcional para una
-# prueba local y recomendable en producción (ver `install.sh` y `.env.example`).
+# Cómo usarlo:
+#   docker compose up -d                    # valores por defecto (http://localhost)
+#   DOMAIN=lumen.midominio.com docker compose up -d   # HTTPS automático
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build   # build local
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d db          # solo PostgreSQL (dev)
+#
+# `.env` es opcional: el compose tiene defaults razonables para todo y `install.sh`
+# genera uno con secretos. Ver `.env.example`, `DEPLOY.md` y `docs/deployment.md`.
 
+# --- Extensión: rotación de logs ------------------------------------------------
+# Evita que los logs de los contenedores llenen el disco del servidor.
 x-logging: &logging
   driver: json-file
   options:
     max-size: '10m'
     max-file: '3'
 
-# Variables comunes de la aplicación. El origen público se deriva de la petición
-# (no se hornea en la imagen), así que no hay que reconstruir al cambiar de dominio.
-# Caddy es el único ingreso y añade siempre `X-Forwarded-Proto`/`X-Forwarded-For`.
+# --- Extensión: URL interna de PostgreSQL ---------------------------------------
+# Se construye contra el host `db` (red interna), ignorando cualquier `DATABASE_URL`
+# del `.env` pensada para desarrollo en el host. Se reutiliza en `migrate` y `app`.
+x-database-url: &database-url postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
+
+# --- Extensión: entorno común de la app -----------------------------------------
+# El origen público se deriva de la petición (no se hornea en la imagen), así que no
+# hay que reconstruir al cambiar de dominio. Caddy es el único ingreso y añade
+# siempre `X-Forwarded-Proto`/`X-Forwarded-For`, que la app exige para el origen y la
+# IP real (rate limiting); sin esas cabeceras responde 403/500.
 x-app-environment: &app-environment
-  DATABASE_URL: postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
+  DATABASE_URL: *database-url
   PHOTO_STORAGE_PATH: /data/photos
+  # Límite del cuerpo HTTP de adapter-node; debe superar MAX_UPLOAD_BYTES.
   BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-30M}
   PROTOCOL_HEADER: x-forwarded-proto
   ADDRESS_HEADER: x-forwarded-for
@@ -30,22 +48,27 @@ x-app-environment: &app-environment
   IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}
   IMAGE_THUMB_DIMENSION: ${IMAGE_THUMB_DIMENSION:-400}
   TZ: ${TZ:-UTC}
+  # Web Push es opcional: sin estas claves, la bandeja interna sigue funcionando.
   VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
   VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
   VAPID_SUBJECT: ${VAPID_SUBJECT:-}
 
 services:
+  # Base de datos. NO se publica ningún puerto: solo la alcanzan `migrate` y `app`
+  # por la red interna de Compose. Para desarrollo en el host, usa `compose.dev.yaml`.
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lumen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumen}
       POSTGRES_DB: ${POSTGRES_DB:-lumen}
     volumes:
+      # Datos SQL. Respalda este volumen junto con `lumen_photos` (ver backup.sh).
       - postgres_data:/var/lib/postgresql/data
-    # PostgreSQL no se publica al exterior. Para desarrollo, usa `compose.dev.yaml`.
     healthcheck:
+      # `$$` escapa la interpolación de Compose para que la evalúe la shell del contenedor.
       test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
       interval: 10s
       timeout: 5s
@@ -58,32 +81,42 @@ services:
           memory: ${DB_MEM_LIMIT:-1g}
           cpus: ${DB_CPUS:-2}
 
-  # Servicio de un solo uso: aplica migraciones antes de arrancar la app.
+  # Servicio efímero: aplica las migraciones y termina. `app` espera a que complete
+  # con éxito, de modo que nunca arranca contra un esquema desactualizado.
   migrate:
     image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
     restart: 'no'
+    security_opt: ['no-new-privileges:true']
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
+      DATABASE_URL: *database-url
     command: ['node', 'scripts/migrate.mjs']
     depends_on:
       db:
         condition: service_healthy
     logging: *logging
+    # Sin límites de recursos: es un proceso corto que termina tras migrar.
 
+  # Aplicación. Sin `ports`: el único ingreso es Caddy (red interna), que añade las
+  # cabeceras de proxy. Corre como usuario sin privilegios y con `init` para cerrar
+  # limpiamente ante señales.
   app:
     image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
     restart: unless-stopped
     init: true
+    security_opt: ['no-new-privileges:true']
+    cap_drop: ['ALL']
+    stop_grace_period: 15s
     environment: *app-environment
     volumes:
+      # Fotografías normalizadas y miniaturas. Respalda junto con `postgres_data`.
       - lumen_photos:/data/photos
-    # Sin `ports`: el único ingreso es Caddy (red interna).
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
     healthcheck:
+      # `/health` responde 200 solo si la base responde y las migraciones están aplicadas.
       test:
         [
           'CMD',
@@ -102,12 +135,15 @@ services:
           memory: ${APP_MEM_LIMIT:-1g}
           cpus: ${APP_CPUS:-2}
 
-  # Proxy de entrada con HTTPS automático.
+  # Proxy inverso de entrada con HTTPS automático. `DOMAIN` es una dirección de sitio
+  # de Caddy:
   #   DOMAIN=http://localhost  (por defecto) → sirve HTTP en el puerto 80.
   #   DOMAIN=lumen.midominio.com            → HTTPS con Let's Encrypt en 80/443.
+  # Sin healthcheck propio: la app ya se autocomprueba y Caddy reintenta el proxy.
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
     environment:
       DOMAIN: ${DOMAIN:-http://localhost}
     ports:
@@ -116,6 +152,7 @@ services:
       - '${HTTPS_PORT:-443}:443/udp'
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Estado de Caddy: certificados y configuración autoguardada.
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -128,8 +165,9 @@ services:
           memory: ${CADDY_MEM_LIMIT:-256m}
           cpus: ${CADDY_CPUS:-1}
 
+# Volúmenes persistentes. `down` los conserva; `down -v` los borra (pierde datos).
 volumes:
-  postgres_data:
-  lumen_photos:
-  caddy_data:
-  caddy_config:
+  postgres_data: # base de datos SQL
+  lumen_photos: # fotografías y miniaturas
+  caddy_data: # certificados TLS y cuentas ACME
+  caddy_config: # configuración autoguardada de Caddy

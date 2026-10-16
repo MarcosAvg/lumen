@@ -1,7 +1,10 @@
-# Ajustes solo para desarrollo en el host: publica PostgreSQL en 127.0.0.1:5432
-# para que `pnpm dev`, `pnpm db:migrate` y las pruebas de integración conecten.
+# Override solo para desarrollo en el host.
 #
 #   docker compose -f compose.yaml -f compose.dev.yaml up -d db
+#
+# Publica PostgreSQL en `127.0.0.1:5432` para que `pnpm dev`, `pnpm db:migrate` y las
+# pruebas de integración conecten desde el host. Se ata a localhost (no al exterior);
+# no lo uses en producción. En el compose base `db` no se publica.
 
 services:
   db:

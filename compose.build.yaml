@@ -1,8 +1,11 @@
-# Compila la imagen en local en lugar de usar la publicada en GHCR:
+# Override para compilar la imagen en local en lugar de usar la publicada en GHCR.
 #
 #   docker compose -f compose.yaml -f compose.build.yaml up -d --build
 #
-# Útil si aún no hay imagen publicada o si quieres probar cambios sin publicar.
+# - Sustituye la imagen de `app` y `migrate` por la etiqueta local `lumen-app:local`
+#   y añade el `build` (contexto `.`, etapa `runtime` del Dockerfile).
+# - Úsalo si aún no hay imagen publicada o si quieres probar cambios sin publicar.
+# - Sin `--build` se reutiliza la imagen local si ya existe.
 
 services:
   migrate:
