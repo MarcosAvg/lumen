@@ -14,7 +14,7 @@
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import type { PageProps } from './$types';
 
-	type ActionData = { success?: string; message?: string };
+	type ActionData = { success?: string; message?: string; backgroundMessage?: string };
 
 	let { data, form }: PageProps = $props();
 	const action = $derived((form ?? null) as ActionData | null);
@@ -192,6 +192,54 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	{#if data.isAdmin}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-base">Fondo del PDF</Card.Title>
+			</Card.Header>
+			<Card.Content class="space-y-3">
+				<p class="text-sm text-muted-foreground">
+					Imagen de fondo compartida por los PDF de evidencia de todos los servicios de este
+					contrato.
+				</p>
+				{#if data.hasPdfBackground}
+					<img
+						src={`/api/contracts/${data.contract.id}/pdf-background`}
+						alt="Fondo actual del PDF"
+						class="max-h-40 rounded-lg border object-contain"
+					/>
+				{/if}
+				{#if action?.backgroundMessage}
+					<p class="text-sm text-destructive">{action.backgroundMessage}</p>
+				{/if}
+				<form
+					method="POST"
+					action="?/uploadBackground"
+					enctype="multipart/form-data"
+					class="flex flex-wrap items-end gap-2"
+				>
+					<div class="space-y-2">
+						<Label for="pdf-background">Imagen (PNG o JPG, máx. 5 MB)</Label>
+						<input
+							id="pdf-background"
+							name="background"
+							type="file"
+							accept="image/png,image/jpeg"
+							required
+							class="text-sm"
+						/>
+					</div>
+					<Button type="submit" variant="outline" size="sm">Subir fondo</Button>
+				</form>
+				{#if data.hasPdfBackground}
+					<form method="POST" action="?/removeBackground">
+						<Button type="submit" variant="destructive" size="sm">Quitar fondo</Button>
+					</form>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	<Card.Root>
 		<Card.Header>

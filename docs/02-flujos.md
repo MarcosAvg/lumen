@@ -173,9 +173,21 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 3. En ambas, **una fila por trabajo** y columna **Evidencia** con **hipervínculo relativo** al PDF del trabajo (que vivirá en su carpeta).
 4. Se incluye **todo el estado** (pendientes y rechazados también); las **fotos del ZIP siguen siendo solo las aprobadas**.
 
+### PDF de evidencia (uno por trabajo)
+
+1. Cada trabajo con evidencia aprobada genera un **PDF** con sus fotografías (última entrega aprobada), **sin portada** y con cabecera corrida (contrato · edificio · servicio · trabajo).
+2. Hasta **4 fotografías por página** (2×2) con pie `fecha · autor`. Estructura: en trabajo directo, un bloque por **requisito** (y «Adicionales»); en dividido, un bloque por **elemento** y, dentro, por requisito.
+3. El **fondo del contrato** (imagen configurable) se dibuja en todas las páginas con un panel claro semitransparente encima.
+4. Ubicación: **con fotografías**, el PDF vive en la carpeta del trabajo; **sin fotografías**, los PDF caen **directamente en la carpeta del servicio** (`<Servicio>/<Trabajo> - [fecha].pdf`).
+5. Los enlaces del XLSX apuntan a esa misma ruta.
+
+### Fondo del contrato
+
+El administrador sube una **imagen PNG/JPG** (máx. 5 MB) desde la ficha del contrato; se normaliza y se aplica a los PDF de todos sus servicios. Puede reemplazarse o quitarse.
+
 ### Opciones de exportación
 
-El modal permite además **incluir o no** el registro XLSX y **incluir o no** las carpetas de fotografías (al menos una de las dos).
+El modal permite además **incluir o no** el registro XLSX, las carpetas de fotografías y los PDF de evidencia (al menos uno).
 
 ### Exportación de datos
 

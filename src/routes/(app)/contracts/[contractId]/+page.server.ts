@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import sharp from 'sharp';
 import {
 	requireAdmin,
 	requireContractAccess,
@@ -10,8 +11,10 @@ import { listAssignableUsers } from '#lib/server/domain/assignments';
 import {
 	assignContractUser,
 	deleteContract,
+	getContractPdfContext,
 	listContractAssignments,
 	revokeContractAssignment,
+	setContractPdfBackground,
 	updateContract
 } from '#lib/server/domain/contracts';
 import { listServicesByContract } from '#lib/server/domain/services';
@@ -22,7 +25,10 @@ import {
 	revokeContractAssignmentSchema,
 	updateContractSchema
 } from '#lib/schemas/services';
+import { storage } from '#lib/server/storage';
 import type { Actions, PageServerLoad } from './$types';
+
+const MAX_BACKGROUND_BYTES = 5 * 1024 * 1024;
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const contractId = requireUuidParam(params.contractId, 'Contrato');
@@ -30,10 +36,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const db = getDatabase().db;
 
 	const access = await requireContractAccess(locals, contractId);
-	const [assignments, services, assignable] = await Promise.all([
+	const [assignments, services, assignable, pdfContext] = await Promise.all([
 		listContractAssignments(db, contractId),
 		listServicesByContract(db, contractId),
-		access.canManage ? listAssignableUsers(db) : Promise.resolve([])
+		access.canManage ? listAssignableUsers(db) : Promise.resolve([]),
+		getContractPdfContext(db, contractId)
 	]);
 
 	return {
@@ -43,7 +50,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		canManage: access.canManage,
 		assignments,
 		services,
-		assignable
+		assignable,
+		hasPdfBackground: Boolean(pdfContext.backgroundPath)
 	};
 };
 
@@ -59,6 +67,59 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Contrato actualizado.' };
+	},
+
+	uploadBackground: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const contractId = requireUuidParam(event.params.contractId, 'Contrato');
+		const form = await event.request.formData();
+		const file = form.get('background');
+		if (!(file instanceof File) || file.size === 0) {
+			return fail(400, { backgroundMessage: 'Selecciona una imagen (PNG o JPG).' });
+		}
+		if (file.size > MAX_BACKGROUND_BYTES) {
+			return fail(400, { backgroundMessage: 'La imagen supera 5 MB.' });
+		}
+
+		const buffer = Buffer.from(await file.arrayBuffer());
+		let normalized: Buffer;
+		try {
+			normalized = await sharp(buffer)
+				.rotate()
+				.resize({ width: 2480, withoutEnlargement: true })
+				.png({ compressionLevel: 9 })
+				.toBuffer();
+		} catch {
+			return fail(400, { backgroundMessage: 'Formato de imagen no soportado.' });
+		}
+
+		try {
+			const relPath = storage.backgroundRelPath(contractId);
+			await storage.save(relPath, normalized);
+			await setContractPdfBackground(getDatabase().db, {
+				contractId,
+				relPath,
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Fondo del PDF actualizado.' };
+	},
+
+	removeBackground: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const contractId = requireUuidParam(event.params.contractId, 'Contrato');
+		const db = getDatabase().db;
+
+		try {
+			const context = await getContractPdfContext(db, contractId);
+			await setContractPdfBackground(db, { contractId, relPath: null, actorId: admin.id });
+			if (context.backgroundPath) await storage.remove(context.backgroundPath);
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Fondo del PDF eliminado.' };
 	},
 
 	deleteContract: async (event) => {

@@ -155,6 +155,8 @@ export const contracts = pgTable(
 		id: uuid('id').primaryKey().defaultRandom(),
 		name: text('name').notNull(),
 		description: text('description'),
+		/** Fondo compartido de los PDF de evidencia del contrato (ruta interna). */
+		pdfBackgroundPath: text('pdf_background_path'),
 		createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()

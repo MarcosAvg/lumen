@@ -70,11 +70,13 @@ export interface ExportPlanRow {
 	mode: WorkMode;
 	/** Carpeta del trabajo relativa a la raíz del ZIP, p. ej. `Servicio/Trabajo`. */
 	workPath: string;
-	/** Nombre del PDF de evidencia del trabajo (aún por generar). */
+	/** Nombre del PDF de evidencia del trabajo (se genera al exportar). */
 	pdfName: string;
 	/** Ruta del PDF relativa a la raíz del ZIP = enlace del XLSX. */
 	pdfPath: string;
 	files: ArchiveFile[];
+	/** Bloques (elemento/requisito) con las fotos aprobadas, para el PDF. */
+	photoBlocks: PdfBlock[];
 	serviceId: string;
 	serviceName: string;
 	buildingName: string | null;
@@ -83,6 +85,8 @@ export interface ExportPlanRow {
 
 export interface ExportPlan {
 	kind: 'contract' | 'service' | 'work';
+	/** Contrato del ámbito (para el fondo del PDF). */
+	contractId: string | null;
 	/** Nombre saneado de la raíz (carpeta del ZIP y base del XLSX). */
 	root: string;
 	/** Título sin sanear del ámbito. */
@@ -124,6 +128,22 @@ interface SubmissionPhotoRow {
 	groupKind: 'requirement' | 'additional';
 	requirementName: string | null;
 	storagePath: string;
+	uploadedAt: Date | null;
+	uploadedByName: string | null;
+}
+
+/** Foto dentro de un bloque del PDF (elemento/requisito). */
+export interface PdfBlockPhoto {
+	storagePath: string;
+	uploadedAt: Date | null;
+	uploadedByName: string | null;
+}
+
+/** Bloque del PDF: un requisito (y elemento en trabajos divididos). */
+export interface PdfBlock {
+	elementName: string | null;
+	requirementName: string | null;
+	photos: PdfBlockPhoto[];
 }
 
 const visibleBuildingName = sql<
@@ -144,7 +164,9 @@ async function loadSubmissionPhotos(
 			photoOrder: submissionPhotos.photoSortOrder,
 			groupKind: submissionPhotos.groupKind,
 			requirementName: submissionPhotos.requirementNameSnapshot,
-			storagePath: photos.storagePath
+			storagePath: photos.storagePath,
+			uploadedAt: submissionPhotos.photoUploadedAtSnapshot,
+			uploadedByName: submissionPhotos.photoUploadedByName
 		})
 		.from(submissionPhotos)
 		.innerJoin(photos, eq(photos.id, submissionPhotos.photoId))
@@ -158,7 +180,9 @@ async function loadSubmissionPhotos(
 			photoOrder: row.photoOrder,
 			groupKind: row.groupKind,
 			requirementName: row.requirementName,
-			storagePath: row.storagePath
+			storagePath: row.storagePath,
+			uploadedAt: row.uploadedAt,
+			uploadedByName: row.uploadedByName
 		});
 		bySubmission.set(row.submissionId, list);
 	}
@@ -553,7 +577,36 @@ function workFiles(
 	return files;
 }
 
-/** Nombre del PDF de evidencia de un trabajo (se generará más adelante). */
+/** Bloques del PDF: por elemento (divididos) y requisito, con fotos aprobadas. */
+function buildPhotoBlocks(state: LoadedUnits, work: WorkRef): PdfBlock[] {
+	const blocks: PdfBlock[] = [];
+	for (const unit of unitsForWork(state, work)) {
+		if (!unit.target) continue;
+		const submission = state.approved.get(unit.target.id);
+		if (!submission) continue;
+		const rows = state.photosBySubmission.get(submission.submissionId) ?? [];
+		const byRequirement = new Map<string | null, SubmissionPhotoRow[]>();
+		for (const row of rows) {
+			const list = byRequirement.get(row.requirementName) ?? [];
+			list.push(row);
+			byRequirement.set(row.requirementName, list);
+		}
+		for (const [requirementName, photos] of byRequirement) {
+			blocks.push({
+				elementName: unit.element?.name ?? null,
+				requirementName,
+				photos: photos.map((photo) => ({
+					storagePath: photo.storagePath,
+					uploadedAt: photo.uploadedAt,
+					uploadedByName: photo.uploadedByName
+				}))
+			});
+		}
+	}
+	return blocks;
+}
+
+/** Nombre del PDF de evidencia de un trabajo. */
 function pdfNameFor(workName: string, date: Date | null): string {
 	const dd = String(date ? date.getDate() : 0).padStart(2, '0');
 	const mm = String(date ? date.getMonth() + 1 : 0).padStart(2, '0');
@@ -575,6 +628,11 @@ function lastDeliveryDate(units: UnitAggregate[]): Date | null {
 export interface ExportPlanOptions {
 	/** Calcula requisitos, fotos y revisión por objetivo (solo para `extended`). */
 	aggregates?: boolean;
+	/**
+	 * Si se incluyen fotografías: el PDF vive en la carpeta del trabajo. Si no,
+	 * los PDF caen directamente en la carpeta del servicio.
+	 */
+	photos?: boolean;
 }
 
 export async function buildExportPlan(
@@ -584,6 +642,7 @@ export async function buildExportPlan(
 ): Promise<ExportPlan> {
 	// 1. Resolver el ámbito: nombre del ámbito y servicios implicados.
 	let scopeName: string;
+	let contractId: string | null;
 	let serviceRows: { id: string; name: string; buildingName: string | null }[];
 	let restrictWorkId: string | null = null;
 
@@ -595,6 +654,7 @@ export async function buildExportPlan(
 			.limit(1);
 		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
 		scopeName = contract.name;
+		contractId = scope.contractId;
 		serviceRows = await db
 			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
 			.from(services)
@@ -603,13 +663,19 @@ export async function buildExportPlan(
 			.orderBy(asc(services.createdAt));
 	} else if (scope.kind === 'service') {
 		const [service] = await db
-			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+			.select({
+				id: services.id,
+				name: services.name,
+				buildingName: visibleBuildingName,
+				contractId: services.contractId
+			})
 			.from(services)
 			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
 			.where(eq(services.id, scope.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
 		scopeName = service.name;
+		contractId = service.contractId;
 		serviceRows = [service];
 	} else {
 		const workCatalog = alias(catalogItems, 'work_catalog');
@@ -625,13 +691,19 @@ export async function buildExportPlan(
 			.limit(1);
 		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
 		const [service] = await db
-			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+			.select({
+				id: services.id,
+				name: services.name,
+				buildingName: visibleBuildingName,
+				contractId: services.contractId
+			})
 			.from(services)
 			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
 			.where(eq(services.id, work.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
 		scopeName = work.name;
+		contractId = service.contractId;
 		serviceRows = [service];
 		restrictWorkId = work.id;
 	}
@@ -656,7 +728,7 @@ export async function buildExportPlan(
 	// 3. Recorrer en orden de edificio → servicio → trabajo (contrato) o directo.
 	const scopedWorks = state.works.filter(inScope);
 
-	const buildRow = (work: WorkRef, workPath: string): ExportPlanRow => {
+	const buildRow = (work: WorkRef, workPath: string, servicePath: string): ExportPlanRow => {
 		const service = serviceById.get(work.serviceId);
 		const units = unitsForWork(state, work);
 		const unitAggregates = units.map(
@@ -673,15 +745,23 @@ export async function buildExportPlan(
 					rejectionReason: null
 				}
 		);
-		const pdfName = pdfNameFor(work.name, lastDeliveryDate(unitAggregates));
+		const files = workFiles(state, work, workPath, dirRegistries);
+		// Con fotografías el PDF va en la carpeta del trabajo; sin ellas, cae en la
+		// carpeta del servicio (no hay carpetas de elemento/requisito).
+		const pdfDir = options.photos === false ? servicePath : workPath;
+		const pdfName = getRegistry(dirRegistries, pdfDir).unique(
+			pdfNameFor(work.name, lastDeliveryDate(unitAggregates)),
+			work.id
+		);
 		return {
 			workId: work.id,
 			workName: work.name,
 			mode: work.mode,
 			workPath,
 			pdfName,
-			pdfPath: `${workPath}/${pdfName}`,
-			files: workFiles(state, work, workPath, dirRegistries),
+			pdfPath: `${pdfDir}/${pdfName}`,
+			files,
+			photoBlocks: buildPhotoBlocks(state, work),
 			serviceId: work.serviceId,
 			serviceName: service?.name ?? '',
 			buildingName: service?.buildingName ?? null,
@@ -690,11 +770,11 @@ export async function buildExportPlan(
 	};
 
 	if (scope.kind === 'work') {
-		for (const work of scopedWorks) rows.push(buildRow(work, root));
+		for (const work of scopedWorks) rows.push(buildRow(work, root, root));
 	} else if (scope.kind === 'service') {
 		for (const work of scopedWorks) {
 			const workFolder = getRegistry(dirRegistries, root).unique(work.name, work.id);
-			rows.push(buildRow(work, `${root}/${workFolder}`));
+			rows.push(buildRow(work, `${root}/${workFolder}`, root));
 		}
 	} else {
 		// Contrato: agrupar por edificio y servicio, en orden estable.
@@ -716,13 +796,13 @@ export async function buildExportPlan(
 				)}`;
 				for (const work of scopedWorks.filter((row) => row.serviceId === service.id)) {
 					const workFolder = getRegistry(dirRegistries, servicePath).unique(work.name, work.id);
-					rows.push(buildRow(work, `${servicePath}/${workFolder}`));
+					rows.push(buildRow(work, `${servicePath}/${workFolder}`, servicePath));
 				}
 			}
 		}
 	}
 
-	return { kind: scope.kind, root, title: scopeName, services: serviceRows, rows };
+	return { kind: scope.kind, contractId, root, title: scopeName, services: serviceRows, rows };
 }
 
 export function planFiles(plan: ExportPlan): ArchiveFile[] {

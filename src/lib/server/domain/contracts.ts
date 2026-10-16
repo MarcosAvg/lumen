@@ -119,6 +119,48 @@ export async function visibleContractIds(
 	return [...new Set(rows.map((row) => row.contractId))];
 }
 
+/** Contexto de PDF de un contrato: nombre y fondo (ruta interna) o `null`. */
+export async function getContractPdfContext(
+	db: Database,
+	contractId: string
+): Promise<{ name: string; backgroundPath: string | null }> {
+	const [row] = await db
+		.select({ name: contracts.name, backgroundPath: contracts.pdfBackgroundPath })
+		.from(contracts)
+		.where(eq(contracts.id, contractId))
+		.limit(1);
+	if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+	return { name: row.name, backgroundPath: row.backgroundPath ?? null };
+}
+
+/** Fija (`relPath`) o quita (`null`) el fondo de PDF del contrato. */
+export async function setContractPdfBackground(
+	db: Database,
+	input: { contractId: string; relPath: string | null; actorId: string }
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [row] = await tx
+			.select({ id: contracts.id, previous: contracts.pdfBackgroundPath })
+			.from(contracts)
+			.where(eq(contracts.id, input.contractId))
+			.limit(1);
+		if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+
+		await tx
+			.update(contracts)
+			.set({ pdfBackgroundPath: input.relPath, updatedAt: new Date() })
+			.where(eq(contracts.id, input.contractId));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'contract',
+			entityId: input.contractId,
+			action: input.relPath ? 'contract.background_set' : 'contract.background_removed',
+			metadata: { previous: row.previous }
+		});
+	});
+}
+
 export interface ContractAssignmentItem {
 	id: string;
 	userId: string;

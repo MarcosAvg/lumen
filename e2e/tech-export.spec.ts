@@ -125,11 +125,21 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 
 	// Opciones del modal en servidor: sin fotografías / sin XLSX / variante simple.
 	const withPhotos = await page.request.get(`/api/services/${serviceId}/export.zip`);
-	expect((await withPhotos.body()).includes(Buffer.from('.jpg'))).toBe(true);
+	const photosBody = await withPhotos.body();
+	expect(photosBody.includes(Buffer.from('.jpg'))).toBe(true);
+	// El PDF de evidencia vive en la carpeta del trabajo (junto a las fotos).
+	expect(
+		photosBody.includes(Buffer.from(`${serviceName}/Trabajo ${unique}/Trabajo ${unique} - [`))
+	).toBe(true);
 	const withoutPhotos = await page.request.get(`/api/services/${serviceId}/export.zip?photos=0`);
-	expect((await withoutPhotos.body()).includes(Buffer.from('.jpg'))).toBe(false);
+	const noPhotosBody = await withoutPhotos.body();
+	expect(noPhotosBody.includes(Buffer.from('.jpg'))).toBe(false);
+	// Sin fotografías, el PDF cae directamente en la carpeta del servicio.
+	expect(noPhotosBody.includes(Buffer.from(`${serviceName}/Trabajo ${unique} - [`))).toBe(true);
 	const withoutXlsx = await page.request.get(`/api/services/${serviceId}/export.zip?xlsx=0`);
 	expect((await withoutXlsx.body()).includes(Buffer.from('.xlsx'))).toBe(false);
+	const withoutPdf = await page.request.get(`/api/services/${serviceId}/export.zip?pdf=0`);
+	expect((await withoutPdf.body()).includes(Buffer.from('.pdf'))).toBe(false);
 	expect(
 		(await page.request.get(`/api/services/${serviceId}/export.zip?variant=simple`)).status()
 	).toBe(200);

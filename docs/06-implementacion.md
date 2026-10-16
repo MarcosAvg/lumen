@@ -187,6 +187,7 @@ Una función se considera terminada cuando:
 - Nombres con tildes, barras o duplicados no provocan traversal ni colisión al exportar.
 - Descargas grandes no disparan uso de RAM proporcional al peso total del ZIP.
 - El XLSX abre en Excel/LibreOffice/Sheets; los enlaces relativos al PDF resuelven en Excel y LibreOffice (no en Google Sheets).
+- El PDF por trabajo se abre en visores habituales, pagina de 4 en 4 fotos y aplica el fondo del contrato.
 
 ## 11. Etapa 8 — Calidad, operaciones y publicación
 

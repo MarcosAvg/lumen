@@ -7,7 +7,7 @@ import { hashPassword } from '#lib/server/auth/password';
 import { appendPhoto } from '#lib/server/domain/photos';
 import { createCatalog, createCatalogItem } from '#lib/server/domain/catalogs';
 import { createContract } from '#lib/server/domain/contracts';
-import { createRequirement } from '#lib/server/domain/requirements';
+import { createRequirement, listRequirements } from '#lib/server/domain/requirements';
 import { createService, updateService } from '#lib/server/domain/services';
 import {
 	getContractArchive,
@@ -17,7 +17,9 @@ import {
 	buildExportPlan
 } from '#lib/server/domain/exports';
 import { buildWorkbook } from '#lib/server/exports/workbook';
+import { buildWorkPdf } from '#lib/server/exports/pdf';
 import ExcelJS from 'exceljs';
+import { PDFDocument } from 'pdf-lib';
 import {
 	listPendingReviews,
 	reviewSubmission,
@@ -495,6 +497,119 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		const evidence = row?.getCell(4).value as { text: string; hyperlink: string };
 		expect(evidence.text).toBe('PDF');
 		expect(evidence.hyperlink.endsWith('.pdf')).toBe(true);
+	});
+
+	it('EXP-07: el PDF por trabajo agrupa por requisito y pagina de 4 en 4', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
+		const service = await createService(db, {
+			contractId,
+			name: 'UMAs Torre',
+			actorId: admin
+		});
+		const work = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Piso 1',
+			requirements: [{ name: 'Antes' }],
+			actorId: admin
+		});
+		const targetId = work.targetId as string;
+
+		// Un requisito con 5 fotos aprobadas.
+		const requirements = await listRequirements(db, targetId);
+		const requirementId = requirements[0].id;
+		let version = 0;
+		for (let index = 0; index < 5; index += 1) {
+			const photo = await appendPhoto(db, storage, {
+				targetId,
+				requirementId,
+				buffer: await png(),
+				userId: admin,
+				maxDimension: 2560,
+				thumbDimension: 400
+			});
+			version = photo.version;
+		}
+		const submission = await submitEvidence(db, {
+			targetId,
+			expectedVersion: version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
+
+		// Con fotografías el PDF vive en la carpeta del trabajo.
+		const withPhotos = await buildExportPlan(
+			db,
+			{ kind: 'service', serviceId: service.id },
+			{
+				photos: true
+			}
+		);
+		const row = withPhotos.rows[0];
+		expect(row.pdfPath.startsWith('UMAs Torre/Piso 1/')).toBe(true);
+		expect(row.photoBlocks).toHaveLength(1);
+		expect(row.photoBlocks[0].requirementName).toBe('Antes');
+		expect(row.photoBlocks[0].photos).toHaveLength(5);
+
+		const pdf = await buildWorkPdf(
+			{
+				header: {
+					contractName: 'Contrato',
+					buildingName: null,
+					serviceName: 'UMAs Torre',
+					workName: 'Piso 1',
+					mode: 'direct'
+				},
+				blocks: row.photoBlocks,
+				backgroundAbsolutePath: null
+			},
+			storage
+		);
+		expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+		const doc = await PDFDocument.load(pdf);
+		// 5 fotos con tope de 4 por página → 2 páginas.
+		expect(doc.getPageCount()).toBe(2);
+
+		// Sin fotografías, el PDF cae directamente en la carpeta del servicio.
+		const withoutPhotos = await buildExportPlan(
+			db,
+			{ kind: 'service', serviceId: service.id },
+			{ photos: false }
+		);
+		expect(withoutPhotos.rows[0].pdfPath.startsWith('UMAs Torre/Piso 1 - [')).toBe(true);
+
+		// El fondo del contrato se aplica (PDF válido y más pesado).
+		const backgroundRel = storage.backgroundRelPath(contractId);
+		await storage.save(
+			backgroundRel,
+			await sharp({
+				create: { width: 400, height: 600, channels: 3, background: { r: 240, g: 240, b: 250 } }
+			})
+				.png()
+				.toBuffer()
+		);
+		const withBackground = await buildWorkPdf(
+			{
+				header: {
+					contractName: 'Contrato',
+					buildingName: null,
+					serviceName: 'UMAs Torre',
+					workName: 'Piso 1',
+					mode: 'direct'
+				},
+				blocks: row.photoBlocks,
+				backgroundAbsolutePath: storage.absolute(backgroundRel)
+			},
+			storage
+		);
+		expect((await PDFDocument.load(withBackground)).getPageCount()).toBe(2);
+		expect(withBackground.length).toBeGreaterThan(pdf.length);
 	});
 
 	it('sanea nombres de ZIP y desambigua duplicados', () => {

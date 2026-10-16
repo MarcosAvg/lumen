@@ -71,6 +71,13 @@
       "when": 1792109207797,
       "tag": "0009_handy_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792116792154,
+      "tag": "0010_curvy_iron_fist",
+      "breakpoints": true
     }
   ]
 }

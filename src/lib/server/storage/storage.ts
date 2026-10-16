@@ -10,6 +10,8 @@ import path from 'node:path';
 export interface Storage {
 	objectRelPath(id: string): string;
 	thumbRelPath(id: string): string;
+	/** Fondo de PDF de un contrato (imagen normalizada). */
+	backgroundRelPath(contractId: string): string;
 	absolute(relPath: string): string;
 	/** Escribe de forma atómica (temporal + rename en el mismo volumen). */
 	save(relPath: string, data: Buffer): Promise<void>;
@@ -29,6 +31,7 @@ export function createStorage(root: string): Storage {
 	return {
 		objectRelPath: (id) => `objects/${shard(id)}/${id}.jpg`,
 		thumbRelPath: (id) => `thumbnails/${shard(id)}/${id}.webp`,
+		backgroundRelPath: (contractId) => `backgrounds/${contractId}.png`,
 		absolute,
 
 		async save(relPath, data) {

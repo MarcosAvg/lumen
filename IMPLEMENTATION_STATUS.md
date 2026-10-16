@@ -254,6 +254,21 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
   servicio (`/admin/services/[serviceId]` redirige a la ficha).
 
+## PDF de evidencia por trabajo y fondo del contrato
+
+- **Un PDF por trabajo** (`#lib/server/exports/pdf.ts`, con **`pdf-lib`**): **sin portada**, cabecera corrida
+  (contrato · edificio · servicio · trabajo), hasta **4 fotografías por página** (2×2) con pie `fecha · autor`, y
+  bloques por **elemento** (divididos) y **requisito** (y «Adicionales»). Solo la última entrega aprobada; un trabajo
+  sin evidencia aprobada no genera PDF.
+- **Ubicación**: con fotografías, el PDF va en la raíz de la carpeta del trabajo; **sin fotografías**, cae directamente
+  en la carpeta del servicio. `buildExportPlan(scope, { photos })` calcula `pdfPath` y el XLSX usa esa misma ruta.
+- **Fondo del contrato**: `contracts.pdf_background_path` (migración 0010) + tarjeta en la ficha del contrato (admin)
+  para subir/reemplazar/quitar una imagen PNG/JPG (máx. 5 MB, normalizada con `sharp` a `backgrounds/<contrato>.png`);
+  se aplica a todas las páginas con un panel claro semitransparente. Endpoint `GET /api/contracts/:id/pdf-background`.
+- Los tres ZIP aceptan `?pdf=0|1`; el modal de exportación añade la casilla **«Incluir PDF de evidencia por trabajo»**.
+- Pruebas: integración EXP-07 (agrupación por requisito, 5 fotos → 2 páginas, `photos:false` → PDF en la carpeta del
+  servicio, fondo aplicado) y E2E `tech-export` (el ZIP trae el PDF en la ruta de la carpeta del trabajo / del servicio).
+
 ## Registro XLSX dentro de las exportaciones
 
 Cada ZIP (contrato, servicio y trabajo) puede incluir `<Ámbito>/<Ámbito>.xlsx`, generado con **`exceljs@4.4.0`**
