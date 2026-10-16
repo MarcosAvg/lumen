@@ -50,6 +50,7 @@ La autorización es **del servidor**: una URL directa, descarga o búsqueda no c
 | Archivo                                                  | Propósito                                                                           |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [`AGENTS.md`](AGENTS.md)                                 | Reglas de trabajo para el agente de programación, prioridades y criterios generales |
+| [`DEPLOY.md`](DEPLOY.md)                                 | Guía autocontenida de despliegue con `docker compose` (sin clonar el repo)          |
 | [`docs/01-producto.md`](docs/01-producto.md)             | Modelo funcional, reglas, permisos e invariantes                                    |
 | [`docs/02-flujos.md`](docs/02-flujos.md)                 | Flujos paso a paso y errores esperados                                              |
 | [`docs/03-modelo-datos.md`](docs/03-modelo-datos.md)     | Esquema lógico relacional, integridad, historial y concurrencia                     |
@@ -85,6 +86,9 @@ cp .env.example .env          # ajusta POSTGRES_PASSWORD y ORIGIN si lo necesita
 ```
 
 ### Autoalojamiento (un solo `docker compose`)
+
+Guía autocontenida (con el `compose.yaml` completo para copiar/pegar, sin clonar
+el repo): **[`DEPLOY.md`](DEPLOY.md)**.
 
 ```bash
 git clone https://github.com/MarcosAvg/lumen.git
