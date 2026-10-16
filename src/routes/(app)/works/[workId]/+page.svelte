@@ -95,6 +95,14 @@
 				<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>
 			{/if}
 		</div>
+		{#if data.canExport}
+			<Button
+				href={`/api/works/${data.work.id}/export.zip`}
+				variant="outline"
+				size="sm"
+				class="w-full sm:w-auto">Exportar ZIP</Button
+			>
+		{/if}
 		{#if data.isAdmin}
 			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (editOpen = true)}
 				>Editar trabajo</Button

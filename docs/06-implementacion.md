@@ -174,7 +174,7 @@ Una función se considera terminada cuando:
 - Descarga de foto optimizada en evidencia actual e histórica.
 - ZIP de entrega desde snapshot: requisitos, Adicionales, números en orden.
 - ZIP de servicio: última entrega aprobada por target, jerarquía de carpetas y `resumen.csv` con omitidos.
-- CSV admin filtrado por servicio/estado con una fila por trabajo directo o elemento; sin fotos, fechas/estado/revisor.
+- ZIP de contrato (`Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`) y ZIP de trabajo (`Trabajo ▸ (Elemento) ▸ Requisito`), solo con la última entrega aprobada.
 - Streaming o temporal controlado y nombres seguros para ZIP.
 
 **Aceptación**
@@ -183,10 +183,10 @@ Una función se considera terminada cuando:
 - El ZIP de Entrega #1 rechazada conserva sus fotos originales tras Entrega #2.
 - ZIP de servicio incompleto contiene solo aprobados y relación de omitidos; nunca incluye un pendiente por error.
 - ZIP respeta jerarquía directa vs dividida y foto por grupo/orden.
-- Supervisor/técnico no puede obtener CSV administrativo ni manipulando endpoint.
+- Supervisor ajeno o técnico no puede descargar el ZIP de contrato/servicio/trabajo ni manipulando el endpoint.
 - Nombres con tildes, barras o duplicados no provocan traversal ni colisión al exportar.
 - Descargas grandes no disparan uso de RAM proporcional al peso total del ZIP.
-- CSV neutraliza inyección de fórmulas y abre correctamente en herramientas habituales.
+- Los ZIP no incluyen archivos de resumen; la exportación de datos (XLSX) queda pendiente.
 
 ## 11. Etapa 8 — Calidad, operaciones y publicación
 
@@ -241,7 +241,7 @@ Una función se considera terminada cuando:
 | NOTIF-02 | Usuario no asignado abre deep link push viejo | Acceso bloqueado |
 | EXP-01 | Exportar entrega histórica | Fotos y secciones del snapshot correcto |
 | EXP-02 | ZIP servicio parcialmente aprobado | Incluye aprobados y enumera omitidos |
-| EXP-03 | Técnico solicita CSV admin | Bloqueado |
+| EXP-03 | Técnico solicita ZIP de contrato/servicio/trabajo | Bloqueado (403) |
 | SEARCH-01 | Buscar recurso no asignado | No aparece |
 | DEL-01 | Borrar servicio con historial | Confirmación, cascada acotada y limpieza posterior |
 
@@ -270,7 +270,7 @@ Separar comando `seed:dev` explícito de `migrate`, `start` y primer arranque pr
 7. Rechazar con motivo, modificar borrador, reenviar Entrega #2, aprobar.
 8. Abrir historial #1 y comprobar que fotos/orden/motivo siguen exactamente iguales.
 9. Aprobar elementos, completar trabajo/servicio y añadir nuevo elemento pendiente; comprobar recálculo.
-10. Descargar foto, ZIP #1, ZIP servicio con omitidos y CSV admin.
+10. Descargar foto, ZIP de entrega, ZIP de servicio y ZIP de contrato (solo aprobados).
 11. Retirar asignación e intentar acceso a foto y ZIP usando enlace guardado: debe fallar.
 12. Reiniciar contenedores y verificar fotos/BD; restaurar un respaldo de prueba.
 
@@ -293,7 +293,7 @@ Separar comando `seed:dev` explícito de `migrate`, `start` y primer arranque pr
 
 **Ajustables durante desarrollo:** nombre exacto de rutas, IDs UUID/bigint, librería concreta de ZIP, layout de carpetas, pixelaje final de miniatura, límite de MiB por archivo, implementación de caché/inbox, estilos, duración de sesión, mecanismo concreto de semilla local, orden del menú.
 
-**No ajustables sin acordarlo:** roles y alcance, trabajo directo/dividido, colaboración compartida, congelación de requisitos, no mover fotos entre grupos, entrega inmutable, confirmaciones en revisión, rechazo obligatorio con razón, conservación histórica, relación de catálogos y desvinculación, borrado destructivo administrativo confirmado, online-only v1, autohospedaje, stack esencial, descargas/ZIP/CSV, Web Push + inbox.
+**No ajustables sin acordarlo:** roles y alcance, trabajo directo/dividido, colaboración compartida, congelación de requisitos, no mover fotos entre grupos, entrega inmutable, confirmaciones en revisión, rechazo obligatorio con razón, conservación histórica, relación de catálogos y desvinculación, borrado destructivo administrativo confirmado, online-only v1, autohospedaje, stack esencial, descargas/ZIP, Web Push + inbox.
 
 ## 17. Lista de verificación para revisión final
 
@@ -307,6 +307,6 @@ Separar comando `seed:dev` explícito de `migrate`, `start` y primer arranque pr
 - [ ] La estructura puede cambiar sin reescribir aprobaciones históricas.
 - [ ] Borrar ítem catálogo nunca borra fotos; borrados destructivos sí requieren confirmación.
 - [ ] ZIP de servicio solo incluye entregas aprobadas y reporta lo omitido.
-- [ ] CSV administrativo no incluye fotos y solo está disponible para admin.
+- [ ] El ZIP de contrato agrupa por edificio y servicio, y no incluye objetivos no aprobados.
 - [ ] Bandeja interna persiste sin Web Push y enlaces se reautorizan.
 - [ ] Compose, migraciones, backups/restore y documentación son reproducibles.

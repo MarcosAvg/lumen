@@ -59,14 +59,19 @@
 				<p class="text-sm text-muted-foreground">{data.contract.description}</p>
 			{/if}
 		</div>
-		{#if data.isAdmin}
+		{#if data.canManage || data.isAdmin}
 			<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-				<Button variant="outline" size="sm" onclick={() => (editOpen = true)}
-					>Editar contrato</Button
+				<Button href={`/api/contracts/${data.contract.id}/export.zip`} variant="outline" size="sm"
+					>Exportar ZIP</Button
 				>
-				<form method="POST" action="?/deleteContract">
-					<Button type="submit" variant="destructive" size="sm">Eliminar contrato</Button>
-				</form>
+				{#if data.isAdmin}
+					<Button variant="outline" size="sm" onclick={() => (editOpen = true)}
+						>Editar contrato</Button
+					>
+					<form method="POST" action="?/deleteContract">
+						<Button type="submit" variant="destructive" size="sm">Eliminar contrato</Button>
+					</form>
+				{/if}
 			</div>
 		{/if}
 	</div>

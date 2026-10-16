@@ -82,7 +82,7 @@ Usar la alternativa **más sencilla que respete el negocio**; registrar decision
 - CRUD y reglas de catálogos/servicios/trabajos/elementos/requisitos/asignaciones.
 - Carga, procesamiento, lectura y descarga autorizada de fotos; snapshots e historial.
 - Revisión atómica, notificaciones internas y Web Push configurable.
-- ZIP de entregas, ZIP de servicios y CSV administrativo.
+- ZIP de entregas, servicios, trabajos y contratos (la exportación de datos XLSX queda para más adelante).
 - Dockerfile multi-stage, Compose, `.env.example`, healthchecks, guía de respaldo/restauración.
 - Pruebas unitarias, integración de BD y flujos E2E críticos.
 

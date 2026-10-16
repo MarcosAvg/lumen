@@ -5,7 +5,6 @@
 	import Bell from '@lucide/svelte/icons/bell';
 	import Building2 from '@lucide/svelte/icons/building-2';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
-	import Download from '@lucide/svelte/icons/download';
 	import Flame from '@lucide/svelte/icons/flame';
 	import House from '@lucide/svelte/icons/house';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -189,20 +188,6 @@
 									</Sidebar.MenuButton>
 								</Sidebar.MenuItem>
 							{/each}
-							{#if section.label === 'Administración'}
-								<Sidebar.MenuItem>
-									<Sidebar.MenuButton tooltipContent="Exportar CSV">
-										{#snippet child({ props })}
-											<!-- eslint-disable svelte/no-navigation-without-resolve -->
-											<a href="/api/admin/exports/services.csv" {...props}>
-												<Download aria-hidden="true" />
-												<span>Exportar CSV</span>
-											</a>
-											<!-- eslint-enable svelte/no-navigation-without-resolve -->
-										{/snippet}
-									</Sidebar.MenuButton>
-								</Sidebar.MenuItem>
-							{/if}
 						</Sidebar.Menu>
 					</Sidebar.GroupContent>
 				</Sidebar.Group>

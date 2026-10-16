@@ -64,7 +64,7 @@ Aplicación (sesión)
        ├── Catálogos e ítems / relaciones
        ├── Servicios y asignaciones
        ├── Trabajos, elementos y requisitos
-       └── Exportación CSV
+       └── Exportar ZIP (contrato/servicio/trabajo)
 ```
 
 El usuario siempre dispone de breadcrumb o contexto compacto del servicio/trabajo/elemento, sin multiplicar páginas para la captura.
@@ -267,8 +267,10 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 
 - Foto: menú o icono Descargar en visualizador.
 - Entrega: «Descargar ZIP de esta entrega» tanto en actual enviada como historial.
-- Servicio: «Exportar evidencias aprobadas (ZIP)» en detalle, con aviso de pendientes omitidos y un `resumen.csv` incluido.
-- Admin: «Exportar CSV» desde servicios/gestión, filtros explícitos y aclaración de que no incluye fotografías.
+- **Contrato**: «Exportar ZIP» en la ficha (admin o supervisor del contrato). Jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
+- **Trabajo**: «Exportar ZIP» en la ficha (admin o supervisor asignado). Jerarquía `Trabajo ▸ (Elemento) ▸ Requisito`.
+- **Servicio**: «Exportar ZIP» en el detalle (admin o supervisor asignado). Jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
+- Solo se incluye la **última entrega aprobada** de cada objetivo; **no** se generan archivos de resumen (la exportación de datos volverá en XLSX).
 - En descargas grandes, feedback de inicio/error; no prometer barra de progreso si streaming nativo no permite medirlo de manera robusta.
 
 ## 16. Estados de interfaz y accesibilidad

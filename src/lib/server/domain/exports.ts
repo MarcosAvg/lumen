@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
 import {
 	catalogItems,
+	contracts,
 	elements,
 	evidenceSubmissions,
 	evidenceTargets,
@@ -10,21 +11,27 @@ import {
 	reviews,
 	services,
 	submissionPhotos,
-	users,
 	works
 } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
 import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
-import { toCsv } from '#lib/server/exports/csv';
 import { NameRegistry, sanitizeSegment } from '#lib/server/exports/names';
 import { DomainError } from './errors';
 import { getTargetContext } from './targets';
 
 /**
- * Exportaciones (docs/06 §10): ZIP de entrega desde snapshot, ZIP de servicio
- * con solo entregas aprobadas y `resumen.csv`, y CSV administrativo. Solo se
- * generan **listas de entradas**; el streaming lo hace la capa HTTP.
+ * Exportaciones ZIP (docs/06 §10). Solo se generan **listas de entradas**; el
+ * streaming lo hace la capa HTTP. Jerarquía consistente en todos los niveles:
+ *
+ *   contrato ▸ edificio ▸ servicio ▸ trabajo ▸ (elemento) ▸ requisito ▸ fotos
+ *   servicio ▸ trabajo ▸ (elemento) ▸ requisito ▸ fotos
+ *   trabajo ▸ (elemento) ▸ requisito ▸ fotos
+ *   entrega ▸ requisito ▸ fotos
+ *
+ * Solo se incluye la **última entrega aprobada** de cada objetivo.
  */
+
+export const NO_BUILDING_LABEL = 'Sin edificio';
 
 export interface ArchiveFile {
 	/** Ruta dentro del ZIP (POSIX, sin traversal). */
@@ -45,21 +52,20 @@ export interface ServiceArchive {
 	serviceId: string;
 	fileName: string;
 	files: ArchiveFile[];
-	resumen: string;
 }
 
-export interface ServiceCsv {
+export interface WorkArchive {
+	workId: string;
+	serviceId: string;
 	fileName: string;
-	content: string;
+	files: ArchiveFile[];
 }
 
-const STATUS_LABEL: Record<TargetStatus, string> = {
-	pending: 'Pendiente',
-	in_progress: 'En progreso',
-	in_review: 'En revisión',
-	rejected: 'Rechazado',
-	approved: 'Aprobado'
-};
+export interface ContractArchive {
+	contractId: string;
+	fileName: string;
+	files: ArchiveFile[];
+}
 
 interface SubmissionPhotoRow {
 	groupOrder: number;
@@ -180,7 +186,7 @@ export async function getSubmissionArchive(
 	};
 }
 
-/** Última entrega **aprobada** por objetivo (usada por el ZIP de servicio). */
+/** Última entrega **aprobada** por objetivo. */
 async function latestApprovedSubmissions(
 	db: Database,
 	targetIds: string[]
@@ -206,35 +212,67 @@ async function latestApprovedSubmissions(
 	return result;
 }
 
-export async function getServiceArchive(db: Database, serviceId: string): Promise<ServiceArchive> {
-	const [service] = await db
-		.select({ id: services.id, name: services.name })
-		.from(services)
-		.where(eq(services.id, serviceId))
-		.limit(1);
-	if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+interface WorkRef {
+	id: string;
+	serviceId: string;
+	mode: WorkMode;
+	name: string;
+}
+
+interface ElementRef {
+	id: string;
+	workId: string;
+	name: string;
+}
+
+interface TargetRef {
+	id: string;
+	workId: string | null;
+	elementId: string | null;
+	status: TargetStatus;
+}
+
+interface LoadedUnits {
+	works: WorkRef[];
+	elements: ElementRef[];
+	targets: TargetRef[];
+	approved: Map<string, { submissionId: string; sequenceNo: number }>;
+	photosBySubmission: Map<string, SubmissionPhotoRow[]>;
+}
+
+/** Carga trabajos, elementos, objetivos y fotos aprobadas de unos servicios. */
+async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise<LoadedUnits> {
+	const empty: LoadedUnits = {
+		works: [],
+		elements: [],
+		targets: [],
+		approved: new Map(),
+		photosBySubmission: new Map()
+	};
+	if (serviceIds.length === 0) return empty;
 
 	const workCatalog = alias(catalogItems, 'work_catalog');
 	const elementCatalog = alias(catalogItems, 'element_catalog');
 
-	const workRows = await db
+	const workRows: WorkRef[] = await db
 		.select({
 			id: works.id,
+			serviceId: works.serviceId,
 			mode: works.mode,
-			label: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
+			name: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
 		})
 		.from(works)
 		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
-		.where(eq(works.serviceId, serviceId))
+		.where(inArray(works.serviceId, serviceIds))
 		.orderBy(asc(works.sortOrder), asc(works.createdAt));
 
 	const workIds = workRows.map((row) => row.id);
-	const elementRows = workIds.length
+	const elementRows: ElementRef[] = workIds.length
 		? await db
 				.select({
 					id: elements.id,
 					workId: elements.workId,
-					label: sql<string>`coalesce(${elementCatalog.name}, ${elements.customName})`
+					name: sql<string>`coalesce(${elementCatalog.name}, ${elements.customName})`
 				})
 				.from(elements)
 				.leftJoin(elementCatalog, eq(elementCatalog.id, elements.catalogItemId))
@@ -252,7 +290,7 @@ export async function getServiceArchive(db: Database, serviceId: string): Promis
 					? inArray(evidenceTargets.elementId, elementIds)
 					: null;
 
-	const targetRows = targetCondition
+	const targetRows: TargetRef[] = targetCondition
 		? await db
 				.select({
 					id: evidenceTargets.id,
@@ -264,12 +302,6 @@ export async function getServiceArchive(db: Database, serviceId: string): Promis
 				.where(targetCondition)
 		: [];
 
-	const targetByWork = new Map(
-		targetRows.filter((row) => row.workId).map((row) => [row.workId as string, row])
-	);
-	const targetByElement = new Map(
-		targetRows.filter((row) => row.elementId).map((row) => [row.elementId as string, row])
-	);
 	const approved = await latestApprovedSubmissions(
 		db,
 		targetRows.map((row) => row.id)
@@ -279,232 +311,174 @@ export async function getServiceArchive(db: Database, serviceId: string): Promis
 		[...approved.values()].map((entry) => entry.submissionId)
 	);
 
+	return {
+		works: workRows,
+		elements: elementRows,
+		targets: targetRows,
+		approved,
+		photosBySubmission
+	};
+}
+
+/** Unidades (elementos) de un trabajo con su objetivo. Trabajo directo → una unidad sin elemento. */
+function unitsForWork(
+	state: LoadedUnits,
+	work: WorkRef
+): { element: ElementRef | null; target: TargetRef | null }[] {
+	if (work.mode === 'direct') {
+		const target = state.targets.find((row) => row.workId === work.id) ?? null;
+		return [{ element: null, target }];
+	}
+	return state.elements
+		.filter((element) => element.workId === work.id)
+		.map((element) => ({
+			element,
+			target: state.targets.find((row) => row.elementId === element.id) ?? null
+		}));
+}
+
+/**
+ * Añade las fotos aprobadas de un trabajo bajo `parentPath`.
+ * `includeWorkFolder` = false cuando `parentPath` ya **es** la carpeta del trabajo.
+ */
+function addWorkFiles(
+	files: ArchiveFile[],
+	dirRegistries: Map<string, NameRegistry>,
+	state: LoadedUnits,
+	work: WorkRef,
+	parentPath: string,
+	includeWorkFolder: boolean
+): void {
+	const workPath = includeWorkFolder
+		? `${parentPath}/${getRegistry(dirRegistries, parentPath).unique(work.name, work.id)}`
+		: parentPath;
+
+	for (const unit of unitsForWork(state, work)) {
+		const unitPath = unit.element
+			? `${workPath}/${getRegistry(dirRegistries, workPath).unique(unit.element.name, unit.element.id)}`
+			: workPath;
+		if (!unit.target) continue;
+		const submission = state.approved.get(unit.target.id);
+		if (!submission) continue;
+		const rows = state.photosBySubmission.get(submission.submissionId) ?? [];
+		files.push(
+			...photosToFiles(unitPath, rows, submission.submissionId, additionalFolderLabel(rows))
+		);
+	}
+}
+
+export async function getServiceArchive(db: Database, serviceId: string): Promise<ServiceArchive> {
+	const [service] = await db
+		.select({ id: services.id, name: services.name })
+		.from(services)
+		.where(eq(services.id, serviceId))
+		.limit(1);
+	if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+
+	const state = await loadUnitsForServices(db, [service.id]);
 	const root = sanitizeSegment(service.name, 'servicio');
 	const files: ArchiveFile[] = [];
-	const resumen: (string | null)[][] = [
-		['Servicio', 'Trabajo', 'Elemento', 'Tipo', 'Estado', 'Incluido', 'Motivo']
-	];
-
-	// Registro por directorio para no colisionar nombres de trabajo bajo el servicio.
 	const dirRegistries = new Map<string, NameRegistry>();
-	const workFolders = new Map<string, string>();
 
-	interface Unit {
-		workName: string;
-		elementName: string | null;
-		workId: string;
-		elementId: string | null;
-		targetId: string | null;
-		status: TargetStatus;
-	}
-
-	const units: Unit[] = [];
-	for (const work of workRows) {
-		if (work.mode === 'direct') {
-			const target = targetByWork.get(work.id);
-			units.push({
-				workName: work.label,
-				elementName: null,
-				workId: work.id,
-				elementId: null,
-				targetId: target?.id ?? null,
-				status: target?.status ?? 'pending'
-			});
-		}
-	}
-	for (const element of elementRows) {
-		const work = workRows.find((row) => row.id === element.workId);
-		const target = targetByElement.get(element.id);
-		units.push({
-			workName: work?.label ?? '',
-			elementName: element.label,
-			workId: element.workId,
-			elementId: element.id,
-			targetId: target?.id ?? null,
-			status: target?.status ?? 'pending'
-		});
-	}
-
-	for (const unit of units) {
-		let workFolder = workFolders.get(unit.workId);
-		if (!workFolder) {
-			workFolder = getRegistry(dirRegistries, root).unique(unit.workName, unit.workId);
-			workFolders.set(unit.workId, workFolder);
-		}
-
-		const isApproved = unit.targetId ? approved.has(unit.targetId) : false;
-		const parent = unit.elementName
-			? `${root}/${workFolder}/${getRegistry(dirRegistries, `${root}/${workFolder}`).unique(
-					unit.elementName,
-					unit.elementId as string
-				)}`
-			: `${root}/${workFolder}`;
-
-		resumen.push([
-			service.name,
-			unit.workName,
-			unit.elementName ?? '',
-			unit.elementName ? 'Elemento' : 'Trabajo directo',
-			STATUS_LABEL[unit.status],
-			isApproved ? 'Sí' : 'No',
-			isApproved ? '' : omissionReason(unit.status)
-		]);
-
-		if (!isApproved || !unit.targetId) continue;
-		const submission = approved.get(unit.targetId);
-		if (!submission) continue;
-		const rows = photosBySubmission.get(submission.submissionId) ?? [];
-		files.push(
-			...photosToFiles(parent, rows, submission.submissionId, additionalFolderLabel(rows))
-		);
+	for (const work of state.works) {
+		addWorkFiles(files, dirRegistries, state, work, root, true);
 	}
 
 	return {
 		serviceId: service.id,
 		fileName: `servicio-${sanitizeSegment(service.name, 'servicio')}.zip`,
-		files,
-		resumen: toCsv(resumen)
+		files
 	};
 }
 
-function omissionReason(status: TargetStatus): string {
-	if (status === 'approved') return 'Sin entrega aprobada';
-	return `Omitido: ${STATUS_LABEL[status]}`;
-}
-
-export interface ServicesCsvFilters {
-	serviceId?: string | null;
-	status?: TargetStatus | null;
-}
-
-export async function getServicesCsv(
-	db: Database,
-	filters: ServicesCsvFilters = {}
-): Promise<ServiceCsv> {
+export async function getWorkArchive(db: Database, workId: string): Promise<WorkArchive> {
 	const workCatalog = alias(catalogItems, 'work_catalog');
-	const elementCatalog = alias(catalogItems, 'element_catalog');
-
-	const workRows = await db
+	const [work] = await db
 		.select({
-			serviceId: services.id,
-			serviceName: services.name,
-			workId: works.id,
-			workLabel: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`,
-			unitType: sql<string>`'Trabajo directo'`,
-			unitId: works.id,
-			unitLabel: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`,
-			mode: works.mode
+			id: works.id,
+			serviceId: works.serviceId,
+			mode: works.mode,
+			name: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
 		})
 		.from(works)
-		.innerJoin(services, eq(services.id, works.serviceId))
 		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
-		.where(filters.serviceId ? eq(services.id, filters.serviceId) : undefined)
-		.orderBy(asc(services.name), asc(works.sortOrder), asc(works.createdAt));
+		.where(eq(works.id, workId))
+		.limit(1);
+	if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
 
-	const elementRows = await db
-		.select({
-			serviceId: services.id,
-			serviceName: services.name,
-			workId: works.id,
-			workLabel: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`,
-			unitType: sql<string>`'Elemento'`,
-			unitId: elements.id,
-			unitLabel: sql<string>`coalesce(${elementCatalog.name}, ${elements.customName})`,
-			mode: sql<WorkMode>`'divided'`
-		})
-		.from(elements)
-		.innerJoin(works, eq(works.id, elements.workId))
-		.innerJoin(services, eq(services.id, works.serviceId))
-		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
-		.leftJoin(elementCatalog, eq(elementCatalog.id, elements.catalogItemId))
-		.where(filters.serviceId ? eq(services.id, filters.serviceId) : undefined)
-		.orderBy(
-			asc(services.name),
-			asc(works.sortOrder),
-			asc(elements.sortOrder),
-			asc(elements.createdAt)
-		);
+	const state = await loadUnitsForServices(db, [work.serviceId]);
+	const root = sanitizeSegment(work.name, 'trabajo');
+	const files: ArchiveFile[] = [];
+	const dirRegistries = new Map<string, NameRegistry>();
+	addWorkFiles(files, dirRegistries, state, work, root, false);
 
-	// Estado autoritativo por unidad (solo trabajos directos tienen objetivo propio).
-	const targetRows = await db
-		.select({
-			id: evidenceTargets.id,
-			workId: evidenceTargets.workId,
-			elementId: evidenceTargets.elementId,
-			status: evidenceTargets.currentStatus,
-			latestSubmissionId: evidenceTargets.latestSubmissionId
-		})
-		.from(evidenceTargets);
-	const statusByWork = new Map(
-		targetRows.filter((row) => row.workId).map((row) => [row.workId as string, row])
+	return {
+		workId: work.id,
+		serviceId: work.serviceId,
+		fileName: `trabajo-${sanitizeSegment(work.name, 'trabajo')}.zip`,
+		files
+	};
+}
+
+const visibleBuildingName = sql<
+	string | null
+>`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot})`;
+
+export async function getContractArchive(
+	db: Database,
+	contractId: string
+): Promise<ContractArchive> {
+	const [contract] = await db
+		.select({ id: contracts.id, name: contracts.name })
+		.from(contracts)
+		.where(eq(contracts.id, contractId))
+		.limit(1);
+	if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+
+	const serviceRows = await db
+		.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+		.from(services)
+		.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
+		.where(eq(services.contractId, contractId))
+		.orderBy(asc(services.createdAt));
+
+	const state = await loadUnitsForServices(
+		db,
+		serviceRows.map((row) => row.id)
 	);
-	const statusByElement = new Map(
-		targetRows.filter((row) => row.elementId).map((row) => [row.elementId as string, row])
-	);
+	const root = sanitizeSegment(contract.name, 'contrato');
+	const files: ArchiveFile[] = [];
+	const dirRegistries = new Map<string, NameRegistry>();
 
-	const submissionCounts = await db
-		.select({
-			targetId: evidenceSubmissions.targetId,
-			total: sql<number>`cast(count(*) as int)`
-		})
-		.from(evidenceSubmissions)
-		.groupBy(evidenceSubmissions.targetId);
-	const countByTarget = new Map(submissionCounts.map((row) => [row.targetId, row.total]));
+	// Agrupar servicios por edificio (solo edificios con servicios); los que no
+	// tienen edificio van a «Sin edificio».
+	const byBuilding = new Map<string, typeof serviceRows>();
+	for (const service of serviceRows) {
+		const key = service.buildingName?.trim() ? service.buildingName : NO_BUILDING_LABEL;
+		const list = byBuilding.get(key) ?? [];
+		list.push(service);
+		byBuilding.set(key, list);
+	}
 
-	const reviewRows = await db
-		.select({
-			submissionId: reviews.submissionId,
-			decision: reviews.decision,
-			reason: reviews.reason,
-			reviewedAt: reviews.reviewedAt,
-			reviewerName: sql<string | null>`coalesce(${reviews.reviewerName}, ${users.displayName})`
-		})
-		.from(reviews)
-		.leftJoin(users, eq(users.id, reviews.reviewerId));
-	const reviewBySubmission = new Map(reviewRows.map((row) => [row.submissionId, row]));
-
-	const header = [
-		'Servicio',
-		'Trabajo',
-		'Unidad',
-		'Tipo',
-		'Estado',
-		'Entregas',
-		'Decisión',
-		'Revisor',
-		'Fecha de decisión',
-		'Motivo de rechazo'
-	];
-	const rows: (string | number | null)[][] = [header];
-
-	const units = [...workRows.filter((row) => row.mode === 'direct'), ...elementRows];
-	for (const unit of units) {
-		const target =
-			unit.unitType === 'Elemento'
-				? statusByElement.get(unit.unitId)
-				: statusByWork.get(unit.unitId);
-		const status: TargetStatus = target?.status ?? 'pending';
-		if (filters.status && status !== filters.status) continue;
-
-		const latestSubmissionId = target?.latestSubmissionId ?? null;
-		const review = latestSubmissionId ? reviewBySubmission.get(latestSubmissionId) : undefined;
-
-		rows.push([
-			unit.serviceName,
-			unit.workLabel,
-			unit.unitLabel,
-			unit.unitType,
-			STATUS_LABEL[status],
-			target ? (countByTarget.get(target.id) ?? 0) : 0,
-			review ? (review.decision === 'approved' ? 'Aprobada' : 'Rechazada') : '',
-			review?.reviewerName ?? '',
-			review?.reviewedAt ? review.reviewedAt.toISOString() : '',
-			review?.decision === 'rejected' ? (review.reason ?? '') : ''
-		]);
+	for (const [building, serviceList] of [...byBuilding.entries()].sort(([a], [b]) =>
+		a.localeCompare(b, 'es')
+	)) {
+		const buildingFolder = getRegistry(dirRegistries, root).unique(building, building);
+		const buildingPath = `${root}/${buildingFolder}`;
+		for (const service of serviceList) {
+			const servicePath = `${buildingPath}/${getRegistry(dirRegistries, buildingPath).unique(
+				service.name,
+				service.id
+			)}`;
+			for (const work of state.works.filter((row) => row.serviceId === service.id)) {
+				addWorkFiles(files, dirRegistries, state, work, servicePath, true);
+			}
+		}
 	}
 
 	return {
-		fileName: 'lumen-servicios.csv',
-		content: toCsv(rows, { bom: true })
+		contractId: contract.id,
+		fileName: `contrato-${sanitizeSegment(contract.name, 'contrato')}.zip`,
+		files
 	};
 }

@@ -31,8 +31,7 @@
 | Consultar fotos, estado, historial y revisiones | Sí | Sí | Sí |
 | Aprobar o rechazar entregas | Sí | Sí | No |
 | Descargar foto individual | Sí | Sí | Sí |
-| Descargar entrega ZIP / servicio ZIP | Sí | Sí | No |
-| Exportar CSV administrativo | Sí | No | No |
+| Descargar entrega ZIP / servicio / trabajo / contrato ZIP | Sí | Sí | No |
 
 Un usuario debe estar **activo** y disponer de sesión válida para cualquier operación. Los administradores tienen permiso global sin necesitar asignación. Los supervisores y técnicos acceden **solo a los servicios activos en su asignación y cuyo contrato sigue contando con ellos como miembros activos** (salir del contrato retira el acceso, aunque la asignación de servicio siguiera marcada). Los **participantes de un contrato** (técnicos y supervisores) son la única población asignable a sus servicios; los administradores pueden asignar e **incorporan al usuario al contrato** si no lo estaba, mientras que un **supervisor del contrato** solo puede asignar servicios del suyo a miembros existentes. La vista de participantes expone nombre visible y rol pertinente, nunca credenciales ni datos sensibles. Los **técnicos no exportan ZIP** (capturan y envían evidencia); las descargas de ZIP de entrega y de servicio quedan para administradores y supervisores asignados.
 
@@ -194,14 +193,15 @@ Solo se permite convertir `direct` ↔ `divided` cuando el trabajo **nunca ha te
 |---|---|---|
 | Fotografía individual | Los tres, con permiso de servicio | Archivo optimizado persistido; acceso autenticado |
 | Entrega ZIP | Los tres, con permiso de servicio | **Una entrega histórica o vigente**, exactamente su snapshot, carpetas por requisito + `Adicionales`, archivos ordenados |
-| Servicio ZIP | Los tres, con permiso de servicio | **Última entrega aprobada** de cada objetivo; omite no aprobados; carpetas servicio/trabajo/elemento/requisito; `resumen.csv` con incluidos y omitidos |
-| CSV administrativo | Solo admin | Filtrado por servicio/estado; una fila por trabajo directo o elemento dividido, con contexto, estados, fechas, revisor y conteo de fotos; **sin fotografías** |
+| Trabajo ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo del trabajo; jerarquía `Trabajo ▸ (Elemento) ▸ Requisito` |
+| Servicio ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo; jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito` |
+| Contrato ZIP | Admin y supervisor del contrato | **Última entrega aprobada** de cada objetivo; jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito` |
 
-- Un ZIP de servicio puede exportarse **antes** de completarse. Debe declarar claramente los pendientes y omisiones.
+- La exportación de datos (XLSX) está **retirada por ahora**; se reintroducirá en una tarea posterior (antes existía como CSV administrativo).
+- Un ZIP puede exportarse **antes** de completarse; solo incluye lo aprobado y omite el resto.
 - Cuando el trabajo es directo, sus carpetas de requisito viven en la carpeta del **trabajo**; no inventar elemento hijo.
 - El ZIP respeta el orden de cada grupo y usa nombres de carpetas saneados, únicos y compatibles con distintos sistemas operativos.
 - Toda exportación se genera con comprobación de permisos en servidor y sin modificar registros. ZIP grandes: streaming o temporales con limpieza.
-- El CSV administrativo se ofrece en UTF-8 y formato interpretable por Excel/LibreOffice, evitando inyección de fórmulas.
 
 ## 11. Descubrimiento y presentación
 

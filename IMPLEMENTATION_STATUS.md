@@ -253,6 +253,22 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   participantes y **desactivar usuario** pasan a `Dialog`/`AlertDialog`. Nuevos componentes
   `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
   servicio (`/admin/services/[serviceId]` redirige a la ficha).
+
+## Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
+
+Jerarquía de carpetas consistente en todos los niveles, solo con la **última entrega aprobada** de cada objetivo:
+
+- `contrato-<nombre>.zip`: `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`. Solo edificios con
+  servicios en el contrato; los servicios sin edificio van a «Sin edificio». Nuevo endpoint
+  `GET /api/contracts/:id/export.zip` (admin o supervisor del contrato).
+- `servicio-<nombre>.zip`: `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos` (se elimina el `resumen.csv`).
+- `trabajo-<nombre>.zip`: `Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`. Nuevo endpoint `GET /api/works/:id/export.zip`.
+- `entrega-<n>.zip`: sin cambios (snapshot inmutable).
+- **Retirada la exportación CSV** (`/api/admin/exports/services.csv`, `getServicesCsv`, `exports/csv.ts` y el ítem del
+  sidebar). La exportación de datos volverá en **XLSX** en una tarea posterior.
+- Botones «Exportar ZIP» en las fichas de contrato, trabajo y servicio (los técnicos no exportan). Pruebas: integración
+  `search-exports.spec.ts` (EXP-03/EXP-04) y E2E `tech-export` ampliado.
+
 - **Sin scroll horizontal**: `#contenido`/inset con `min-w-0`, `DataTable` con `overflow-x-auto`, filas de
   pestañas con `overflow-x-auto no-scrollbar` (utilidad `no-scrollbar` añadida), detalle de catálogo como
   **tarjetas en móvil** y **acciones de cabecera** en columna/envueltas sin `shrink-0` (antes la ficha de

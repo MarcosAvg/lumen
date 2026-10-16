@@ -147,20 +147,26 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 3. Produce carpetas según requisitos guardados al enviar, más Adicionales; fotos con prefijos numéricos que respetan orden.
 4. Si la entrega carece de algunas secciones opcionales, puede omitir carpetas vacías.
 
+### ZIP de contrato
+
+1. Desde la ficha del contrato, admin o **supervisor del contrato** pulsa **Exportar ZIP** (los técnicos no exportan).
+2. La jerarquía es `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`; solo aparecen carpetas de edificios con servicios en el contrato y los servicios sin edificio van a «Sin edificio».
+3. Solo se incluye la **última entrega aprobada** de cada objetivo.
+
+### ZIP de trabajo
+
+1. Desde la ficha del trabajo, admin o supervisor asignado pulsa **Exportar ZIP**.
+2. Jerarquía `Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`, mismo criterio de solo aprobados.
+
 ### ZIP de servicio
 
-1. Desde servicio, usuario pulsa **Exportar evidencias aprobadas**; muestra aviso de que solo se incluirán las últimas entregas aprobadas y se reportarán objetivos pendientes.
-2. Servidor valida asignación/rol, recorre trabajos directos y elementos divididos.
-3. Agrega únicamente la **última entrega aprobada** de cada objetivo, con jerarquía de carpetas; ignora pendientes, rechazados y aún no enviados.
-4. Inserta `resumen.csv` con tipo, ruta, estado, identificador de entrega incluida o motivo de omisión; servicio incompleto es exportable.
-5. Transmite ZIP o prepara temporal acotado; limpia recursos aun si navegador interrumpe.
+1. Desde servicio, usuario (admin o supervisor asignado) pulsa **Exportar ZIP**.
+2. Jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`; solo la **última entrega aprobada** de cada objetivo.
+3. Transmite ZIP o prepara temporal acotado; limpia recursos aun si el navegador interrumpe.
 
-### CSV administrativo
+### Exportación de datos
 
-1. Admin abre gestión de servicios y filtra (servicios, estados).
-2. Selecciona **Exportar CSV**; una fila por trabajo directo o elemento de trabajo dividido.
-3. Incluye nombre y contexto del servicio/edificio/trabajo/elemento, estado, fechas relevantes, última revisión, revisor y conteo de fotografías actuales.
-4. No incluye fotos. Escapar campos para CSV, comillas, saltos de línea y caracteres que programas interpreten como fórmulas.
+Retirada por ahora (antes era un CSV administrativo). Volverá en **XLSX** en una tarea posterior; no hay `resumen.csv` dentro de los ZIP.
 
 ## 12. Búsqueda global
 

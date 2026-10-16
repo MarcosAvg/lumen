@@ -5,12 +5,15 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { hashPassword } from '#lib/server/auth/password';
 import { appendPhoto } from '#lib/server/domain/photos';
+import { createCatalog, createCatalogItem } from '#lib/server/domain/catalogs';
+import { createContract } from '#lib/server/domain/contracts';
 import { createRequirement } from '#lib/server/domain/requirements';
-import { createService } from '#lib/server/domain/services';
+import { createService, updateService } from '#lib/server/domain/services';
 import {
-	getServicesCsv,
+	getContractArchive,
 	getServiceArchive,
-	getSubmissionArchive
+	getSubmissionArchive,
+	getWorkArchive
 } from '#lib/server/domain/exports';
 import {
 	listPendingReviews,
@@ -19,8 +22,8 @@ import {
 } from '#lib/server/domain/submissions';
 import { createFirstAdmin } from '#lib/server/domain/users';
 import { createWork } from '#lib/server/domain/works';
+import { getTargetForElement } from '#lib/server/domain/targets';
 import { NameRegistry, sanitizeSegment } from '#lib/server/exports/names';
-import { csvCell, toCsv } from '#lib/server/exports/csv';
 import { searchByName } from '#lib/server/domain/search';
 import { DomainError } from '#lib/server/domain/errors';
 import { createStorage, type Storage } from '#lib/server/storage/storage';
@@ -219,14 +222,13 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		});
 
 		const archive = await getServiceArchive(db, service.id);
-		expect(archive.files).toHaveLength(1);
-		expect(archive.files[0].path).toBe('Servicio/Aprobado/Fotografías/01.jpg');
-		expect(archive.resumen).toContain('Aprobado');
-		expect(archive.resumen).toContain('Pendiente');
-		expect(archive.resumen).toContain('Omitido: En revisión');
+		// Solo evidencia aprobada; el trabajo en revisión no aporta carpetas.
+		expect(archive.files.map((file) => file.path)).toEqual([
+			'Servicio/Aprobado/Fotografías/01.jpg'
+		]);
 	});
 
-	it('el CSV administrativo neutraliza fórmulas y respeta el filtro de estado', async () => {
+	it('EXP-03: el ZIP de trabajo agrupa por elemento', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
 		const service = await createService(db, {
@@ -234,28 +236,104 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 			name: 'Servicio',
 			actorId: admin
 		});
-		const work = await createWork(db, {
+		const divided = await createWork(db, {
 			serviceId: service.id,
-			mode: 'direct',
-			name: '=SUM(A1)',
+			mode: 'divided',
+			name: 'Dividido',
+			elements: [{ name: 'UMA 1' }, { name: 'UMA 2' }],
 			actorId: admin
 		});
-		const photo = await upload(storage, work.targetId as string, admin, null);
-		await submitEvidence(db, {
-			targetId: work.targetId as string,
+
+		// Aprobar el objetivo de «UMA 1».
+		const target = await getTargetForElement(db, divided.elementIds[0]);
+		const photo = await upload(storage, target.id, admin, null);
+		const submission = await submitEvidence(db, {
+			targetId: target.id,
 			expectedVersion: photo.version,
 			userId: admin
 		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
 
-		const csv = await getServicesCsv(db, {});
-		expect(csv.content.startsWith('\uFEFF')).toBe(true);
-		expect(csv.content).toContain("'=SUM(A1)");
-		// Una entrega enviada cuenta como 1.
-		expect(csv.content).toContain('Trabajo directo,En revisión,1,');
+		const workArchive = await getWorkArchive(db, divided.id);
+		expect(workArchive.files.map((file) => file.path)).toEqual([
+			'Dividido/UMA 1/Fotografías/01.jpg'
+		]);
+		// Desde el servicio, el mismo trabajo cuelga bajo su nombre.
+		const serviceArchive = await getServiceArchive(db, service.id);
+		expect(serviceArchive.files.map((file) => file.path)).toEqual([
+			'Servicio/Dividido/UMA 1/Fotografías/01.jpg'
+		]);
+	});
 
-		// El filtro por estado excluye las unidades que no coinciden.
-		const approvedOnly = await getServicesCsv(db, { status: 'approved' });
-		expect(approvedOnly.content).not.toContain('=SUM(A1)');
+	it('EXP-04: el ZIP de contrato agrupa por edificio y servicio', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
+
+		const catalog = await createCatalog(db, { name: `Edificios-${Date.now()}`, actorId: admin });
+		const torre = await createCatalogItem(db, {
+			catalogId: catalog.id,
+			name: 'Torre',
+			actorId: admin
+		});
+		const nave = await createCatalogItem(db, {
+			catalogId: catalog.id,
+			name: 'Nave',
+			actorId: admin
+		});
+
+		const serviceTorre = await createService(db, {
+			contractId,
+			name: 'UMAs Torre',
+			actorId: admin
+		});
+		await updateService(db, {
+			serviceId: serviceTorre.id,
+			name: 'UMAs Torre',
+			buildingCatalogItemId: torre.id,
+			actorId: admin
+		});
+		const serviceNave = await createService(db, {
+			contractId,
+			name: 'Bombas Nave',
+			actorId: admin
+		});
+		await updateService(db, {
+			serviceId: serviceNave.id,
+			name: 'Bombas Nave',
+			buildingCatalogItemId: nave.id,
+			actorId: admin
+		});
+
+		for (const serviceId of [serviceTorre.id, serviceNave.id]) {
+			const work = await createWork(db, {
+				serviceId,
+				mode: 'direct',
+				name: 'Trabajo',
+				actorId: admin
+			});
+			const photo = await upload(storage, work.targetId as string, admin, null);
+			const submission = await submitEvidence(db, {
+				targetId: work.targetId as string,
+				expectedVersion: photo.version,
+				userId: admin
+			});
+			await reviewSubmission(db, {
+				submissionId: submission.submissionId,
+				decision: 'approved',
+				reviewerId: admin
+			});
+		}
+
+		const archive = await getContractArchive(db, contractId);
+		expect(archive.files.map((file) => file.path)).toEqual([
+			'Contrato/Nave/Bombas Nave/Trabajo/Fotografías/01.jpg',
+			'Contrato/Torre/UMAs Torre/Trabajo/Fotografías/01.jpg'
+		]);
 	});
 
 	it('sanea nombres de ZIP y desambigua duplicados', () => {
@@ -266,9 +344,6 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		const registry = new NameRegistry();
 		expect(registry.unique('Piso', 'aaaaaa')).toBe('Piso');
 		expect(registry.unique('Piso', 'bbbbbb')).toBe('Piso (bbbbbb)');
-		expect(csvCell('=1+1')).toBe("'=1+1");
-		expect(csvCell('hola,mundo')).toBe('"hola,mundo"');
-		expect(toCsv([['a']])).toBe('a\r\n');
 	});
 
 	it('la cola de revisión filtra y pagina en servidor', async () => {

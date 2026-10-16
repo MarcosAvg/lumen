@@ -15,7 +15,7 @@ Una **sola aplicación SvelteKit** entrega frontend, endpoints, sesiones, lógic
    ├── UI SSR + navegación cliente
    ├── acciones/endpoints autenticados
    ├── servicios de dominio y transacciones
-   ├── procesamiento fotos / ZIP / CSV
+   ├── procesamiento fotos / ZIP
    ├── worker SW/VAPID para clientes
    ├── Drizzle ──────────────────────────────► [ PostgreSQL ]
    └── archivos ─────────────────────────────► [ Volumen local de fotos ]
@@ -37,7 +37,7 @@ lumen/
 │   │   │   ├── domain/             # reglas de servicio, evidencia, revisión
 │   │   │   ├── storage/            # guardado, thumb, limpieza, ZIP
 │   │   │   ├── notifications/      # inbox, web push, suscripciones
-│   │   │   └── exports/            # CSV administrativo y ZIP servicios
+│   │   │   └── exports/            # ZIP de contrato/servicio/trabajo/entrega
 │   │   └── schemas/               # validaciones compartidas, sin secretos
 │   ├── routes/
 │   │   ├── (auth)/login/
@@ -87,7 +87,7 @@ Evitar bloquear implementación en números de versión supuestos. Usar lockfile
 - Técnico: `capture`/`submit` y consulta/descargas sobre servicio asignado **y siendo miembro de su contrato**.
 - Supervisor: `review` y consulta/descargas sobre servicio asignado (miembro de su contrato); nunca captura. Además, dentro de sus contratos, **gestiona asignaciones de servicio**.
 - Usuario desactivado: sin acceso aun con cookie no expirada.
-- Comprobar alcance en búsqueda, endpoints de imágenes/miniaturas, ZIP, CSV, historial, push deep links y mutation actions.
+- Comprobar alcance en búsqueda, endpoints de imágenes/miniaturas, ZIP, historial, push deep links y mutation actions.
 
 ### Ámbito por contrato
 
@@ -108,7 +108,7 @@ Funciones servidor como `appendPhoto`, `removePhoto`, `reorderPhotos`, `validate
 
 ### Exportaciones
 
-`exportSubmissionZip(submissionId)`, `exportServiceZip(serviceId)`, `exportServicesCsv(filters)`. Las dos primeras accesibles a **administradores y supervisores asignados** (los **técnicos no exportan** ZIP); la última **solo admin**. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
+`exportSubmissionZip(submissionId)`, `exportWorkZip(workId)`, `exportServiceZip(serviceId)`, `exportContractZip(contractId)`. Accesibles a **administradores y supervisores** (el de contrato, solo a supervisores del contrato); los **técnicos no exportan** ZIP. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
 
 ## 5. Endpoints y acciones orientativas
 
@@ -129,7 +129,8 @@ La ruta exacta se puede ajustar a SvelteKit. **No usar CRUD público genérico**
 | GET | `/api/photos/:id/thumbnail` | Ámbito de servicio | Igual autorización que foto |
 | GET | `/api/submissions/:id/export.zip` | Ámbito de servicio | Foto snapshot histórica |
 | GET | `/api/services/:id/export.zip` | Ámbito de servicio | Últimas aprobadas + resumen |
-| GET | `/api/admin/exports/services.csv` | Solo admin | Filtros validados |
+| GET | `/api/contracts/:id/export.zip` | Admin o supervisor del contrato | Última entrega aprobada por objetivo |
+| GET | `/api/works/:id/export.zip` | Admin o supervisor asignado | Ídem, jerarquía por trabajo |
 | GET | `/api/search?q=...` | Sesión activa | Resultados filtrados por acceso |
 | POST | `/api/push/subscriptions` | Sesión activa | Endpoint validado |
 
@@ -170,13 +171,13 @@ Ejemplo interno **no accesible desde HTTP directo**:
 
 Valores **sugeridos, configurables** para v1: tamaño máximo de subida por archivo (p. ej. 20–25 MiB), límite de concurrencia de procesado, límite razonable de dimensiones y tasa por usuario. No limitar **cantidad** de fotografías por grupo/objetivo por regla de negocio. Gestionar errores de disco lleno y archivos incompatibles con mensajes accionables.
 
-## 7. Almacenamiento, ZIP y CSV
+## 7. Almacenamiento y ZIP
 
 - **Fotos**: servir mediante `GET` autenticado con `Content-Type` seguro, `Cache-Control` apropiado para recursos privados y `Content-Disposition` en descargas; no crear URLs públicas permanentes.
 - **ZIP entrega**: recorrer `submission_photos` ordenadas (grupo y posición), copiar binarios, carpetas con nombre congelado; fotos numeradas `01`, `02`... sin depender de nombres originales.
 - **ZIP servicio**: recorrer todos los objetivos (trabajo directo o elementos), seleccionar solo última entrega **aprobada**; incluir `resumen.csv` con todas las unidades incluyendo omitidas. Mantener contextos de carpetas trabajo/elemento y tratar nombres repetidos añadiendo identificadores cortos seguros.
 - **Streaming**: preferir salida ZIP bajo demanda y conexión de lectura controlada; alternativa temporal en volumen con cuotas/expiración. Si el cliente corta conexión, cerrar streams/limpiar temporales. Evitar generar ZIP entero en RAM.
-- **CSV administrativo**: UTF-8 (BOM opcional para Excel), columnas fijas y documentación de formato, fechas ISO-8601, comillas y escapes. Neutralizar celdas que comiencen `=`, `+`, `-`, `@` o caracteres de control para mitigar inyección de fórmulas en hojas de cálculo.
+- **Exportación de datos**: retirada por ahora (antes CSV administrativo); se reintroducirá en **XLSX**. Cuando se implemente, neutralizar celdas que comiencen `=`, `+`, `-`, `@` o caracteres de control para mitigar inyección de fórmulas.
 - **Archivos históricos**: las rutas del ZIP se derivan de los nombres de grupo guardados **en cada entrega**, no de requisitos actuales.
 
 ## 8. Seguridad de aplicación

@@ -49,7 +49,40 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toBeVisible();
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).not.toBe(403);
 
+	// Crear un trabajo directo para probar el ZIP de trabajo.
+	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
+	await page.getByRole('tab', { name: 'Nombre propio' }).click();
+	await page.locator('#work-mode').selectOption('direct');
+	await page.locator('#work-name').fill(`Trabajo ${unique}`);
+	await page.getByRole('button', { name: 'Crear trabajo' }).click();
+	await expect(page.getByText('Trabajo creado.')).toBeVisible();
+	const workId = (
+		(await page
+			.getByRole('listitem')
+			.filter({ hasText: `Trabajo ${unique}` })
+			.getByRole('link', { name: `Trabajo ${unique}` })
+			.getAttribute('href')) ?? ''
+	)
+		.split('/')
+		.pop();
+
+	// Contrato «General» (contrato por defecto de los E2E) para el ZIP de contrato.
+	await page.goto('/contracts');
+	const contractHref = await page
+		.locator('tr, li')
+		.filter({ visible: true })
+		.filter({ hasText: 'General' })
+		.getByRole('link', { name: 'General' })
+		.first()
+		.getAttribute('href');
+	const contractId = (contractHref ?? '').split('/').pop() ?? '';
+
+	// El admin puede exportar contrato, servicio y trabajo.
+	expect((await page.request.get(`/api/contracts/${contractId}/export.zip`)).status()).toBe(200);
+	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(200);
+
 	// Desde la ficha se abre el modal de asignaciones.
+	await page.goto(serviceHref ?? '/admin/services');
 	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
 	await expect(
 		page.getByRole('dialog').getByRole('heading', { name: 'Participantes' })
@@ -112,5 +145,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await expect(page.getByRole('link', { name: 'Exportar ZIP' })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Gestionar asignaciones' })).toHaveCount(0);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(403);
+	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(403);
+	expect((await page.request.get(`/api/contracts/${contractId}/export.zip`)).status()).toBe(403);
 	expect((await page.request.get(`/api/submissions/${DUMMY_UUID}/export.zip`)).status()).toBe(403);
 });
