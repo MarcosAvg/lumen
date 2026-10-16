@@ -21,7 +21,7 @@ cd lumen
 ./install.sh                 # genera .env con secretos y arranca la app
 ```
 
-La app queda en **http://127.0.0.1:3000**, lista para tu proxy: configura que
+La app queda en **http://127.0.0.1:8090**, lista para tu proxy: configura que
 reenvíe ahí enviando `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app los
 exige). Ejemplos y avisos en [`DEPLOY.md`](DEPLOY.md) §3. Después abre
 `https://tu-dominio` y completa **Configurar Lumen**.
@@ -79,7 +79,7 @@ Todo se define por entorno o en un `.env` (opcional). Valores habituales:
 | Variable                                                   | Por defecto                      | Uso                                                        |
 | ---------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
 | `POSTGRES_PASSWORD`                                        | `lumen`                          | Contraseña de PostgreSQL (cámbiala en producción)          |
-| `APP_PORT`                                                 | `3000`                           | Puerto local donde se publica la app (tu proxy apunta ahí) |
+| `APP_PORT`                                                 | `8090`                           | Puerto local donde se publica la app (tu proxy apunta ahí) |
 | `LUMEN_IMAGE` / `LUMEN_TAG`                                | `ghcr.io/marcosavg/lumen:latest` | Imagen y etiqueta a usar                                   |
 | `DOMAIN` _(Caddy)_                                         | `http://localhost`               | Dirección de sitio de Caddy; un dominio activa HTTPS       |
 | `HTTP_PORT` / `HTTPS_PORT` _(Caddy)_                       | `80` / `443`                     | Puertos públicos del Caddy opcional                        |

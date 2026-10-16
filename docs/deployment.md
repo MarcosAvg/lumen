@@ -22,7 +22,7 @@ cd lumen
 ./install.sh                 # crea .env con secretos aleatorios y arranca la app
 ```
 
-- Por defecto **sin proxy**: la app queda en `http://127.0.0.1:3000`, lista para tu Nginx/Traefik.
+- Por defecto **sin proxy**: la app queda en `http://127.0.0.1:8090`, lista para tu Nginx/Traefik.
 - `install.sh` es **opcional**: `docker compose up -d` también funciona con los valores por defecto.
 - **Con Caddy opcional** (HTTPS automático): `./install.sh --domain lumen.midominio.com`
   (o `./install.sh --caddy` para HTTP en el puerto 80).
@@ -42,7 +42,7 @@ Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar 
 |---|---|
 | `db` | PostgreSQL 17 con volumen `postgres_data`. **No se publica al exterior.** |
 | `migrate` | Aplica migraciones Drizzle una sola vez y termina. |
-| `app` | Lumen (imagen GHCR por defecto). Publicado en `127.0.0.1:${APP_PORT:-3000}`. |
+| `app` | Lumen (imagen GHCR por defecto). Publicado en `127.0.0.1:${APP_PORT:-8090}`. |
 | `caddy` *(opcional)* | En `compose.caddy.yaml`: proxy con HTTPS automático (`DOMAIN`). |
 
 - La app **no** se expone a Internet: se publica solo en `127.0.0.1` y tu proxy reenvía ahí enviando
@@ -81,7 +81,7 @@ server {
 	proxy_read_timeout 300s;    # ZIP/PDF de evidencias
 
 	location / {
-		proxy_pass http://127.0.0.1:3000;
+		proxy_pass http://127.0.0.1:8090;
 		proxy_http_version 1.1;
 		proxy_set_header Host $host;
 		proxy_set_header X-Forwarded-Proto $scheme;
@@ -120,7 +120,7 @@ reales por defecto.
 | Variable | Uso |
 |---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Credenciales de PostgreSQL |
-| `APP_PORT` | Puerto local donde se publica la app (por defecto `3000`) |
+| `APP_PORT` | Puerto local donde se publica la app (por defecto `8090`) |
 | `LUMEN_IMAGE` / `LUMEN_TAG` | Imagen y etiqueta a usar (`ghcr.io/marcosavg/lumen:latest`) |
 | `DOMAIN` *(Caddy)* | Dirección de sitio de Caddy: `http://localhost` (por defecto) o un dominio (HTTPS) |
 | `HTTP_PORT` / `HTTPS_PORT` *(Caddy)* | Puertos públicos de Caddy (por defecto `80`/`443`) |
@@ -152,7 +152,7 @@ Para fijar una versión, define `LUMEN_TAG=v1.0.0` en `.env`.
 docker compose pull           # 2. trae la imagen nueva
 docker compose run --rm migrate   # 3. migra (idempotente)
 docker compose up -d          # 4. recrea los contenedores
-curl http://127.0.0.1:3000/health
+curl http://127.0.0.1:8090/health
 ```
 
 El runner de migraciones usa un bloqueo de asesoría, así que despliegues solapados no aplican dos veces.

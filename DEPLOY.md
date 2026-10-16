@@ -6,7 +6,7 @@ abajo incluye la aplicación, PostgreSQL y las migraciones.
 
 Lumen **no incluye** un proxy inverso: como en el resto de proyectos self-host, lo
 gestionas tú (Nginx, Traefik, Caddy…). El compose publica la app en
-`127.0.0.1:3000` y tu proxy termina TLS y reenvía ahí. Si no tienes proxy, hay un
+`127.0.0.1:8090` y tu proxy termina TLS y reenvía ahí. Si no tienes proxy, hay un
 **Caddy opcional** al final.
 
 > Esta es la versión **autocontenida** (sirve sin clonar el repo). La referencia
@@ -31,14 +31,14 @@ Arquitecturas soportadas por la imagen publicada: **amd64** (VPS x86-64) y
 2. Opcional: crea un `.env` en la misma carpeta:
    ```dotenv
    POSTGRES_PASSWORD=cambia-esta-clave
-   APP_PORT=3000
+   APP_PORT=8090
    ```
 3. Arranca:
    ```bash
    docker compose up -d
    docker compose ps          # `app` debe quedar "healthy"
    ```
-4. Configura tu proxy para reenviar a `127.0.0.1:3000` (sección 3) y abre
+4. Configura tu proxy para reenviar a `127.0.0.1:8090` (sección 3) y abre
    `https://tu-dominio` para completar **Configurar Lumen**.
 
 Sin `.env` también funciona (usa valores por defecto). Detener sin perder datos:
@@ -46,7 +46,7 @@ Sin `.env` también funciona (usa valores por defecto). Detener sin perder datos
 
 ## 3. Proxy inverso (lo gestionas tú)
 
-Tu proxy debe reenviar a `127.0.0.1:3000` enviando **siempre** estas cabeceras; la
+Tu proxy debe reenviar a `127.0.0.1:8090` enviando **siempre** estas cabeceras; la
 app las exige para derivar el origen público y la IP real:
 
 | Cabecera            | Por qué                                                                 |
@@ -68,7 +68,7 @@ server {
 	proxy_read_timeout 300s;    # ZIP/PDF de evidencias
 
 	location / {
-		proxy_pass http://127.0.0.1:3000;
+		proxy_pass http://127.0.0.1:8090;
 		proxy_http_version 1.1;
 		proxy_set_header Host $host;
 		proxy_set_header X-Forwarded-Proto $scheme;
@@ -78,7 +78,7 @@ server {
 }
 ```
 
-Con **Traefik**, apunta el servicio a `http://127.0.0.1:3000` (o al contenedor
+Con **Traefik**, apunta el servicio a `http://127.0.0.1:8090` (o al contenedor
 `app` si Traefik comparte la red de Compose) y deja que gestione TLS; Traefik añade
 las cabeceras `X-Forwarded-*` por defecto.
 
@@ -102,14 +102,14 @@ name: lumen
 #   - `db`      PostgreSQL 17 con volumen persistente (no publicado al exterior).
 #   - `migrate` aplica las migraciones de Drizzle una vez y termina.
 #   - `app`     Lumen (imagen GHCR multi-arquitectura: amd64 y arm64), publicado solo
-#               en `127.0.0.1:${APP_PORT:-3000}`.
+#               en `127.0.0.1:${APP_PORT:-8090}`.
 #
 # El proxy inverso (Nginx, Traefik, Caddy…) lo gestionas tú: termina TLS y reenvía a
-# `127.0.0.1:3000` enviando `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app
+# `127.0.0.1:8090` enviando `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app
 # las exige para el origen y la IP real). Ejemplos y avisos en DEPLOY.md.
 #
 # Cómo usarlo:
-#   docker compose up -d                       # app en http://127.0.0.1:3000
+#   docker compose up -d                       # app en http://127.0.0.1:8090
 #   POSTGRES_PASSWORD=... docker compose up -d # contraseña propia
 #
 # No requiere clonar el repositorio. El detalle operativo está en DEPLOY.md y
@@ -204,7 +204,7 @@ services:
       # Fotografías normalizadas y miniaturas. Respáldalo junto con `postgres_data`.
       - lumen_photos:/data/photos
     ports:
-      - '127.0.0.1:${APP_PORT:-3000}:3000'
+      - '127.0.0.1:${APP_PORT:-8090}:3000'
     depends_on:
       db:
         condition: service_healthy
@@ -241,7 +241,7 @@ volumes:
 | Variable                                                   | Uso                                                       |
 | ---------------------------------------------------------- | --------------------------------------------------------- |
 | `POSTGRES_PASSWORD`                                        | Contraseña de PostgreSQL (cámbiala en producción)         |
-| `APP_PORT`                                                 | Puerto local donde se publica la app (por defecto `3000`) |
+| `APP_PORT`                                                 | Puerto local donde se publica la app (por defecto `8090`) |
 | `LUMEN_IMAGE` / `LUMEN_TAG`                                | Imagen y etiqueta (`ghcr.io/marcosavg/lumen:latest`)      |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (opcional)                                       |
 | `TZ`                                                       | Zona horaria de presentación (persistencia en UTC)        |
@@ -256,7 +256,7 @@ par de claves con `pnpm vapid:generate` (repositorio) o `./install.sh --vapid`.
 docker compose pull
 docker compose run --rm migrate
 docker compose up -d
-curl -fsS http://127.0.0.1:3000/health
+curl -fsS http://127.0.0.1:8090/health
 
 # Respaldo (base + fotos, con el repositorio clonado)
 ./deploy/backup.sh

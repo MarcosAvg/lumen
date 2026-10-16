@@ -7,7 +7,7 @@
 # `127.0.0.1:${APP_PORT}` lista para tu Nginx/Traefik/Caddy.
 #
 # Uso:
-#   ./install.sh                                   # app en http://127.0.0.1:3000 (tras tu proxy)
+#   ./install.sh                                   # app en http://127.0.0.1:8090 (tras tu proxy)
 #   ./install.sh --domain lumen.midominio.com      # añade Caddy con HTTPS automático
 #   ./install.sh --caddy                           # añade Caddy con HTTP local (puerto 80)
 #   ./install.sh --build                           # compila la imagen en local (sin GHCR)
@@ -78,7 +78,7 @@ if [ ! -f .env ]; then
 		echo "POSTGRES_DB=lumen"
 		echo "LUMEN_IMAGE=ghcr.io/marcosavg/lumen"
 		echo "LUMEN_TAG=latest"
-		echo "APP_PORT=${APP_PORT_OVERRIDE:-3000}"
+		echo "APP_PORT=${APP_PORT_OVERRIDE:-8090}"
 		echo "TZ=${TZ:-UTC}"
 		if [ "$CADDY" = 1 ]; then
 			[ -n "$DOMAIN" ] && echo "DOMAIN=${DOMAIN}"
@@ -99,7 +99,7 @@ COMPOSE=(docker compose -f compose.yaml)
 # Valores efectivos (--flag > entorno > .env > por defecto) para los mensajes.
 env_value() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n1; }
 APP_PORT="${APP_PORT_OVERRIDE:-${APP_PORT:-$(env_value APP_PORT)}}"
-APP_PORT="${APP_PORT:-3000}"
+APP_PORT="${APP_PORT:-8090}"
 HTTP_PORT="${HTTP_PORT_OVERRIDE:-${HTTP_PORT:-$(env_value HTTP_PORT)}}"
 HTTP_PORT="${HTTP_PORT:-80}"
 EFFECTIVE_DOMAIN="${DOMAIN:-$(env_value DOMAIN)}"

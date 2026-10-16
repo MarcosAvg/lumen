@@ -6,17 +6,17 @@ name: lumen
 #   - `db`      PostgreSQL 17 con volumen persistente (no publicado al exterior).
 #   - `migrate` aplica las migraciones de Drizzle una vez y termina.
 #   - `app`     Lumen (imagen GHCR por defecto; ver `compose.build.yaml`), publicado
-#               solo en `127.0.0.1:${APP_PORT:-3000}`.
+#               solo en `127.0.0.1:${APP_PORT:-8090}`.
 #
 # El proxy inverso (Nginx, Traefik, Caddy…) lo gestionas **tú**: termina TLS y
-# reenvía a `127.0.0.1:3000`. Debe enviar siempre estas cabeceras (la app las exige
+# reenvía a `127.0.0.1:8090`. Debe enviar siempre estas cabeceras (la app las exige
 # para derivar el origen público y la IP real):
 #     Host, X-Forwarded-Proto, X-Forwarded-For
 # Sin `X-Forwarded-Proto` la app asume `https` (login por HTTP → 403); sin
 # `X-Forwarded-For` el rate limiting puede fallar (500). Ver `docs/deployment.md`.
 #
 # Cómo usarlo:
-#   docker compose up -d                    # app en http://127.0.0.1:3000 (tras el proxy)
+#   docker compose up -d                    # app en http://127.0.0.1:8090 (tras el proxy)
 #   docker compose -f compose.yaml -f compose.build.yaml up -d --build   # build local
 #   docker compose -f compose.yaml -f compose.dev.yaml up -d db          # solo PostgreSQL (dev)
 #
@@ -116,7 +116,7 @@ services:
       # Fotografías normalizadas y miniaturas. Respalda junto con `postgres_data`.
       - lumen_photos:/data/photos
     ports:
-      - '127.0.0.1:${APP_PORT:-3000}:3000'
+      - '127.0.0.1:${APP_PORT:-8090}:3000'
     depends_on:
       db:
         condition: service_healthy
