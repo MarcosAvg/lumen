@@ -10,6 +10,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=./lib.sh
+source "$ROOT/deploy/lib.sh"
 
 BACKUP_DIR="${1:?uso: ./deploy/restore.sh <carpeta-del-backup>}"
 DUMP="$BACKUP_DIR/db.dump"
@@ -20,13 +22,9 @@ if [ ! -f "$DUMP" ] || [ ! -f "$PHOTOS" ]; then
 	exit 1
 fi
 
-env_value() {
-	[ -f .env ] && sed -n "s/^$1=//p" .env | tail -n1 || true
-}
-
-POSTGRES_USER="${POSTGRES_USER:-$(env_value POSTGRES_USER)}"
+POSTGRES_USER="${POSTGRES_USER:-$(lumen_env_value POSTGRES_USER)}"
 POSTGRES_USER="${POSTGRES_USER:-lumen}"
-POSTGRES_DB="${POSTGRES_DB:-$(env_value POSTGRES_DB)}"
+POSTGRES_DB="${POSTGRES_DB:-$(lumen_env_value POSTGRES_DB)}"
 POSTGRES_DB="${POSTGRES_DB:-lumen}"
 
 echo "⚠  Esto reemplaza los datos actuales de «$POSTGRES_DB» y el volumen de fotos."

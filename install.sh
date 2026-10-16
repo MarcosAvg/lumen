@@ -17,6 +17,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
+# shellcheck source=./deploy/lib.sh
+source "$ROOT/deploy/lib.sh"
 
 DOMAIN=""
 CADDY=0
@@ -35,14 +37,6 @@ Uso: ./install.sh [opciones]
 
 El puerto local de la app y el resto de ajustes se cambian en `.env` (ver .env.example).
 EOF
-}
-
-random_secret() {
-	if command -v openssl >/dev/null 2>&1; then
-		openssl rand -hex 24
-	else
-		LC_ALL=C tr -dc 'a-f0-9' </dev/urandom | head -c 48
-	fi
 }
 
 while [ $# -gt 0 ]; do
@@ -66,7 +60,7 @@ if [ ! -f .env ]; then
 	{
 		echo "# Generado por install.sh el $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 		echo "POSTGRES_USER=lumen"
-		echo "POSTGRES_PASSWORD=$(random_secret)"
+		echo "POSTGRES_PASSWORD=$(lumen_random_secret)"
 		echo "POSTGRES_DB=lumen"
 		echo "LUMEN_IMAGE=ghcr.io/marcosavg/lumen"
 		echo "LUMEN_TAG=latest"
@@ -82,12 +76,11 @@ fi
 # --- 2. Compose ----------------------------------------------------------------
 COMPOSE=(docker compose -f compose.yaml)
 [ "$CADDY" = 1 ] && COMPOSE+=(--profile caddy)
-env_value() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n1; }
-APP_PORT="${APP_PORT:-$(env_value APP_PORT)}"
+APP_PORT="${APP_PORT:-$(lumen_env_value APP_PORT)}"
 APP_PORT="${APP_PORT:-8090}"
-HTTP_PORT="${HTTP_PORT:-$(env_value HTTP_PORT)}"
+HTTP_PORT="${HTTP_PORT:-$(lumen_env_value HTTP_PORT)}"
 HTTP_PORT="${HTTP_PORT:-80}"
-EFFECTIVE_DOMAIN="${DOMAIN:-$(env_value DOMAIN)}"
+EFFECTIVE_DOMAIN="${DOMAIN:-$(lumen_env_value DOMAIN)}"
 
 # --- 3. VAPID opcional ---------------------------------------------------------
 if [ "$VAPID" = 1 ] && ! grep -q '^VAPID_PRIVATE_KEY=..' .env 2>/dev/null; then

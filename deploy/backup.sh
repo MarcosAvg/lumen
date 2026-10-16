@@ -12,28 +12,18 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# shellcheck source=./lib.sh
+source "$ROOT/deploy/lib.sh"
 
-env_value() {
-	[ -f .env ] && sed -n "s/^$1=//p" .env | tail -n1 || true
-}
-
-POSTGRES_USER="${POSTGRES_USER:-$(env_value POSTGRES_USER)}"
+POSTGRES_USER="${POSTGRES_USER:-$(lumen_env_value POSTGRES_USER)}"
 POSTGRES_USER="${POSTGRES_USER:-lumen}"
-POSTGRES_DB="${POSTGRES_DB:-$(env_value POSTGRES_DB)}"
+POSTGRES_DB="${POSTGRES_DB:-$(lumen_env_value POSTGRES_DB)}"
 POSTGRES_DB="${POSTGRES_DB:-lumen}"
 
 BACKUP_DIR="${BACKUP_DIR:-$ROOT/backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="$BACKUP_DIR/$STAMP"
 mkdir -p "$OUT"
-
-sha256() {
-	if command -v sha256sum >/dev/null 2>&1; then
-		sha256sum "$1" | awk '{print $1}'
-	else
-		shasum -a 256 "$1" | awk '{print $1}'
-	fi
-}
 
 echo "→ Base de datos…"
 docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom --no-owner \
@@ -47,8 +37,8 @@ cat >"$OUT/manifest.json" <<EOF
   "createdAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "database": "$POSTGRES_DB",
   "files": {
-    "db.dump": { "bytes": $(wc -c <"$OUT/db.dump"), "sha256": "$(sha256 "$OUT/db.dump")" },
-    "photos.tar.gz": { "bytes": $(wc -c <"$OUT/photos.tar.gz"), "sha256": "$(sha256 "$OUT/photos.tar.gz")" }
+    "db.dump": { "bytes": $(wc -c <"$OUT/db.dump"), "sha256": "$(lumen_sha256 "$OUT/db.dump")" },
+    "photos.tar.gz": { "bytes": $(wc -c <"$OUT/photos.tar.gz"), "sha256": "$(lumen_sha256 "$OUT/photos.tar.gz")" }
   }
 }
 EOF
