@@ -3,14 +3,15 @@
 # Lumen · instalador de autoalojamiento.
 #
 # Crea `.env` con secretos aleatorios (si no existe), levanta Docker Compose y
-# espera a que la app responda. Pensado para que un `docker compose up -d`
-# también funcione sin argumentos; este script añade secretos y HTTPS.
+# espera a que la app responda. Por defecto **sin proxy**: la app queda en
+# `127.0.0.1:${APP_PORT}` lista para tu Nginx/Traefik/Caddy.
 #
 # Uso:
-#   ./install.sh                                   # local: http://localhost
-#   ./install.sh --domain lumen.midominio.com      # HTTPS automático
-#   ./install.sh --build                           # compila la imagen en local
-#   ./install.sh --http-port 8080                  # cambia el puerto HTTP público
+#   ./install.sh                                   # app en http://127.0.0.1:3000 (tras tu proxy)
+#   ./install.sh --domain lumen.midominio.com      # añade Caddy con HTTPS automático
+#   ./install.sh --caddy                           # añade Caddy con HTTP local (puerto 80)
+#   ./install.sh --build                           # compila la imagen en local (sin GHCR)
+#   ./install.sh --app-port 8080                   # cambia el puerto local de la app
 #   ./install.sh --vapid                           # genera y añade claves Web Push
 #
 set -euo pipefail
@@ -19,8 +20,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 DOMAIN=""
+CADDY=0
 BUILD=0
 VAPID=0
+APP_PORT_OVERRIDE=""
 HTTP_PORT_OVERRIDE=""
 HTTPS_PORT_OVERRIDE=""
 
@@ -28,10 +31,12 @@ usage() {
 	cat <<'EOF'
 Uso: ./install.sh [opciones]
 
-  --domain <dominio>    Dominio público; activa HTTPS automático (Let's Encrypt).
+  --domain <dominio>    Añade Caddy con HTTPS automático (Let's Encrypt).
+  --caddy               Añade Caddy (HTTP en el puerto 80) para pruebas locales.
   --build               Compila la imagen en local en lugar de usar GHCR.
-  --http-port <puerto>  Puerto HTTP público (por defecto 80).
-  --https-port <puerto> Puerto HTTPS público (por defecto 443).
+  --app-port <puerto>   Puerto local de la app (por defecto 3000). Tu proxy apunta aquí.
+  --http-port <puerto>  Con --caddy: puerto HTTP público (por defecto 80).
+  --https-port <puerto> Con --caddy: puerto HTTPS público (por defecto 443).
   --vapid               Genera claves Web Push y las añade a `.env`.
   -h, --help            Muestra esta ayuda.
 EOF
@@ -47,8 +52,10 @@ random_secret() {
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--domain) DOMAIN="${2:?falta el dominio}"; shift 2 ;;
+		--domain) DOMAIN="${2:?falta el dominio}"; CADDY=1; shift 2 ;;
+		--caddy) CADDY=1; shift ;;
 		--build) BUILD=1; shift ;;
+		--app-port) APP_PORT_OVERRIDE="${2:?falta el puerto}"; shift 2 ;;
 		--http-port) HTTP_PORT_OVERRIDE="${2:?falta el puerto}"; shift 2 ;;
 		--https-port) HTTPS_PORT_OVERRIDE="${2:?falta el puerto}"; shift 2 ;;
 		--vapid) VAPID=1; shift ;;
@@ -71,23 +78,28 @@ if [ ! -f .env ]; then
 		echo "POSTGRES_DB=lumen"
 		echo "LUMEN_IMAGE=ghcr.io/marcosavg/lumen"
 		echo "LUMEN_TAG=latest"
+		echo "APP_PORT=${APP_PORT_OVERRIDE:-3000}"
 		echo "TZ=${TZ:-UTC}"
-		[ -n "$HTTP_PORT_OVERRIDE" ] && echo "HTTP_PORT=${HTTP_PORT_OVERRIDE}"
-		[ -n "$HTTPS_PORT_OVERRIDE" ] && echo "HTTPS_PORT=${HTTPS_PORT_OVERRIDE}"
-		[ -n "$DOMAIN" ] && echo "DOMAIN=${DOMAIN}"
+		if [ "$CADDY" = 1 ]; then
+			[ -n "$DOMAIN" ] && echo "DOMAIN=${DOMAIN}"
+			[ -n "$HTTP_PORT_OVERRIDE" ] && echo "HTTP_PORT=${HTTP_PORT_OVERRIDE}"
+			[ -n "$HTTPS_PORT_OVERRIDE" ] && echo "HTTPS_PORT=${HTTPS_PORT_OVERRIDE}"
+		fi
 	} >.env
 	echo "→ .env creado con contraseña aleatoria."
 else
 	echo "→ Usando el .env existente."
-	[ -n "$DOMAIN" ] && echo "→ --domain ignorado: ya existe .env (edítalo a mano si hace falta)."
 fi
 
-# --- 2. Compose: override de build --------------------------------------------
+# --- 2. Compose: overrides ------------------------------------------------------
 COMPOSE=(docker compose -f compose.yaml)
 [ "$BUILD" = 1 ] && COMPOSE+=(-f compose.build.yaml)
+[ "$CADDY" = 1 ] && COMPOSE+=(-f compose.caddy.yaml)
 
-# Valores efectivos (--flag > entorno > .env > por defecto) para mensajes y comprobaciones.
+# Valores efectivos (--flag > entorno > .env > por defecto) para los mensajes.
 env_value() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n1; }
+APP_PORT="${APP_PORT_OVERRIDE:-${APP_PORT:-$(env_value APP_PORT)}}"
+APP_PORT="${APP_PORT:-3000}"
 HTTP_PORT="${HTTP_PORT_OVERRIDE:-${HTTP_PORT:-$(env_value HTTP_PORT)}}"
 HTTP_PORT="${HTTP_PORT:-80}"
 EFFECTIVE_DOMAIN="${DOMAIN:-$(env_value DOMAIN)}"
@@ -107,7 +119,7 @@ fi
 echo "→ Levantando Lumen…"
 "${COMPOSE[@]}" up -d $([ "$BUILD" = 1 ] && echo --build)
 
-# --- 5. Espera a /health (dentro del contenedor) ------------------------------
+# --- 5. Espera a /health (dentro del contenedor, independiente del proxy) ------
 echo "→ Esperando a que la app responda…"
 ready=0
 for _ in $(seq 1 60); do
@@ -127,26 +139,28 @@ else
 	echo "⚠ La app aún no responde. Revisa: docker compose logs -f app"
 fi
 
-# Comprobación opcional a través de Caddy (ingreso real).
-if [ "$ready" = 1 ] && command -v curl >/dev/null 2>&1; then
-	if ! curl -fsS -H "Host: localhost" "http://127.0.0.1:${HTTP_PORT}/health" >/dev/null 2>&1; then
-		echo "⚠ Caddy aún no responde en el puerto ${HTTP_PORT}; revisa: docker compose logs -f caddy"
+if [ "$CADDY" = 1 ]; then
+	if [ "$ready" = 1 ] && command -v curl >/dev/null 2>&1; then
+		if ! curl -fsS -H 'Host: localhost' "http://127.0.0.1:${HTTP_PORT}/health" >/dev/null 2>&1; then
+			echo "⚠ Caddy aún no responde en el puerto ${HTTP_PORT}; revisa: docker compose logs -f caddy"
+		fi
 	fi
-fi
-
-if [ -n "$EFFECTIVE_DOMAIN" ]; then
-	case "$EFFECTIVE_DOMAIN" in
-		http://* | https://*) echo "  URL: ${EFFECTIVE_DOMAIN}" ;;
-		*) echo "  URL pública: https://${EFFECTIVE_DOMAIN}  (Caddy emite el certificado; puede tardar unos segundos)" ;;
-	esac
-else
-	if [ "$HTTP_PORT" = 80 ]; then
-		echo "  URL local: http://localhost"
+	if [ -n "$EFFECTIVE_DOMAIN" ]; then
+		case "$EFFECTIVE_DOMAIN" in
+			http://* | https://*) echo "  URL: ${EFFECTIVE_DOMAIN}" ;;
+			*) echo "  URL pública: https://${EFFECTIVE_DOMAIN}  (Caddy emite el certificado; puede tardar unos segundos)" ;;
+		esac
 	else
-		echo "  URL local: http://localhost:${HTTP_PORT}"
+		if [ "$HTTP_PORT" = 80 ]; then
+			echo "  URL local: http://localhost"
+		else
+			echo "  URL local: http://localhost:${HTTP_PORT}"
+		fi
 	fi
-	echo "  Para HTTPS y Web Push: edita DOMAIN en .env (p. ej. DOMAIN=lumen.midominio.com) y ejecuta"
-	echo "  docker compose up -d"
+else
+	echo "  App escuchando en http://127.0.0.1:${APP_PORT}"
+	echo "  Configura tu proxy inverso para reenviar ahí enviando Host, X-Forwarded-Proto y"
+	echo "  X-Forwarded-For (ver DEPLOY.md §3). ¿Sin proxy? Ejecuta: ./install.sh --caddy"
 fi
 echo
 echo "Primer arranque: abre la app y completa «Configurar Lumen» para crear el administrador."

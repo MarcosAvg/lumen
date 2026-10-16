@@ -225,17 +225,22 @@ compose.yaml
            healthcheck y red privada (no publicado al exterior)
   migrate: runner de Drizzle (una vez) antes de arrancar la app
   app:     SvelteKit/Node (imagen GHCR), healthcheck,
-           volumen /data/photos (lectura/escritura), solo red interna
-  caddy:   único ingreso: HTTP local y HTTPS automático (Let's Encrypt)
+           volumen /data/photos (lectura/escritura),
+           publicado solo en 127.0.0.1:${APP_PORT}
+
+compose.caddy.yaml (opcional)
+  caddy:   proxy inverso con HTTPS automático (Let's Encrypt)
 
 volumes:
   postgres_data: persistente
   lumen_photos: persistente
-  caddy_data / caddy_config: estado de Caddy
+  caddy_data / caddy_config: estado de Caddy (solo con el override)
 ```
 
-- El acceso pasa por Caddy (único ingreso): `app` no se publica y **PostgreSQL nunca** sale a
-  Internet. `compose.dev.yaml` publica `db` solo en `127.0.0.1` para desarrollo.
+- **El proxy inverso lo gestiona el usuario** (convención self-host): la app se publica solo en
+  `127.0.0.1` y el proxy debe enviar `Host`, `X-Forwarded-Proto` y `X-Forwarded-For`. Como alternativa
+  sin proxy, `compose.caddy.yaml` añade Caddy (HTTPS automático). **PostgreSQL nunca** sale a Internet;
+  `compose.dev.yaml` publica `db` solo en `127.0.0.1` para desarrollo.
 - HTTPS en el proxy con `X-Forwarded-*` confiables; la app usa `PROTOCOL_HEADER`/`ADDRESS_HEADER`/
   `XFF_DEPTH`. El **origen público se deriva de la petición** (no se hornea), así que la misma imagen
   sirve para cualquier dominio sin reconstruir.

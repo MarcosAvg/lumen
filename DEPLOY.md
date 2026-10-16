@@ -2,7 +2,12 @@
 
 Guía **autocontenida** para levantar Lumen en un servidor con un único
 `docker compose up`. No requiere clonar el repositorio: el `compose.yaml` de más
-abajo incluye todo (aplicación, PostgreSQL, migraciones y el proxy HTTPS Caddy).
+abajo incluye la aplicación, PostgreSQL y las migraciones.
+
+Lumen **no incluye** un proxy inverso: como en el resto de proyectos self-host, lo
+gestionas tú (Nginx, Traefik, Caddy…). El compose publica la app en
+`127.0.0.1:3000` y tu proxy termina TLS y reenvía ahí. Si no tienes proxy, hay un
+**Caddy opcional** al final.
 
 > Esta es la versión **autocontenida** (sirve sin clonar el repo). La referencia
 > operativa **canónica** es [`docs/deployment.md`](docs/deployment.md) (seguridad,
@@ -10,99 +15,105 @@ abajo incluye todo (aplicación, PostgreSQL, migraciones y el proxy HTTPS Caddy)
 
 ## 1. Requisitos
 
-- **Docker** y **Docker Compose ≥ 2.23** (por el Caddyfile embebido con `configs.content`).
-  Comprueba con `docker compose version`.
-- Un **dominio** que apunte al servidor si quieres HTTPS y Web Push (Lumen es
-  online-only y los avisos push requieren un origen seguro). Para probar en
-  local basta con `localhost`.
-- Puertos **80/443** libres (o cámbialos con `HTTP_PORT`/`HTTPS_PORT`).
+- **Docker** y **Docker Compose v2** (`docker compose version`).
+- Un **proxy inverso** con TLS (o el Caddy opcional de la sección 7) para HTTPS;
+  Lumen es online-only y Web Push requiere un origen seguro.
+- Un **dominio** apuntando al servidor si vas a publicarlo.
 
 Arquitecturas soportadas por la imagen publicada: **amd64** (VPS x86-64) y
 **arm64** (Raspberry Pi, VPS ARM).
 
 ## 2. Despliegue rápido
 
-1. Crea una carpeta y guarda el archivo `compose.yaml` de la sección 3 dentro.
+1. Crea una carpeta y guarda el archivo `compose.yaml` de la sección 4 dentro.
    (También está disponible como archivo en el repositorio:
    `deploy/compose.standalone.yaml`.)
-2. Opcional: crea un `.env` en la misma carpeta para fijar la contraseña de
-   PostgreSQL y el dominio:
+2. Opcional: crea un `.env` en la misma carpeta:
    ```dotenv
    POSTGRES_PASSWORD=cambia-esta-clave
-   DOMAIN=lumen.midominio.com
+   APP_PORT=3000
    ```
 3. Arranca:
    ```bash
    docker compose up -d
+   docker compose ps          # `app` debe quedar "healthy"
    ```
-4. Abre `http://localhost` (o `https://tu-dominio`) y completa **Configurar
-   Lumen** para crear la cuenta administradora.
+4. Configura tu proxy para reenviar a `127.0.0.1:3000` (sección 3) y abre
+   `https://tu-dominio` para completar **Configurar Lumen**.
 
 Sin `.env` también funciona (usa valores por defecto). Detener sin perder datos:
 `docker compose down` (usa `down -v` **solo** para borrar los volúmenes).
 
-### HTTPS con dominio
+## 3. Proxy inverso (lo gestionas tú)
 
-- **Sin** `DOMAIN` → Caddy sirve `http://localhost` (pruebas locales).
-- **Con** `DOMAIN=lumen.midominio.com` → Caddy obtiene y renueva el certificado
-  (Let's Encrypt) automáticamente y sirve HTTPS en 80/443.
+Tu proxy debe reenviar a `127.0.0.1:3000` enviando **siempre** estas cabeceras; la
+app las exige para derivar el origen público y la IP real:
 
-```bash
-DOMAIN=lumen.midominio.com docker compose up -d
+| Cabecera            | Por qué                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `Host`              | La app construye URLs y valida el origen con él                         |
+| `X-Forwarded-Proto` | Sin ella la app **asume `https`** y el login por HTTP da **403 (CSRF)** |
+| `X-Forwarded-For`   | `ADDRESS_HEADER` la exige; sin ella el rate limiting da **500**         |
+
+Ejemplo con **Nginx** (TLS ya configurado):
+
+```nginx
+server {
+	listen 443 ssl http2;
+	server_name lumen.midominio.com;
+
+	# ssl_certificate ...; ssl_certificate_key ...;
+
+	client_max_body_size 30m;   # >= BODY_SIZE_LIMIT
+	proxy_read_timeout 300s;    # ZIP/PDF de evidencias
+
+	location / {
+		proxy_pass http://127.0.0.1:3000;
+		proxy_http_version 1.1;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Real-IP $remote_addr;
+	}
+}
 ```
 
-Opcional: para recibir avisos de expiración, añade un bloque global `email` al
-Caddyfile embebido (dentro del `{ ... }` de `admin off`).
+Con **Traefik**, apunta el servicio a `http://127.0.0.1:3000` (o al contenedor
+`app` si Traefik comparte la red de Compose) y deja que gestione TLS; Traefik añade
+las cabeceras `X-Forwarded-*` por defecto.
 
-### Actualizar
+> Si tu proxy corre en **otro contenedor** (no en el host), no basta con
+> `127.0.0.1`: une ambos a la misma red y usa `http://app:3000`, o publica el
+> puerto con `APP_BIND=0.0.0.0`.
+>
+> Si pones un **CDN** por delante, ajusta `XFF_DEPTH` (número de proxies) en el
+> entorno de `app`.
 
-```bash
-docker compose pull          # trae la imagen nueva (GHCR)
-docker compose run --rm migrate
-docker compose up -d
-curl -fsS http://127.0.0.1/health   # o https://tu-dominio/health
-```
+## 4. `compose.yaml`
 
-## 3. `compose.yaml`
-
-Copia este archivo como `compose.yaml`. El Caddyfile va embebido en
-`configs.caddyfile.content` (por eso `DOMAIN` se escribe `{$$DOMAIN:...}`: el
-`$$` escapa la interpolación de Compose y Caddy recibe `{$DOMAIN:...}`).
+Copia este archivo como `compose.yaml`.
 
 ```yaml
 name: lumen
 
-# Lumen · autoalojamiento en un solo archivo (`docker compose up -d`).
+# Lumen · autoalojamiento en un solo archivo, con tu propio proxy inverso.
 #
 # Servicios:
 #   - `db`      PostgreSQL 17 con volumen persistente (no publicado al exterior).
 #   - `migrate` aplica las migraciones de Drizzle una vez y termina.
-#   - `app`     Lumen (imagen GHCR multi-arquitectura: amd64 y arm64).
-#   - `caddy`   único ingreso: sirve http://localhost y, con `DOMAIN`, HTTPS automático.
+#   - `app`     Lumen (imagen GHCR multi-arquitectura: amd64 y arm64), publicado solo
+#               en `127.0.0.1:${APP_PORT:-3000}`.
 #
-# No requiere clonar el repositorio: el Caddyfile va embebido con `configs`.
-# Requiere Docker Compose ≥ 2.23 (soporte de `configs.content`).
+# El proxy inverso (Nginx, Traefik, Caddy…) lo gestionas tú: termina TLS y reenvía a
+# `127.0.0.1:3000` enviando `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app
+# las exige para el origen y la IP real). Ejemplos y avisos en DEPLOY.md.
 #
 # Cómo usarlo:
-#   docker compose up -d                              # http://localhost
-#   DOMAIN=lumen.midominio.com docker compose up -d   # HTTPS automático
-#   POSTGRES_PASSWORD=... docker compose up -d        # contraseña propia
+#   docker compose up -d                       # app en http://127.0.0.1:3000
+#   POSTGRES_PASSWORD=... docker compose up -d # contraseña propia
 #
-# El detalle operativo completo está en DEPLOY.md y docs/deployment.md.
-
-# Caddyfile embebido para no depender de archivos externos. `$$DOMAIN` escapa la
-# interpolación de Compose: Caddy recibe `{$DOMAIN:...}` y resuelve el dominio en runtime.
-configs:
-  caddyfile:
-    content: |
-      {
-        admin off
-      }
-
-      {$$DOMAIN:http://localhost} {
-        encode zstd gzip
-        reverse_proxy app:3000
-      }
+# No requiere clonar el repositorio. El detalle operativo está en DEPLOY.md y
+# docs/deployment.md.
 
 # --- Extensión: rotación de logs ------------------------------------------------
 # Evita que los logs de los contenedores llenen el disco del servidor.
@@ -117,9 +128,9 @@ x-logging: &logging
 x-database-url: &database-url postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
 
 # --- Extensión: entorno común de la app -----------------------------------------
-# El origen público se deriva de la petición (no se hornea en la imagen). Caddy es el
-# único ingreso y añade siempre `X-Forwarded-Proto`/`X-Forwarded-For`, que la app exige
-# para el origen y la IP real; sin esas cabeceras responde 403/500.
+# El origen público se deriva de la petición (no se hornea en la imagen). Tu proxy es
+# el único ingreso y debe añadir `X-Forwarded-Proto`/`X-Forwarded-For`; sin ellas la
+# app responde 403/500.
 x-app-environment: &app-environment
   DATABASE_URL: *database-url
   PHOTO_STORAGE_PATH: /data/photos
@@ -179,8 +190,8 @@ services:
     logging: *logging
     # Sin límites de recursos: es un proceso corto que termina tras migrar.
 
-  # Aplicación. Sin `ports`: el único ingreso es Caddy (red interna), que añade las
-  # cabeceras de proxy. Corre como usuario sin privilegios y con `init`.
+  # Aplicación. Se publica SOLO en 127.0.0.1 (tu proxy reenvía ahí). Corre como usuario
+  # sin privilegios y con `init`.
   app:
     image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
     restart: unless-stopped
@@ -192,6 +203,8 @@ services:
     volumes:
       # Fotografías normalizadas y miniaturas. Respáldalo junto con `postgres_data`.
       - lumen_photos:/data/photos
+    ports:
+      - '127.0.0.1:${APP_PORT:-3000}:3000'
     depends_on:
       db:
         condition: service_healthy
@@ -217,9 +230,66 @@ services:
           memory: ${APP_MEM_LIMIT:-1g}
           cpus: ${APP_CPUS:-2}
 
-  # Proxy inverso de entrada con HTTPS automático. `DOMAIN` es una dirección de sitio
-  # de Caddy: `http://localhost` (HTTP) o un dominio (HTTPS con Let's Encrypt).
-  # Sin healthcheck propio: la app ya se autocomprueba y Caddy reintenta el proxy.
+# Volúmenes persistentes. `down` los conserva; `down -v` los borra (pierde datos).
+volumes:
+  postgres_data: # base de datos SQL
+  lumen_photos: # fotografías y miniaturas
+```
+
+## 5. Variables de entorno (opcionales)
+
+| Variable                                                   | Uso                                                       |
+| ---------------------------------------------------------- | --------------------------------------------------------- |
+| `POSTGRES_PASSWORD`                                        | Contraseña de PostgreSQL (cámbiala en producción)         |
+| `APP_PORT`                                                 | Puerto local donde se publica la app (por defecto `3000`) |
+| `LUMEN_IMAGE` / `LUMEN_TAG`                                | Imagen y etiqueta (`ghcr.io/marcosavg/lumen:latest`)      |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (opcional)                                       |
+| `TZ`                                                       | Zona horaria de presentación (persistencia en UTC)        |
+
+Web Push es opcional: sin VAPID, la bandeja interna sigue funcionando. Genera un
+par de claves con `pnpm vapid:generate` (repositorio) o `./install.sh --vapid`.
+
+## 6. Actualizar y respaldar
+
+```bash
+# Actualizar
+docker compose pull
+docker compose run --rm migrate
+docker compose up -d
+curl -fsS http://127.0.0.1:3000/health
+
+# Respaldo (base + fotos, con el repositorio clonado)
+./deploy/backup.sh
+./deploy/restore.sh backups/<fecha>
+```
+
+Sin clonar, equivale a:
+
+```bash
+STAMP=$(date -u +%Y%m%dT%H%M%SZ); mkdir -p backups/$STAMP
+docker compose exec -T db pg_dump -U lumen -d lumen --format=custom --no-owner > backups/$STAMP/db.dump
+docker compose exec -T app tar -C /data/photos -czf - . > backups/$STAMP/photos.tar.gz
+```
+
+## 7. Caddy opcional (si no tienes proxy)
+
+Añade este servicio a tu `compose.yaml` para obtener HTTPS automático (Let's
+Encrypt). Caddy pasa a ser el único ingreso en 80/443 y añade las cabeceras.
+
+```yaml
+configs:
+  caddyfile:
+    content: |
+      {
+        admin off
+      }
+
+      {$$DOMAIN:http://localhost} {
+        encode zstd gzip
+        reverse_proxy app:3000
+      }
+
+services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -234,70 +304,23 @@ services:
       - source: caddyfile
         target: /etc/caddy/Caddyfile
     volumes:
-      # Estado de Caddy: certificados y configuración autoguardada.
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       app:
         condition: service_started
-    logging: *logging
-    deploy:
-      resources:
-        limits:
-          memory: ${CADDY_MEM_LIMIT:-256m}
-          cpus: ${CADDY_CPUS:-1}
-
-# Volúmenes persistentes. `down` los conserva; `down -v` los borra (pierde datos).
-volumes:
-  postgres_data: # base de datos SQL
-  lumen_photos: # fotografías y miniaturas
-  caddy_data: # certificados TLS y cuentas ACME
-  caddy_config: # configuración autoguardada de Caddy
 ```
 
-## 4. Variables de entorno (opcionales)
+Y declara los volúmenes `caddy_data` y `caddy_config` en la sección `volumes`.
+Con `DOMAIN=lumen.midominio.com` obtiene y renueva el certificado automáticamente;
+con `DOMAIN=http://localhost` sirve HTTP en el puerto 80 para pruebas locales.
 
-| Variable                                                   | Uso                                                  |
-| ---------------------------------------------------------- | ---------------------------------------------------- |
-| `POSTGRES_PASSWORD`                                        | Contraseña de PostgreSQL (cámbiala en producción)    |
-| `DOMAIN`                                                   | Dominio público; habilita HTTPS automático           |
-| `HTTP_PORT` / `HTTPS_PORT`                                 | Puertos públicos de Caddy (por defecto `80`/`443`)   |
-| `LUMEN_IMAGE` / `LUMEN_TAG`                                | Imagen y etiqueta (`ghcr.io/marcosavg/lumen:latest`) |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (opcional)                                  |
-| `TZ`                                                       | Zona horaria de presentación (persistencia en UTC)   |
+> En el repositorio esto ya existe como override: `docker compose -f compose.yaml
+-f compose.caddy.yaml up -d`.
 
-Web Push es opcional: sin VAPID, la bandeja interna sigue funcionando. Genera un
-par de claves con `pnpm vapid:generate` (repositorio) o deja que lo haga
-`./install.sh --vapid` si has clonado el repo.
+## 8. Seguridad y notas
 
-## 5. Copias de seguridad
-
-Respalda **juntos** la base y el volumen de fotos. Con el repositorio clonado:
-
-```bash
-./deploy/backup.sh                      # ./backups/<fecha>/{db.dump,photos.tar.gz,manifest.json}
-./deploy/restore.sh backups/<fecha>     # restauración (destructiva; pide confirmación)
-```
-
-Con solo el `compose.yaml` (sin clonar), equivale a:
-
-```bash
-STAMP=$(date -u +%Y%m%dT%H%M%SZ); mkdir -p backups/$STAMP
-docker compose exec -T db pg_dump -U lumen -d lumen --format=custom --no-owner > backups/$STAMP/db.dump
-docker compose exec -T app tar -C /data/photos -czf - . > backups/$STAMP/photos.tar.gz
-```
-
-Restaura sobre una base y un volumen existentes:
-
-```bash
-docker compose exec -T db pg_restore -U lumen -d lumen --clean --if-exists --no-owner < backups/<fecha>/db.dump
-docker compose exec -T app tar -xzf - -C /data/photos < backups/<fecha>/photos.tar.gz
-docker compose restart app
-```
-
-## 6. Seguridad y notas
-
-- **PostgreSQL no se publica** al exterior; el único ingreso es Caddy (80/443).
+- **PostgreSQL no se publica**; el único ingreso es tu proxy (o Caddy opcional).
 - El **origen público se deriva de la petición**, así que la misma imagen sirve
   para cualquier dominio sin reconstruir.
 - La aplicación corre como usuario sin privilegios `node`; hay healthchecks y
@@ -306,7 +329,3 @@ docker compose restart app
   PostgreSQL fuera del repositorio.
 - La **bandeja de notificaciones** interna funciona siempre; Web Push requiere
   HTTPS y claves VAPID.
-
-> Si ya tienes un proxy (Nginx/Traefik), puedes quitar el servicio `caddy` y
-> publicar `app` directamente, pero **debes** enviar `X-Forwarded-Proto` y
-> `X-Forwarded-For` (la app los exige para el origen y la IP real).

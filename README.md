@@ -12,29 +12,31 @@ servicios, trabajos, catálogos y usuarios.
 
 ## Quickstart (autoalojamiento)
 
-Requisitos: **Docker + Docker Compose ≥ 2.23** (no hace falta Node en el servidor).
+Requisitos: **Docker + Docker Compose v2** (no hace falta Node en el servidor) y un
+**proxy inverso** propio (Nginx, Traefik, Caddy…).
 
 ```bash
 git clone https://github.com/MarcosAvg/lumen.git
 cd lumen
-./install.sh                 # genera .env con secretos y arranca todo
+./install.sh                 # genera .env con secretos y arranca la app
 ```
 
-Abre **http://localhost** y completa **Configurar Lumen** para crear la cuenta
-administradora. `install.sh` es opcional: `docker compose up -d` también levanta
-todo con valores por defecto.
+La app queda en **http://127.0.0.1:3000**, lista para tu proxy: configura que
+reenvíe ahí enviando `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app los
+exige). Ejemplos y avisos en [`DEPLOY.md`](DEPLOY.md) §3. Después abre
+`https://tu-dominio` y completa **Configurar Lumen**.
 
-**Con dominio y HTTPS automático** (Caddy emite el certificado):
+**¿Sin proxy?** Añade Caddy con HTTPS automático:
 
 ```bash
-./install.sh --domain lumen.midominio.com
+./install.sh --domain lumen.midominio.com   # o ./install.sh --caddy (HTTP local)
 ```
 
 ¿Prefieres no clonar el repo? Copia el `compose.yaml` autocontenido de
 [`DEPLOY.md`](DEPLOY.md) en una carpeta y ejecuta `docker compose up -d`.
 
 La imagen publicada (`ghcr.io/marcosavg/lumen`, **multi-arquitectura amd64/arm64**)
-es el ingreso por defecto; `compose.build.yaml` permite compilar en local.
+se usa por defecto; `compose.build.yaml` permite compilar en local.
 
 ## Qué incluye
 
@@ -74,15 +76,16 @@ concede acceso fuera de los servicios autorizados.
 
 Todo se define por entorno o en un `.env` (opcional). Valores habituales:
 
-| Variable                                                   | Por defecto                      | Uso                                                  |
-| ---------------------------------------------------------- | -------------------------------- | ---------------------------------------------------- |
-| `POSTGRES_PASSWORD`                                        | `lumen`                          | Contraseña de PostgreSQL (cámbiala en producción)    |
-| `DOMAIN`                                                   | `http://localhost`               | Dirección de sitio de Caddy; un dominio activa HTTPS |
-| `HTTP_PORT` / `HTTPS_PORT`                                 | `80` / `443`                     | Puertos públicos                                     |
-| `LUMEN_IMAGE` / `LUMEN_TAG`                                | `ghcr.io/marcosavg/lumen:latest` | Imagen y etiqueta a usar                             |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | —                                | Web Push (opcional)                                  |
-| `MAX_UPLOAD_BYTES`                                         | `26214400` (25 MiB)              | Tamaño máximo por archivo                            |
-| `TZ`                                                       | `UTC`                            | Zona horaria de presentación (persistencia en UTC)   |
+| Variable                                                   | Por defecto                      | Uso                                                        |
+| ---------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| `POSTGRES_PASSWORD`                                        | `lumen`                          | Contraseña de PostgreSQL (cámbiala en producción)          |
+| `APP_PORT`                                                 | `3000`                           | Puerto local donde se publica la app (tu proxy apunta ahí) |
+| `LUMEN_IMAGE` / `LUMEN_TAG`                                | `ghcr.io/marcosavg/lumen:latest` | Imagen y etiqueta a usar                                   |
+| `DOMAIN` _(Caddy)_                                         | `http://localhost`               | Dirección de sitio de Caddy; un dominio activa HTTPS       |
+| `HTTP_PORT` / `HTTPS_PORT` _(Caddy)_                       | `80` / `443`                     | Puertos públicos del Caddy opcional                        |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | —                                | Web Push (opcional)                                        |
+| `MAX_UPLOAD_BYTES`                                         | `26214400` (25 MiB)              | Tamaño máximo por archivo                                  |
+| `TZ`                                                       | `UTC`                            | Zona horaria de presentación (persistencia en UTC)         |
 
 Lista completa y notas: [`docs/deployment.md`](docs/deployment.md#5-variables-de-entorno)
 y [`.env.example`](.env.example).
@@ -161,15 +164,17 @@ Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
 
 ## Solución de problemas
 
-| Síntoma                                      | Causa probable / solución                                                  |
-| -------------------------------------------- | -------------------------------------------------------------------------- |
-| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `-f compose.build.yaml`.                      |
-| La app no responde                           | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                 |
-| El único ingreso es Caddy                    | No accedas directo al contenedor `app`; usa `http://localhost` o `DOMAIN`. |
-| `403`/`500` en formularios                   | Accede por Caddy (envía `X-Forwarded-Proto`/`For`, que la app exige).      |
-| HTTPS no emite certificado                   | `DOMAIN` debe resolver al servidor y 80/443 estar libres.                  |
-| Puertos ocupados                             | Cambia `HTTP_PORT`/`HTTPS_PORT` en `.env`.                                 |
-| Push no llega                                | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual.          |
+| Síntoma                                      | Causa probable / solución                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `-f compose.build.yaml`.                                      |
+| La app no responde                           | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                                 |
+| No sé cómo publicar la app                   | Proxy a `127.0.0.1:${APP_PORT}`, o Caddy (`-f compose.caddy.yaml` / `install.sh --caddy`). |
+| `403` en formularios                         | Falta `X-Forwarded-Proto` en el proxy (sin ella la app asume `https`).                     |
+| `500` «Address header…»                      | Falta `X-Forwarded-For` en el proxy.                                                       |
+| `413` al subir fotos                         | Sube `client_max_body_size` del proxy (≥ `BODY_SIZE_LIMIT`, 30M).                          |
+| HTTPS no emite certificado (Caddy)           | `DOMAIN` debe resolver al servidor y 80/443 estar libres.                                  |
+| Puertos 80/443 ocupados (Caddy)              | Ya tienes un proxy: no uses Caddy; o cambia `HTTP_PORT`/`HTTPS_PORT`.                      |
+| Push no llega                                | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual.                          |
 
 ## Documentación
 
@@ -200,7 +205,7 @@ modelo de datos → arquitectura → interfaz → implementación.
 ## Stack
 
 Svelte 5 + SvelteKit + TypeScript (monolito) · Tailwind CSS + shadcn-svelte (PWA en
-línea) · PostgreSQL + Drizzle ORM/Kit · Docker Compose + Caddy · Web Push VAPID sin
+línea) · PostgreSQL + Drizzle ORM/Kit · Docker Compose (proxy inverso propio o Caddy opcional) · Web Push VAPID sin
 Redis ni Firebase obligatorios.
 
 **Fuera del alcance v1:** sincronización sin conexión, mensajería entre usuarios,

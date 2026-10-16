@@ -33,7 +33,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 - PWA instalable, **en línea**, con Web Push estándar VAPID e inbox interno.
 - Autenticación local por sesión segura en cookie; primera cuenta admin configurada en el primer arranque.
 - No añadir Redis, S3, Firebase, colas externas, microservicios, WebSockets ni servicios cloud obligatorios por defecto.
-- Imagen publicable en GHCR y usada **por defecto** por Compose (`compose.build.yaml` para build local); **origen público en runtime** (no hornear `ORIGIN`); **proxy HTTPS integrado (Caddy)** como único ingreso (HTTP local y HTTPS con `DOMAIN`), sin asumir un despliegue concreto.
+- Imagen publicable en GHCR y usada **por defecto** por Compose (`compose.build.yaml` para build local); **origen público en runtime** (no hornear `ORIGIN`); **el proxy inverso lo gestiona el usuario** (la app se publica en `127.0.0.1:${APP_PORT}`) con **Caddy opcional** (`compose.caddy.yaml`), sin asumir un despliegue concreto.
 
 ## Invariantes que nunca deben romperse
 
