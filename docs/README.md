@@ -20,7 +20,7 @@
 | Documento                                                            | Propósito                                                                            |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | [`deployment.md`](deployment.md)                                     | Referencia operativa **canónica**: HTTPS, variables, actualización, backup y problemas |
-| [`../DEPLOY.md`](../DEPLOY.md)                                       | Guía **autocontenida** para desplegar sin clonar el repo (compose para copiar/pegar)   |
+| [`../DEPLOY.md`](../DEPLOY.md)                                       | Guía **breve** de despliegue con Docker Compose (remite a `deployment.md`)            |
 | [`../IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)          | Registro de avance por etapas, decisiones y pruebas                                    |
 | [`../research/README.md`](../research/README.md)                      | Plan y guion de investigación de UX (interno)                                          |
 
