@@ -181,3 +181,20 @@
 		scroll-behavior: auto !important;
 	}
 }
+
+/* Ajustes móviles: sin retardo de 300 ms y sin resaltado de toque. */
+@layer base {
+	html {
+		-webkit-text-size-adjust: 100%;
+		-webkit-tap-highlight-color: transparent;
+	}
+	a,
+	button,
+	[role='button'],
+	input,
+	select,
+	textarea,
+	label {
+		touch-action: manipulation;
+	}
+}

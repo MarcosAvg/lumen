@@ -36,6 +36,7 @@
 						id="displayName"
 						name="displayName"
 						autocomplete="name"
+						autocapitalize="words"
 						required
 						aria-invalid={form?.errors?.displayName ? true : undefined}
 						aria-describedby={form?.errors?.displayName ? 'displayName-error' : undefined}
@@ -53,6 +54,9 @@
 						id="username"
 						name="username"
 						autocomplete="username"
+						autocapitalize="none"
+						autocorrect="off"
+						spellcheck="false"
 						required
 						aria-invalid={form?.errors?.username ? true : undefined}
 						aria-describedby={form?.errors?.username ? 'username-error' : undefined}

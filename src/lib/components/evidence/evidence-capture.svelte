@@ -875,7 +875,7 @@
 				}}
 			/>
 			<span
-				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+				class="inline-flex h-11 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted md:h-8"
 			>
 				Tomar foto
 			</span>
@@ -893,7 +893,7 @@
 				}}
 			/>
 			<span
-				class="inline-flex h-8 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted"
+				class="inline-flex h-11 items-center rounded-lg border border-input px-3 text-sm hover:bg-muted md:h-8"
 			>
 				Elegir fotos
 			</span>

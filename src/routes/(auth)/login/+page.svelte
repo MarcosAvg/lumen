@@ -34,6 +34,9 @@
 						id="username"
 						name="username"
 						autocomplete="username"
+						autocapitalize="none"
+						autocorrect="off"
+						spellcheck="false"
 						required
 						aria-invalid={form?.errors?.username ? true : undefined}
 						aria-describedby={form?.errors?.username ? 'username-error' : undefined}
