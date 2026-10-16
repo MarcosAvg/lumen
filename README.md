@@ -1,18 +1,52 @@
 # Lumen
 
-**Lumen** es una aplicación web progresiva (PWA), autohospedada y orientada a equipos pequeños de servicios en campo. Permite que los técnicos capturen **evidencia fotográfica compartida**, que supervisores asignados la **aprueben o rechacen por entrega** y que administradores organicen servicios, trabajos, catálogos y usuarios.
+**Lumen** es una PWA autohospedada para equipos pequeños de servicios en campo:
+los técnicos capturan **evidencia fotográfica compartida**, los supervisores
+asignados la **aprueban o rechazan por entrega** y los administradores organizan
+servicios, trabajos, catálogos y usuarios.
 
-> **Estado:** implementación v1 en curso (Etapas 0–8 completadas: infraestructura, identidad y permisos, catálogos/servicios/trabajos, captura fotográfica, envíos/revisiones, bandeja interna + Web Push, búsqueda/exportaciones y calidad/operación). El repositorio es una **aplicación ejecutable** con CI; el detalle de avance está en [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) y el despliegue en [`docs/deployment.md`](docs/deployment.md).
+> **Estado:** implementación v1 en curso (etapas 0–8 completadas). El repositorio
+> es una **aplicación ejecutable** con CI; el avance está en
+> [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) y la operación en
+> [`docs/deployment.md`](docs/deployment.md).
 
-## Qué resuelve
+## Quickstart (autoalojamiento)
 
-- Organizar **servicios** que contienen **trabajos**; un trabajo puede ser **directo** o estar **dividido en elementos**.
-- Configurar requisitos fotográficos **obligatorios u opcionales** (p. ej. Antes, Durante, Después), permitiendo siempre fotos adicionales.
-- Permitir que varios técnicos asignados colaboren sobre **una sola evidencia compartida** por trabajo directo o elemento.
-- Enviar **entregas inmutables** a revisión; conservar fotografías y decisiones de versiones anteriores aunque la evidencia vigente se corrija.
-- Avisar de entregas y decisiones mediante **bandeja interna** y **Web Push**.
-- Buscar servicios, trabajos y elementos globalmente según permisos.
-- Descargar fotografías, ZIP por entrega, ZIP por servicio y CSV administrativos.
+Requisitos: **Docker + Docker Compose ≥ 2.23** (no hace falta Node en el servidor).
+
+```bash
+git clone https://github.com/MarcosAvg/lumen.git
+cd lumen
+./install.sh                 # genera .env con secretos y arranca todo
+```
+
+Abre **http://localhost** y completa **Configurar Lumen** para crear la cuenta
+administradora. `install.sh` es opcional: `docker compose up -d` también levanta
+todo con valores por defecto.
+
+**Con dominio y HTTPS automático** (Caddy emite el certificado):
+
+```bash
+./install.sh --domain lumen.midominio.com
+```
+
+¿Prefieres no clonar el repo? Copia el `compose.yaml` autocontenido de
+[`DEPLOY.md`](DEPLOY.md) en una carpeta y ejecuta `docker compose up -d`.
+
+La imagen publicada (`ghcr.io/marcosavg/lumen`, **multi-arquitectura amd64/arm64**)
+es el ingreso por defecto; `compose.build.yaml` permite compilar en local.
+
+## Qué incluye
+
+- **Servicios → trabajos**: un trabajo puede ser **directo** o **dividido en elementos**.
+- **Requisitos fotográficos** obligatorios u opcionales (p. ej. Antes, Durante,
+  Después) con fotos adicionales siempre permitidas.
+- **Evidencia compartida** entre los técnicos asignados de un trabajo/elemento.
+- **Entregas inmutables** a revisión; el historial y las fotos anteriores se conservan.
+- **Revisión atómica**: aprobar o rechazar con motivo obligatorio y confirmación.
+- **Avisos** por bandeja interna y **Web Push** opcional (VAPID).
+- **Búsqueda global** según permisos y **exportaciones** (fotos, ZIP por entrega y
+  por servicio, PDF de evidencia y registro XLSX).
 
 ## Roles
 
@@ -22,30 +56,122 @@
 | **Supervisor**    | Solo servicios asignados | Consultar evidencias, revisar entregas pendientes, consultar historial y descargar/exportar evidencias              |
 | **Técnico**       | Solo servicios asignados | Capturar, retirar y ordenar fotos compartidas; enviar entregas; consultar historial y descargar/exportar evidencias |
 
-La autorización es **del servidor**: una URL directa, descarga o búsqueda no concede acceso fuera de los servicios autorizados.
-
-## Stack acordado
-
-- **Frontend y backend:** Svelte 5, SvelteKit, TypeScript; monolito desplegable.
-- **Interfaz:** Tailwind CSS y shadcn-svelte; diseño móvil primero y PWA en línea.
-- **Datos:** PostgreSQL + Drizzle ORM / Drizzle Kit.
-- **Archivos:** almacenamiento local persistente en volumen Docker (fotografías y miniaturas); metadatos en PostgreSQL.
-- **Contenedores:** Docker Compose con aplicación y PostgreSQL. Distribución de imagen de aplicación preferentemente mediante GHCR.
-- **Notificaciones:** bandeja interna + Web Push con VAPID y service worker, sin Redis ni Firebase obligatorio.
-
-**Fuera del alcance v1:** sincronización sin conexión, mensajería entre usuarios, comentarios por fotografía, revisión de fotos individuales, gestión integral de contratos/facturación, inventario obligatorio, estructura rígida de activos, edición simultánea en tiempo real mediante WebSockets, informes PDF obligatorios.
+La autorización es **del servidor**: una URL directa, descarga o búsqueda no
+concede acceso fuera de los servicios autorizados.
 
 ## Cómo se usa
 
-1. En el **primer arranque**, se configura una cuenta de administrador local.
+1. En el **primer arranque** se configura una cuenta de administrador local.
 2. El administrador crea usuarios, catálogos y servicios; asigna técnicos y supervisores.
 3. Define trabajos directos o divididos, elementos y requisitos fotográficos.
-4. Los técnicos asignados capturan fotos en las secciones correspondientes y **envían una entrega**.
-5. Un supervisor asignado o administrador **confirma** la aprobación, o **confirma** el rechazo indicando un motivo obligatorio.
-6. Si se rechaza, los técnicos actualizan la evidencia compartida y envían una nueva versión. El historial anterior queda consultable.
-7. El servicio se considera completado automáticamente cuando **todos sus trabajos están aprobados**.
+4. Los técnicos asignados capturan fotos y **envían una entrega**.
+5. Un supervisor asignado o un administrador **confirma** la aprobación o el
+   rechazo (con motivo).
+6. Si se rechaza, los técnicos corrigen y envían una nueva versión; el historial queda consultable.
+7. El servicio se marca **completado** cuando todos sus trabajos están aprobados.
 
-## Documentación de implementación
+## Configuración
+
+Todo se define por entorno o en un `.env` (opcional). Valores habituales:
+
+| Variable                                                   | Por defecto                      | Uso                                                  |
+| ---------------------------------------------------------- | -------------------------------- | ---------------------------------------------------- |
+| `POSTGRES_PASSWORD`                                        | `lumen`                          | Contraseña de PostgreSQL (cámbiala en producción)    |
+| `DOMAIN`                                                   | `http://localhost`               | Dirección de sitio de Caddy; un dominio activa HTTPS |
+| `HTTP_PORT` / `HTTPS_PORT`                                 | `80` / `443`                     | Puertos públicos                                     |
+| `LUMEN_IMAGE` / `LUMEN_TAG`                                | `ghcr.io/marcosavg/lumen:latest` | Imagen y etiqueta a usar                             |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | —                                | Web Push (opcional)                                  |
+| `MAX_UPLOAD_BYTES`                                         | `26214400` (25 MiB)              | Tamaño máximo por archivo                            |
+| `TZ`                                                       | `UTC`                            | Zona horaria de presentación (persistencia en UTC)   |
+
+Lista completa y notas: [`docs/deployment.md`](docs/deployment.md#5-variables-de-entorno)
+y [`.env.example`](.env.example).
+
+### Notificaciones push (opcional)
+
+La **bandeja interna funciona siempre**. Web Push requiere claves **VAPID** y HTTPS
+(en iOS, además, añadir la PWA a la pantalla de inicio):
+
+```bash
+./install.sh --vapid           # genera las claves y las añade a .env
+# o bien: pnpm vapid:generate  (copia el resultado en .env)
+```
+
+En **Ajustes** se activa el push por dispositivo y se envía una **notificación de
+prueba** para comprobar la configuración.
+
+## Desarrollo
+
+Requisitos: **Node.js ≥ 22**, **pnpm 9** y Docker (solo el PostgreSQL del compose).
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up -d db   # PostgreSQL en 127.0.0.1:5432
+pnpm install
+pnpm db:migrate                # carga .env automáticamente
+pnpm dev                       # http://localhost:5173
+```
+
+> En desarrollo, `PHOTO_STORAGE_PATH` apunta a `./data/photos` (ignorado por git).
+> En el contenedor de producción se usa el volumen `lumen_photos` en `/data/photos`.
+
+Comprobaciones y pruebas:
+
+```bash
+pnpm check             # svelte-check (tipos)
+pnpm lint              # Prettier + ESLint
+pnpm test              # pruebas unitarias (Vitest)
+pnpm test:integration  # integración con PostgreSQL real
+pnpm test:e2e          # E2E con Playwright (escritorio y móvil)
+pnpm build             # build de producción (adapter-node)
+```
+
+Las pruebas de integración usan `TEST_DATABASE_URL`
+(`postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`, se crea y migra sola)
+y se omiten con un aviso si no hay PostgreSQL. Las E2E preparan su propia base y
+requieren `pnpm exec playwright install --with-deps chromium` una vez.
+
+### Scripts
+
+| Script                                     | Descripción                                                     |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `dev` / `build` / `start`                  | servidor de desarrollo, build de producción, arranque del build |
+| `check` / `lint` / `format`                | tipos, lint y formateo                                          |
+| `test` / `test:integration` / `test:e2e`   | pruebas unitarias, con base de datos real y E2E (Playwright)    |
+| `db:generate` / `db:migrate` / `db:studio` | migraciones Drizzle (generar, aplicar, explorar)                |
+| `maintenance:cleanup`                      | limpieza de temporales/huérfanos y suscripciones push revocadas |
+| `backup` / `restore`                       | respaldo y restauración de BD + fotos                           |
+| `vapid:generate`                           | genera un par de claves VAPID para Web Push                     |
+
+## Despliegue y operación
+
+Guías: [`DEPLOY.md`](DEPLOY.md) (autocontenida, con el `compose.yaml` completo) y
+[`docs/deployment.md`](docs/deployment.md) (HTTPS, actualización, seguridad y
+resolución de problemas).
+
+Con Docker (no requiere Node en el host):
+
+```bash
+./deploy/backup.sh                  # BD + fotos en ./backups/<fecha>
+./deploy/restore.sh backups/<fecha> # restauración (destructiva; pide confirmación)
+docker compose exec app node scripts/cleanup.mjs   # temporales, huérfanos y push revocado
+docker compose pull && docker compose up -d        # actualizar a la última imagen
+```
+
+Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
+
+## Solución de problemas
+
+| Síntoma                                      | Causa probable / solución                                                  |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `-f compose.build.yaml`.                      |
+| La app no responde                           | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                 |
+| El único ingreso es Caddy                    | No accedas directo al contenedor `app`; usa `http://localhost` o `DOMAIN`. |
+| `403`/`500` en formularios                   | Accede por Caddy (envía `X-Forwarded-Proto`/`For`, que la app exige).      |
+| HTTPS no emite certificado                   | `DOMAIN` debe resolver al servidor y 80/443 estar libres.                  |
+| Puertos ocupados                             | Cambia `HTTP_PORT`/`HTTPS_PORT` en `.env`.                                 |
+| Push no llega                                | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual.          |
+
+## Documentación
 
 | Archivo                                                  | Propósito                                                                           |
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -58,7 +184,8 @@ La autorización es **del servidor**: una URL directa, descarga o búsqueda no c
 | [`docs/05-interfaz-pwa.md`](docs/05-interfaz-pwa.md)     | Pantallas, navegación, interacciones y accesibilidad                                |
 | [`docs/06-implementacion.md`](docs/06-implementacion.md) | Plan por etapas, pruebas, entrega y criterios de aceptación                         |
 
-**Orden recomendado de lectura para el agente:** `AGENTS.md` → producto → flujos → modelo de datos → arquitectura → interfaz → implementación.
+**Orden recomendado de lectura para el agente:** `AGENTS.md` → producto → flujos →
+modelo de datos → arquitectura → interfaz → implementación.
 
 ## Principios de producto
 
@@ -69,123 +196,18 @@ La autorización es **del servidor**: una URL directa, descarga o búsqueda no c
 5. **No añadir infraestructura sin necesidad:** para equipos pequeños, SvelteKit + PostgreSQL + volúmenes persistentes son suficientes.
 6. **Primero consistencia y permisos, luego apariencia:** ninguna operación crítica debe depender solo de validaciones en el navegador.
 
-## Puesta en marcha prevista
+## Stack
 
-La implementación debe incluir `compose.yaml`, `Dockerfile`, `.env.example`, migraciones Drizzle, inicialización del administrador y procedimientos de respaldo/restauración. **No se incluyen aquí credenciales, secretos ni valores de producción.** El despliegue debe estar protegido por HTTPS para el uso correcto de sesiones y Web Push.
+Svelte 5 + SvelteKit + TypeScript (monolito) · Tailwind CSS + shadcn-svelte (PWA en
+línea) · PostgreSQL + Drizzle ORM/Kit · Docker Compose + Caddy · Web Push VAPID sin
+Redis ni Firebase obligatorios.
 
-Los detalles operativos y las variables previstas se encuentran en [`docs/04-arquitectura.md`](docs/04-arquitectura.md).
+**Fuera del alcance v1:** sincronización sin conexión, mensajería entre usuarios,
+comentarios por fotografía, revisión de fotos individuales, gestión integral de
+contratos/facturación, inventario obligatorio, estructura rígida de activos, edición
+simultánea en tiempo real mediante WebSockets, informes PDF obligatorios.
 
-## Desarrollo local
+## Licencia
 
-**Requisitos:** Docker + Docker Compose, Node.js ≥ 22 y pnpm 9 (o Corepack).
-
-```bash
-git clone https://github.com/MarcosAvg/lumen.git
-cd lumen
-cp .env.example .env          # ajusta POSTGRES_PASSWORD y ORIGIN si lo necesitas
-```
-
-### Autoalojamiento (un solo `docker compose`)
-
-Guía autocontenida (con el `compose.yaml` completo para copiar/pegar, sin clonar
-el repo): **[`DEPLOY.md`](DEPLOY.md)**.
-
-```bash
-git clone https://github.com/MarcosAvg/lumen.git
-cd lumen
-./install.sh                    # genera .env con secretos y arranca
-# App en http://localhost
-```
-
-Sin script también funciona: `docker compose up -d` levanta todo con valores por
-defecto; `install.sh` añade una contraseña aleatoria y, con `--domain`, HTTPS.
-
-El único ingreso es **Caddy**: por defecto sirve `http://localhost` (puerto 80) y,
-si defines `DOMAIN`, obtiene el certificado y sirve **HTTPS** en 80/443:
-
-```bash
-./install.sh --domain lumen.midominio.com
-# o bien: edita DOMAIN en .env y ejecuta `docker compose up -d`
-```
-
-**Compilar la imagen en local** (sin GHCR):
-
-```bash
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
-```
-
-- Puertos públicos configurables: `HTTP_PORT=8080 ./install.sh`.
-- El **origen público se deriva de la petición**: la misma imagen sirve para
-  cualquier dominio sin reconstruir.
-- Primer arranque: abre la app y completa **Configurar Lumen** para crear la cuenta administradora.
-- Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar volúmenes).
-
-### Desarrollo con servidor de Vite (hot reload)
-
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml up -d db   # PostgreSQL en 127.0.0.1:5432
-pnpm install
-pnpm db:migrate                # carga .env automáticamente
-pnpm dev                       # http://localhost:5173
-```
-
-> En desarrollo, `PHOTO_STORAGE_PATH` apunta a `./data/photos` (ignorado por git). En el contenedor
-> de producción se usa el volumen `lumen_photos` en `/data/photos`.
-
-### Comprobaciones y pruebas
-
-```bash
-pnpm check            # svelte-check (tipos)
-pnpm lint             # Prettier + ESLint
-pnpm test             # pruebas unitarias (Vitest)
-pnpm test:integration # pruebas con PostgreSQL real (requiere `docker compose up -d db`)
-pnpm test:e2e         # pruebas E2E con Playwright (escritorio y móvil)
-pnpm build            # build de producción (adapter-node)
-```
-
-Las pruebas de integración usan `TEST_DATABASE_URL` (por defecto
-`postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test`, que se crea y migra
-automáticamente); si no hay PostgreSQL disponible se omiten con un aviso. Las E2E preparan su
-propia base, construyen la app y arrancan el servidor; requieren
-`pnpm exec playwright install --with-deps chromium` una vez.
-
-### Mantenimiento
-
-Con Docker (no requiere Node en el host):
-
-```bash
-./deploy/backup.sh                  # BD + fotos en ./backups/<fecha>
-./deploy/restore.sh backups/<fecha> # restauración (destructiva; pide confirmación)
-docker compose exec app node scripts/cleanup.mjs   # borra temporales y huérfanos
-```
-
-Con Node en el host también valen `pnpm backup`, `pnpm restore` y `pnpm maintenance:cleanup`.
-Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
-
-Guía completa de despliegue, HTTPS, migraciones, VAPID, backups/restauración y GHCR en
-[`docs/deployment.md`](docs/deployment.md).
-
-### Notificaciones push (opcional)
-
-La **bandeja interna** funciona siempre. Web Push es opcional y requiere un par de claves
-**VAPID** y HTTPS (en iOS, además, añadir la PWA a la pantalla de inicio):
-
-```bash
-pnpm vapid:generate        # imprime VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY y VAPID_SUBJECT
-# copia el resultado en tu .env (la clave privada es un secreto)
-```
-
-Sin esas variables, la app y la bandeja interna siguen siendo plenamente operativas; la página
-**Ajustes** indicará «Push no configurado».
-
-### Scripts
-
-| Script                                     | Descripción                                                     |
-| ------------------------------------------ | --------------------------------------------------------------- |
-| `dev` / `build` / `start`                  | servidor de desarrollo, build de producción, arranque del build |
-| `check` / `lint` / `format`                | tipos, lint y formateo                                          |
-| `test` / `test:integration` / `test:e2e`   | pruebas unitarias, con base de datos real y E2E (Playwright)    |
-| `db:generate` / `db:migrate` / `db:studio` | migraciones Drizzle (generar, aplicar, explorar)                |
-| `maintenance:cleanup`                      | limpieza de archivos temporales/huérfanos                       |
-| `backup` / `restore`                       | respaldo y restauración de BD + fotos                           |
-| `vapid:generate`                           | genera un par de claves VAPID para Web Push                     |
+Este repositorio no declara todavía una licencia; el uso y la redistribución quedan
+por definir por su autor.
