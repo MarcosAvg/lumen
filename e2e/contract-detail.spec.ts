@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ensureAdmin } from './helpers';
+import { ensureAdmin, photoFile } from './helpers';
 
 test('la ficha del contrato: cabecera con avance, dos columnas y participantes en modal', async ({
 	page
@@ -34,6 +34,14 @@ test('la ficha del contrato: cabecera con avance, dos columnas y participantes e
 	await expect(
 		content.locator('[data-slot="card-title"]', { hasText: 'Zona de peligro' })
 	).toBeVisible();
+
+	// El fondo del PDF se elige con un botón visible, no con el input nativo.
+	await expect(page.getByRole('button', { name: 'Elegir imagen' })).toBeVisible();
+	const uploadButton = page.getByRole('button', { name: 'Subir fondo' });
+	await expect(uploadButton).toBeDisabled();
+	await page.locator('#pdf-background').setInputFiles(photoFile());
+	await expect(page.getByText('foto.jpg')).toBeVisible();
+	await expect(uploadButton).toBeEnabled();
 
 	// Participantes se gestionan en modal.
 	await page.getByRole('button', { name: 'Gestionar participantes' }).click();

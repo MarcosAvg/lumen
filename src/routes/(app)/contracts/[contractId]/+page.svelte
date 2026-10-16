@@ -37,6 +37,9 @@
 	let membersOpen = $state(false);
 	let deleteOpen = $state(false);
 	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
+	// Fondo del PDF: el selector nativo se oculta tras un botón visible.
+	let backgroundInput = $state<HTMLInputElement | null>(null);
+	let backgroundName = $state('');
 
 	const submitEdit: NonNullable<Parameters<typeof enhance>[1]> =
 		() =>
@@ -243,20 +246,39 @@
 							method="POST"
 							action="?/uploadBackground"
 							enctype="multipart/form-data"
-							class="space-y-2"
+							class="space-y-3"
 						>
 							<div class="space-y-2">
 								<Label for="pdf-background">Imagen (PNG o JPG, máx. 5 MB)</Label>
-								<input
-									id="pdf-background"
-									name="background"
-									type="file"
-									accept="image/png,image/jpeg"
-									required
-									class="text-sm"
-								/>
+								<div class="flex flex-wrap items-center gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onclick={() => backgroundInput?.click()}
+									>
+										Elegir imagen
+									</Button>
+									<span class="min-w-0 truncate text-sm text-muted-foreground">
+										{backgroundName || 'Ningún archivo seleccionado'}
+									</span>
+									<input
+										bind:this={backgroundInput}
+										id="pdf-background"
+										name="background"
+										type="file"
+										accept="image/png,image/jpeg"
+										required
+										class="sr-only"
+										onchange={(event) => {
+											backgroundName = event.currentTarget.files?.[0]?.name ?? '';
+										}}
+									/>
+								</div>
 							</div>
-							<Button type="submit" variant="outline" size="sm">Subir fondo</Button>
+							<Button type="submit" variant="outline" size="sm" disabled={!backgroundName}>
+								Subir fondo
+							</Button>
 						</form>
 						{#if data.hasPdfBackground}
 							<form method="POST" action="?/removeBackground">
