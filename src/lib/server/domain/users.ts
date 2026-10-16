@@ -23,7 +23,7 @@ import { getPgErrorCode } from '#lib/server/db/errors';
  */
 const ADMIN_GUARD_LOCK = 918273645;
 
-export function normalizeUsername(raw: string): string {
+function normalizeUsername(raw: string): string {
 	return raw.trim().toLowerCase();
 }
 
@@ -215,7 +215,7 @@ export async function listIncompatibleAssignments(
 }
 
 /** Asignaciones de contrato activas incompatibles con el nuevo rol global. */
-export async function listIncompatibleContractAssignments(
+async function listIncompatibleContractAssignments(
 	db: Database,
 	userId: string,
 	newRole: Role

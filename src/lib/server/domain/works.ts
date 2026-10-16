@@ -542,16 +542,6 @@ export async function getElementDetail(db: Database, elementId: string): Promise
 	return row;
 }
 
-/** Id del objetivo de evidencia de un elemento (para la captura de la Etapa 3). */
-export async function getElementTargetId(db: Database, elementId: string): Promise<string | null> {
-	const [row] = await db
-		.select({ id: evidenceTargets.id })
-		.from(evidenceTargets)
-		.where(eq(evidenceTargets.elementId, elementId))
-		.limit(1);
-	return row?.id ?? null;
-}
-
 export interface WorkProgressItem {
 	id: string;
 	name: string;

@@ -324,7 +324,7 @@ export async function listCatalogItemOptions(
 }
 
 /** Recuento de usos por ítem (trabajos, elementos y edificios de servicio). */
-export async function getCatalogItemsUsage(
+async function getCatalogItemsUsage(
 	db: Database,
 	itemIds: string[]
 ): Promise<Map<string, CatalogItemImpact>> {
@@ -470,25 +470,6 @@ export interface ItemOption {
 	name: string;
 	catalogId: string;
 	catalogName: string;
-}
-
-/** Ítems de todos los catálogos (opcionalmente excluyendo uno), para selectores. */
-export async function listAllItemOptions(
-	db: Database,
-	excludeCatalogId?: string
-): Promise<ItemOption[]> {
-	const rows = await db
-		.select({
-			id: catalogItems.id,
-			name: catalogItems.name,
-			catalogId: catalogItems.catalogId,
-			catalogName: catalogs.name
-		})
-		.from(catalogItems)
-		.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
-		.orderBy(asc(catalogs.name), asc(catalogItems.sortOrder), asc(catalogItems.name));
-
-	return excludeCatalogId ? rows.filter((row) => row.catalogId !== excludeCatalogId) : rows;
 }
 
 export interface CatalogWithItems {
@@ -828,25 +809,4 @@ export async function listRelationsForCatalog(
 			or(inArray(catalogItemRelations.fromItemId, ids), inArray(catalogItemRelations.toItemId, ids))
 		)
 		.orderBy(asc(catalogItemRelations.createdAt));
-}
-
-/** Relaciones entre dos ítems concretos (usadas para expandir generación). */
-export async function listRelationsBetweenItems(
-	db: Database,
-	fromItemIds: string[],
-	toItemIds: string[]
-): Promise<{ fromItemId: string; toItemId: string }[]> {
-	if (fromItemIds.length === 0 || toItemIds.length === 0) return [];
-	return db
-		.select({
-			fromItemId: catalogItemRelations.fromItemId,
-			toItemId: catalogItemRelations.toItemId
-		})
-		.from(catalogItemRelations)
-		.where(
-			and(
-				inArray(catalogItemRelations.fromItemId, fromItemIds),
-				inArray(catalogItemRelations.toItemId, toItemIds)
-			)
-		);
 }

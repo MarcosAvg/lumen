@@ -57,10 +57,3 @@ export async function revokeSession(db: Database, tokenHash: string): Promise<vo
 		.set({ revokedAt: new Date() })
 		.where(and(eq(sessions.tokenHash, tokenHash), isNull(sessions.revokedAt)));
 }
-
-export async function revokeSessionsForUser(db: Database, userId: string): Promise<void> {
-	await db
-		.update(sessions)
-		.set({ revokedAt: new Date() })
-		.where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
-}

@@ -34,7 +34,7 @@ import { getTargetContext } from './targets';
  * XLSX refleja **todo** el estado.
  */
 
-export const NO_BUILDING_LABEL = 'Sin edificio';
+const NO_BUILDING_LABEL = 'Sin edificio';
 
 export interface ArchiveFile {
 	/** Ruta dentro del ZIP (POSIX, sin traversal). */
@@ -788,7 +788,7 @@ export async function buildExportPlan(
 	return { kind: scope.kind, contractId, root, title: scopeName, services: serviceRows, rows };
 }
 
-export function planFiles(plan: ExportPlan): ArchiveFile[] {
+function planFiles(plan: ExportPlan): ArchiveFile[] {
 	return plan.rows.flatMap((row) => row.files);
 }
 

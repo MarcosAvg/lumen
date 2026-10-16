@@ -106,19 +106,6 @@ export async function getContractAccess(
 	return { contract, isAdmin: false, isSupervisor, isTechnician, canManage: isSupervisor };
 }
 
-/** Contratos activos de un usuario (ids). `null` = todos (admin). */
-export async function visibleContractIds(
-	db: Database,
-	user: SessionUser
-): Promise<string[] | null> {
-	if (user.role === 'admin') return null;
-	const rows = await db
-		.select({ contractId: contractAssignments.contractId })
-		.from(contractAssignments)
-		.where(and(eq(contractAssignments.userId, user.id), isNull(contractAssignments.revokedAt)));
-	return [...new Set(rows.map((row) => row.contractId))];
-}
-
 /** Márgenes del PDF del contrato, en milímetros. */
 export interface ContractPdfMargins {
 	top: number;
@@ -278,28 +265,6 @@ export async function listContractMembers(
 			)
 		)
 		.orderBy(asc(users.displayName));
-}
-
-/** ¿El usuario es miembro activo del contrato (en el rol dado)? */
-export async function isContractMember(
-	db: Database,
-	contractId: string,
-	userId: string,
-	role?: AssignmentRole
-): Promise<boolean> {
-	const [row] = await db
-		.select({ id: contractAssignments.id })
-		.from(contractAssignments)
-		.where(
-			and(
-				eq(contractAssignments.contractId, contractId),
-				eq(contractAssignments.userId, userId),
-				isNull(contractAssignments.revokedAt),
-				role ? eq(contractAssignments.assignmentRole, role) : undefined
-			)
-		)
-		.limit(1);
-	return Boolean(row);
 }
 
 export interface CreateContractInput {

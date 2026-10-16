@@ -447,11 +447,3 @@ export async function reorderRequirements(
 		});
 	});
 }
-
-export async function countRequirements(db: Database, targetId: string): Promise<number> {
-	const [row] = await db
-		.select({ value: sql<number>`cast(count(*) as int)` })
-		.from(photoRequirements)
-		.where(eq(photoRequirements.targetId, targetId));
-	return row?.value ?? 0;
-}
