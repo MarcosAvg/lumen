@@ -180,7 +180,7 @@
 					<Table.Row>
 						<Table.Head>Catálogo</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
-						<Table.Head class="hidden text-right lg:table-cell">Ítems</Table.Head>
+						<Table.Head class="hidden w-px text-right lg:table-cell">Ítems</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>

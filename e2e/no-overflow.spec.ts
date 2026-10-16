@@ -112,7 +112,8 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 
 	const workPath = new URL(
 		(await page
-			.getByRole('listitem')
+			.locator('tr, li')
+			.filter({ visible: true })
 			.filter({ hasText: workName })
 			.getByRole('link', { name: workName })
 			.getAttribute('href')) ?? '/dashboard',
@@ -135,7 +136,8 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 	const directPath = new URL(
 		(await page
-			.getByRole('listitem')
+			.locator('tr, li')
+			.filter({ visible: true })
 			.filter({ hasText: `${workName} directo` })
 			.getByRole('link', { name: `${workName} directo` })
 			.getAttribute('href')) ?? '/dashboard',

@@ -116,7 +116,7 @@
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Contrato</Table.Head>
-						<Table.Head class="w-40">Servicios</Table.Head>
+						<Table.Head class="w-px text-right">Servicios</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -135,7 +135,9 @@
 									</p>
 								{/if}
 							</Table.Cell>
-							<Table.Cell class="tnum text-muted-foreground">{contract.serviceCount}</Table.Cell>
+							<Table.Cell class="tnum text-right text-muted-foreground"
+								>{contract.serviceCount}</Table.Cell
+							>
 						</Table.Row>
 					{/each}
 				</Table.Body>

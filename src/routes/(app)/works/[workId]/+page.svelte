@@ -5,6 +5,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Table from '#lib/components/ui/table';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
@@ -14,6 +15,8 @@
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
+	import TableActions from '#lib/components/app/table-actions.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
@@ -131,40 +134,92 @@
 								Sin elementos. Un trabajo dividido sin elementos nunca se considera aprobado.
 							</p>
 						{:else}
-							<ul class="divide-y overflow-hidden rounded-lg border">
+							<ul class="space-y-3 md:hidden">
 								{#each data.elements as element (element.id)}
-									<li>
-										<div
-											class="relative flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-muted/50 active:bg-muted/70"
-										>
-											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-											<a
-												class="min-w-0 truncate text-sm underline-offset-4 after:absolute after:inset-0 hover:underline"
-												href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
-											>
-												{element.name}
-											</a>
-											<span class="shrink-0"><StatusBadge status={element.status} /></span>
-										</div>
-										{#if data.isAdmin}
-											<div class="mt-2 flex flex-wrap items-center gap-2">
-												<RenameDialog
-													action="?/updateElement"
-													hiddenName="elementId"
-													id={element.id}
-													currentName={element.name}
-												/>
-												<DestructiveDelete
-													label="Eliminar elemento"
-													endpoint={`/api/elements/${element.id}`}
-													itemName={element.name}
-													description="Se eliminarán su evidencia, entregas y fotos."
-												/>
-											</div>
-										{/if}
+									<li class="relative">
+										<Card.Root class="transition-colors active:bg-muted/50">
+											<Card.Content class="space-y-2">
+												<div class="flex items-start justify-between gap-2">
+													<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+													<a
+														class="min-w-0 font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+														href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+													>
+														{element.name}
+													</a>
+													<span class="shrink-0"><StatusBadge status={element.status} /></span>
+												</div>
+												{#if data.isAdmin}
+													<div class="relative z-10 flex flex-wrap items-center gap-2">
+														<RenameDialog
+															action="?/updateElement"
+															hiddenName="elementId"
+															id={element.id}
+															currentName={element.name}
+														/>
+														<DestructiveDelete
+															label="Eliminar elemento"
+															endpoint={`/api/elements/${element.id}`}
+															itemName={element.name}
+															description="Se eliminarán su evidencia, entregas y fotos."
+														/>
+													</div>
+												{/if}
+											</Card.Content>
+										</Card.Root>
 									</li>
 								{/each}
 							</ul>
+
+							<div class="hidden md:block">
+								<DataTable>
+									<Table.Header>
+										<Table.Row>
+											<Table.Head>Elemento</Table.Head>
+											<Table.Head>Estado</Table.Head>
+											{#if data.isAdmin}
+												<Table.Head class="w-px text-right">Acciones</Table.Head>
+											{/if}
+										</Table.Row>
+									</Table.Header>
+									<Table.Body>
+										{#each data.elements as element (element.id)}
+											<Table.Row class="relative">
+												<Table.Cell class="whitespace-normal">
+													<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+													<a
+														class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+														href={resolve('/(app)/elements/[elementId]', { elementId: element.id })}
+													>
+														{element.name}
+													</a>
+												</Table.Cell>
+												<Table.Cell>
+													<StatusBadge status={element.status} />
+												</Table.Cell>
+												{#if data.isAdmin}
+													<Table.Cell class="relative z-10 text-right">
+														<TableActions>
+															<RenameDialog
+																action="?/updateElement"
+																hiddenName="elementId"
+																id={element.id}
+																currentName={element.name}
+															/>
+															<DestructiveDelete
+																label="Eliminar elemento"
+																endpoint={`/api/elements/${element.id}`}
+																itemName={element.name}
+																description="Se eliminarán su evidencia, entregas y fotos."
+															/>
+														</TableActions>
+													</Table.Cell>
+												{/if}
+											</Table.Row>
+										{/each}
+									</Table.Body>
+								</DataTable>
+							</div>
 						{/if}
 					</Card.Content>
 				</Card.Root>

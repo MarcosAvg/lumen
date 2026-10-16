@@ -8,6 +8,7 @@
 	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
+	import TableActions from '#lib/components/app/table-actions.svelte';
 	import type { PageProps } from './$types';
 
 	type ActionData = { success?: string; message?: string };
@@ -120,12 +121,14 @@
 								{formatDate(item.createdAt)}
 							</Table.Cell>
 							<Table.Cell class="relative z-10 text-right">
-								{#if !item.readAt}
-									<form method="POST" action="?/read" class="inline">
-										<input type="hidden" name="notificationId" value={item.id} />
-										<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
-									</form>
-								{/if}
+								<TableActions>
+									{#if !item.readAt}
+										<form method="POST" action="?/read" class="inline">
+											<input type="hidden" name="notificationId" value={item.id} />
+											<Button type="submit" variant="ghost" size="sm">Marcar leído</Button>
+										</form>
+									{/if}
+								</TableActions>
 							</Table.Cell>
 						</Table.Row>
 					{/each}

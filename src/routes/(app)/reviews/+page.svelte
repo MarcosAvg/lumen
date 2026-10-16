@@ -137,21 +137,18 @@
 			<DataTable>
 				<Table.Header>
 					<Table.Row>
-						<Table.Head class="w-px text-right">#</Table.Head>
 						<Table.Head>Servicio</Table.Head>
 						<Table.Head>Objetivo</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Autor</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Enviada</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Antigüedad</Table.Head>
+						<Table.Head class="w-px text-right">Nº</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each data.pending as item (item.submissionId)}
 						{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
 						<Table.Row class="relative">
-							<Table.Cell class="tnum text-right font-medium text-muted-foreground">
-								{item.sequenceNo}
-							</Table.Cell>
 							<Table.Cell class="whitespace-normal text-muted-foreground">
 								{item.serviceName}
 							</Table.Cell>
@@ -188,6 +185,9 @@
 									{/if}
 									{formatRelativeAge(item.submittedAt, now)}
 								</span>
+							</Table.Cell>
+							<Table.Cell class="tnum text-right font-medium text-muted-foreground">
+								{item.sequenceNo}
 							</Table.Cell>
 						</Table.Row>
 					{/each}

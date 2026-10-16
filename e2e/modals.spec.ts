@@ -61,7 +61,8 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
 	const workHref = await page
-		.getByRole('listitem')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: work })
 		.getByRole('link', { name: work })
 		.getAttribute('href');

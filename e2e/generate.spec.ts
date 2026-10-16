@@ -72,5 +72,5 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	await dialog.getByRole('button', { name: 'Aplicar generación' }).click();
 
 	await expect(page.getByText(/Estructura generada/)).toBeVisible();
-	await expect(page.getByText(itemName).first()).toBeVisible();
+	await expect(page.getByText(itemName).filter({ visible: true }).first()).toBeVisible();
 });

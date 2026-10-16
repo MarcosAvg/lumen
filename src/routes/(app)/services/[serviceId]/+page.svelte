@@ -6,6 +6,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
+	import * as Table from '#lib/components/ui/table';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import * as Tabs from '#lib/components/ui/tabs';
@@ -13,6 +14,8 @@
 	import { Label } from '#lib/components/ui/label';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import DataTable from '#lib/components/app/data-table.svelte';
+	import TableActions from '#lib/components/app/table-actions.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
@@ -232,51 +235,115 @@
 							Sin trabajos. Un servicio sin trabajos nunca se considera completado.
 						</p>
 					{:else}
-						<ul
-							class="space-y-2 md:space-y-0 md:divide-y md:overflow-hidden md:rounded-lg md:border"
-						>
+						<ul class="space-y-3 md:hidden">
 							{#each data.works as work (work.id)}
-								<li
-									class="relative flex flex-col gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50 active:bg-muted/70 md:flex-row md:flex-wrap md:items-center md:justify-between md:rounded-none md:border-0 md:px-3 md:py-2.5"
-								>
-									<div class="min-w-0">
-										<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-										<a
-											class="block min-w-0 truncate font-medium underline-offset-4 after:absolute after:inset-0 hover:underline"
-											href={resolve('/(app)/works/[workId]', { workId: work.id })}
-										>
-											{work.name}
-										</a>
-										{#if work.mode === 'divided'}
-											<div class="mt-1">
+								<li class="relative">
+									<Card.Root class="transition-colors active:bg-muted/50">
+										<Card.Content class="space-y-2">
+											<div class="flex items-start justify-between gap-2">
+												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+												<a
+													class="min-w-0 font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+													href={resolve('/(app)/works/[workId]', { workId: work.id })}
+												>
+													{work.name}
+												</a>
+												<div class="flex shrink-0 items-center gap-2">
+													<Chip tone="neutral"
+														>{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Chip
+													>
+													{#if work.approved}
+														<Chip tone="approved">Aprobado</Chip>
+													{:else if work.mode === 'divided' && work.elementCount === 0}
+														<Chip tone="rejected">Sin elementos</Chip>
+													{:else if work.mode === 'direct' && work.workStatus}
+														<StatusBadge status={work.workStatus} />
+													{/if}
+												</div>
+											</div>
+											{#if work.mode === 'divided'}
 												<MiniMeter value={work.approvedElements} total={work.elementCount} />
-											</div>
-										{/if}
-									</div>
-									<div class="flex shrink-0 items-center gap-2">
-										<span class="text-sm font-medium text-primary md:hidden">Abrir →</span>
-										<Chip tone="neutral">{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Chip>
-										{#if work.approved}
-											<Chip tone="approved">Aprobado</Chip>
-										{:else if work.mode === 'divided' && work.elementCount === 0}
-											<Chip tone="rejected">Sin elementos</Chip>
-										{:else if work.mode === 'direct' && work.workStatus}
-											<StatusBadge status={work.workStatus} />
-										{/if}
-										{#if data.isAdmin}
-											<div class="relative z-10">
-												<DestructiveDelete
-													label="Eliminar"
-													endpoint={`/api/works/${work.id}`}
-													itemName={work.name}
-													description="Se eliminarán sus elementos, entregas y fotos."
-												/>
-											</div>
-										{/if}
-									</div>
+											{/if}
+											{#if data.isAdmin}
+												<div class="relative z-10">
+													<DestructiveDelete
+														label="Eliminar"
+														endpoint={`/api/works/${work.id}`}
+														itemName={work.name}
+														description="Se eliminarán sus elementos, entregas y fotos."
+													/>
+												</div>
+											{/if}
+										</Card.Content>
+									</Card.Root>
 								</li>
 							{/each}
 						</ul>
+
+						<div class="hidden md:block">
+							<DataTable>
+								<Table.Header>
+									<Table.Row>
+										<Table.Head>Trabajo</Table.Head>
+										<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
+										<Table.Head class="hidden lg:table-cell">Progreso</Table.Head>
+										<Table.Head>Estado</Table.Head>
+										{#if data.isAdmin}
+											<Table.Head class="w-px text-right">Acciones</Table.Head>
+										{/if}
+									</Table.Row>
+								</Table.Header>
+								<Table.Body>
+									{#each data.works as work (work.id)}
+										<Table.Row class="relative">
+											<Table.Cell class="whitespace-normal">
+												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+												<a
+													class="font-medium text-foreground underline-offset-4 after:absolute after:inset-0 hover:underline"
+													href={resolve('/(app)/works/[workId]', { workId: work.id })}
+												>
+													{work.name}
+												</a>
+											</Table.Cell>
+											<Table.Cell class="hidden lg:table-cell">
+												<Chip tone="neutral">{work.mode === 'direct' ? 'Directo' : 'Dividido'}</Chip
+												>
+											</Table.Cell>
+											<Table.Cell class="hidden lg:table-cell">
+												{#if work.mode === 'divided'}
+													<MiniMeter value={work.approvedElements} total={work.elementCount} />
+												{:else}
+													<span class="text-muted-foreground">—</span>
+												{/if}
+											</Table.Cell>
+											<Table.Cell>
+												{#if work.approved}
+													<Chip tone="approved">Aprobado</Chip>
+												{:else if work.mode === 'divided' && work.elementCount === 0}
+													<Chip tone="rejected">Sin elementos</Chip>
+												{:else if work.mode === 'direct' && work.workStatus}
+													<StatusBadge status={work.workStatus} />
+												{:else}
+													<span class="text-muted-foreground">—</span>
+												{/if}
+											</Table.Cell>
+											{#if data.isAdmin}
+												<Table.Cell class="relative z-10 text-right">
+													<TableActions>
+														<DestructiveDelete
+															label="Eliminar"
+															endpoint={`/api/works/${work.id}`}
+															itemName={work.name}
+															description="Se eliminarán sus elementos, entregas y fotos."
+														/>
+													</TableActions>
+												</Table.Cell>
+											{/if}
+										</Table.Row>
+									{/each}
+								</Table.Body>
+							</DataTable>
+						</div>
 					{/if}
 				</Card.Content>
 			</Card.Root>

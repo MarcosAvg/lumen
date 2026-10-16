@@ -75,5 +75,7 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
-	await expect(page.getByRole('listitem').filter({ hasText: itemName }).first()).toBeVisible();
+	await expect(
+		page.locator('tr, li').filter({ visible: true }).filter({ hasText: itemName }).first()
+	).toBeVisible();
 });

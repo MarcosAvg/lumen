@@ -126,6 +126,12 @@
 
 				<div class="hidden md:block">
 					<DataTable>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Resultado</Table.Head>
+								<Table.Head class="hidden lg:table-cell">Contexto</Table.Head>
+							</Table.Row>
+						</Table.Header>
 						<Table.Body>
 							{#each group.items as result (result.type + result.id)}
 								<Table.Row class="relative">

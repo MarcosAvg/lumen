@@ -59,7 +59,8 @@ test('el checklist de envío avisa antes de enviar evidencia obligatoria', async
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
 	const workLink = page
-		.getByRole('listitem')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: workName })
 		.getByRole('link', { name: workName });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');

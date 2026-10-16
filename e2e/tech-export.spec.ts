@@ -76,7 +76,8 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 	const workId = (
 		(await page
-			.getByRole('listitem')
+			.locator('tr, li')
+			.filter({ visible: true })
 			.filter({ hasText: `Trabajo ${unique}` })
 			.getByRole('link', { name: `Trabajo ${unique}` })
 			.getAttribute('href')) ?? ''

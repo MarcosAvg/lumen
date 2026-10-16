@@ -10,6 +10,7 @@
 	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
+	import TableActions from '#lib/components/app/table-actions.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import { NativeSelect } from '#lib/components/ui/native-select';
 	import type { PageProps } from './$types';
@@ -173,14 +174,14 @@
 								{service.buildingName ?? '—'}
 							</Table.Cell>
 							<Table.Cell class="relative z-10 text-right">
-								<div class="flex items-center justify-end gap-2">
+								<TableActions>
 									<DestructiveDelete
 										label="Eliminar"
 										endpoint={`/api/services/${service.id}`}
 										itemName={service.name}
 										description="Se eliminarán sus trabajos, elementos, entregas y fotos."
 									/>
-								</div>
+								</TableActions>
 							</Table.Cell>
 						</Table.Row>
 					{/each}

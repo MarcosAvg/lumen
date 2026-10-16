@@ -104,7 +104,8 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 
 	// Al abrir el trabajo, sus secciones ya están.
 	const workLink = page
-		.getByRole('listitem')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: work })
 		.getByRole('link', { name: work });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
@@ -159,7 +160,8 @@ test('la generación en lote aplica requisitos', async ({ page }, testInfo) => {
 
 	// El trabajo generado ya trae el requisito.
 	const workLink = page
-		.getByRole('listitem')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: workItem })
 		.getByRole('link', { name: workItem });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');

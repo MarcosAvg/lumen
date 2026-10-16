@@ -11,6 +11,7 @@
 	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import ConfirmSubmit from '#lib/components/app/confirm-submit.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
+	import TableActions from '#lib/components/app/table-actions.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import type { Role } from '#lib/types';
 	import type { PageProps } from './$types';
@@ -299,7 +300,7 @@
 							{/if}
 						</Table.Cell>
 						<Table.Cell class="text-right">
-							<div class="flex items-center justify-end gap-2">
+							<TableActions>
 								{#if user.isActive}
 									<ConfirmSubmit
 										action="?/deactivate"
@@ -325,7 +326,7 @@
 									itemName={user.displayName}
 									description="Se elimina la cuenta; su nombre se conserva como firma en el historial (entregas, revisiones y fotos)."
 								/>
-							</div>
+							</TableActions>
 						</Table.Cell>
 					</Table.Row>
 				{/each}

@@ -66,12 +66,13 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 
 	// Abrir el trabajo y comprobar los dos elementos.
 	const workLink = page
-		.getByRole('listitem')
+		.locator('tr, li')
+		.filter({ visible: true })
 		.filter({ hasText: workName })
 		.getByRole('link', { name: workName });
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
-	await expect(page.getByText('UMA 1')).toBeVisible();
-	await expect(page.getByText('UMA 2')).toBeVisible();
+	await expect(page.getByText('UMA 1').filter({ visible: true }).first()).toBeVisible();
+	await expect(page.getByText('UMA 2').filter({ visible: true }).first()).toBeVisible();
 
 	// Añadir un elemento desde el propio trabajo.
 	await page.getByRole('button', { name: 'Añadir elementos' }).click();
@@ -85,5 +86,5 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await elementDialog.getByRole('button', { name: 'Añadir elementos' }).click();
 
 	await expect(page.getByText('Elementos añadidos.')).toBeVisible();
-	await expect(page.getByText('UMA 3')).toBeVisible();
+	await expect(page.getByText('UMA 3').filter({ visible: true }).first()).toBeVisible();
 });
