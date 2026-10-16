@@ -32,8 +32,9 @@ exige). Ejemplos y avisos en [`DEPLOY.md`](DEPLOY.md) §3. Después abre
 ./install.sh --domain lumen.midominio.com   # o ./install.sh --caddy (HTTP local)
 ```
 
-¿Prefieres no clonar el repo? Copia el `compose.yaml` autocontenido de
-[`DEPLOY.md`](DEPLOY.md) en una carpeta y ejecuta `docker compose up -d`.
+¿Prefieres no clonar el repo? Descarga [`compose.yaml`](compose.yaml) (y, si usas
+el proxy incluido, [`deploy/Caddyfile`](deploy/Caddyfile)) y ejecuta
+`docker compose pull && docker compose up -d`. Detalles en [`DEPLOY.md`](DEPLOY.md).
 
 La imagen publicada (`ghcr.io/marcosavg/lumen`, **multi-arquitectura amd64/arm64**)
 se usa por defecto; `docker compose up --build` compila en local.

@@ -14,7 +14,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lo
 
 # --- Build --------------------------------------------------------------------
 FROM deps AS build
-# Origen público de confianza para CSRF y URLs absolutas (opcional; ver vite.config.ts).
+# Origen público opcional para CSRF/URLs absolutas (ver vite.config.ts).
 ARG ORIGIN
 COPY . .
 RUN pnpm build && pnpm prune --prod

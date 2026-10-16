@@ -1,20 +1,6 @@
-# Proxy de entrada de Lumen (Caddy).
-#
-# `DOMAIN` es una *dirección de sitio* de Caddy:
-#   - `http://localhost` (por defecto) → sirve HTTP en el puerto 80 (pruebas locales).
-#   - `lumen.midominio.com`            → HTTPS automático (Let's Encrypt) en 80/443.
-#
-# Caddy obtiene y renueva el certificado por sí solo y reenvía a la app. Como es
-# el único ingreso, envía siempre `X-Forwarded-Proto`/`X-Forwarded-For`, que la
-# app usa para derivar el origen y la IP real.
-#
-# Para recibir avisos de expiración de certificado, descomenta y ajusta el correo
-# en el bloque global de arriba:
-#
-#   {
-#       email tu@correo.example
-#   }
-
+# Proxy de entrada de Lumen. `DOMAIN` es una dirección de sitio de Caddy:
+# `http://localhost` (HTTP, puerto 80) o un dominio (HTTPS automático con Let's Encrypt).
+# Avisos de expiración: añade `email tu@correo.example` al bloque global.
 {
 	admin off
 }
