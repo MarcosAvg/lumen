@@ -272,27 +272,31 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		expect(await countPushSubscriptions(db, other)).toBe(0);
 	});
 
-	it('NOTIF-01: sin VAPID configurado el envío se omite y la notificación persiste', async () => {
+	it('NOTIF-01: el push es best-effort y la notificación interna persiste', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
 		const { serviceId, targetId } = await seedServiceWithDirectWork(admin);
 		const supervisor = await makeUser('supervisor', 'sup', admin);
 		await assignUser(db, { serviceId, userId: supervisor, role: 'supervisor', actorId: admin });
+
+		// Endpoint ficticio que falla rápido (conexión rechazada) para no depender de la red.
 		await savePushSubscription(db, supervisor, {
-			endpoint: 'https://push.example.com/x',
+			endpoint: 'https://127.0.0.1:1/push',
 			p256dh: 'k',
 			auth: 'a'
 		});
 
-		// En el entorno de pruebas no hay claves VAPID: el envío se omite sin lanzar.
-		expect(isPushConfigured()).toBe(false);
+		const configured = isPushConfigured();
 		const dispatch = await dispatchPushToUsers(db, [supervisor], {
 			title: 't',
 			body: 'b',
 			url: '/',
 			tag: 'x'
 		});
-		expect(dispatch.skipped).toBe(true);
+
+		// Sin VAPID el envío se omite; con VAPID se intenta y falla sin lanzar ni entregar.
+		expect(dispatch.skipped).toBe(!configured);
+		expect(dispatch.sent).toBe(0);
 
 		// La entrega y la notificación interna no se ven afectadas.
 		await submit(storage, targetId, admin);

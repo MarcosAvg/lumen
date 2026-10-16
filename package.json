@@ -25,9 +25,7 @@
 		"db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
 		"db:studio": "drizzle-kit studio",
 		"maintenance:cleanup": "node --env-file-if-exists=.env scripts/cleanup.mjs",
-		"vapid:generate": "node scripts/generate-vapid.mjs",
-		"backup": "node --env-file-if-exists=.env scripts/backup.mjs",
-		"restore": "node --env-file-if-exists=.env scripts/restore.mjs"
+		"vapid:generate": "node scripts/generate-vapid.mjs"
 	},
 	"dependencies": {
 		"@node-rs/argon2": "^2.2.2",

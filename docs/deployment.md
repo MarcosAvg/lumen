@@ -31,7 +31,7 @@ cd lumen
 **Compilar la imagen en local** (en lugar de usar la publicada en GHCR):
 
 ```bash
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
+docker compose up -d --build
 ```
 
 Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar volúmenes).
@@ -43,7 +43,7 @@ Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar 
 | `db` | PostgreSQL 17 con volumen `postgres_data`. **No se publica al exterior.** |
 | `migrate` | Aplica migraciones Drizzle una sola vez y termina. |
 | `app` | Lumen (imagen GHCR por defecto). Publicado en `127.0.0.1:${APP_PORT:-8090}`. |
-| `caddy` *(opcional)* | En `compose.caddy.yaml`: proxy con HTTPS automático (`DOMAIN`). |
+| `caddy` *(opcional)* | Perfil `caddy`: proxy con HTTPS automático (`DOMAIN`). |
 
 - La app **no** se expone a Internet: se publica solo en `127.0.0.1` y tu proxy reenvía ahí enviando
   `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app los exige para el origen y la IP real).
@@ -52,10 +52,10 @@ Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar 
 
 ### Overrides
 
-- `compose.build.yaml`: compila la imagen en local.
+- `docker compose up -d --build`: compila la imagen en local.
 - `compose.dev.yaml`: publica PostgreSQL en `127.0.0.1:5432` para `pnpm dev`, `pnpm db:migrate` y las
   pruebas de integración (`docker compose -f compose.yaml -f compose.dev.yaml up -d db`).
-- `compose.caddy.yaml`: añade Caddy con HTTPS automático (para quien no tenga proxy).
+- Perfil `caddy`: añade Caddy con HTTPS automático (para quien no tenga proxy).
 
 ## 4. Proxy inverso (lo gestionas tú)
 
@@ -98,7 +98,7 @@ Compose, o a `127.0.0.1:${APP_PORT}` si corre en el host. Si pones un **CDN** de
 **¿Sin proxy?** Añade Caddy con `DOMAIN` (HTTPS automático):
 
 ```bash
-docker compose -f compose.yaml -f compose.caddy.yaml up -d
+docker compose --profile caddy up -d
 ```
 
 - `DOMAIN=http://localhost` (por defecto) → HTTP en el puerto 80; un dominio → HTTPS con Let's Encrypt.
@@ -192,7 +192,6 @@ docker compose restart app
 Prueba siempre primero en un entorno separado. Verifica tras restaurar: recuento de fotos, que las
 miniaturas cargan, que el historial de entregas sigue accesible y que las descargas (foto/ZIP) funcionan.
 
-Con Node en el host también puedes usar `pnpm backup` y `pnpm restore`.
 
 **Retención y prueba:** conserva varias generaciones y realiza una **prueba de restauración periódica**.
 
@@ -236,13 +235,13 @@ docker compose logs -f app
 
 | Síntoma | Causa probable / solución |
 |---|---|
-| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `-f compose.build.yaml`. |
+| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `docker compose pull` o `up --build`. |
 | La app no responde | `docker compose logs app`; ¿`db` sana y `migrate` terminó? |
-| No sé cómo publicar la app | Configura tu proxy a `127.0.0.1:${APP_PORT}`, o usa Caddy (`-f compose.caddy.yaml`). |
+| No sé cómo publicar la app | Configura tu proxy a `127.0.0.1:${APP_PORT}`, o usa Caddy (`--profile caddy`). |
 | `403` en formularios (login/setup) | Falta `X-Forwarded-Proto` en el proxy; sin ella la app asume `https`. |
 | `500` con «Address header was specified…» | Falta `X-Forwarded-For` en el proxy (rate limiting). |
 | `413` al subir fotos | Sube `client_max_body_size` del proxy (≥ `BODY_SIZE_LIMIT`, 30M). |
 | HTTPS no emite certificado (Caddy) | `DOMAIN` debe resolver al servidor y los puertos 80/443 estar libres. |
-| El puerto 80/443 está ocupado (Caddy) | Ya tienes un proxy: no uses `compose.caddy.yaml`; o cambia `HTTP_PORT`/`HTTPS_PORT`. |
+| El puerto 80/443 está ocupado (Caddy) | Ya tienes un proxy: no uses el perfil `caddy`; o cambia `HTTP_PORT`/`HTTPS_PORT`. |
 | Cookies no persisten en móvil | Accede por HTTPS con un dominio real. |
 | Empujes push no llegan | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual. |

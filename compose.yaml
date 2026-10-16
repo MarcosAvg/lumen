@@ -1,32 +1,29 @@
 name: lumen
 
-# Lumen · autoalojamiento con tu propio proxy inverso.
+# Lumen · autoalojamiento con `docker compose`.
 #
 # Servicios:
 #   - `db`      PostgreSQL 17 con volumen persistente (no publicado al exterior).
 #   - `migrate` aplica las migraciones de Drizzle una vez y termina.
-#   - `app`     Lumen (imagen GHCR por defecto; ver `compose.build.yaml`), publicado
-#               solo en `127.0.0.1:${APP_PORT:-8090}`.
+#   - `app`     Lumen, publicado en `127.0.0.1:${APP_PORT:-8090}`.
+#   - `caddy`   proxy opcional (perfil `caddy`) con HTTPS automático.
 #
-# El proxy inverso (Nginx, Traefik, Caddy…) lo gestionas **tú**: termina TLS y
-# reenvía a `127.0.0.1:8090`. Debe enviar siempre estas cabeceras (la app las exige
-# para derivar el origen público y la IP real):
+# El proxy inverso lo gestionas **tú** (Nginx, Traefik, Caddy…): termina TLS y
+# reenvía a `127.0.0.1:${APP_PORT}` enviando siempre estas cabeceras (la app las
+# exige para el origen y la IP real):
 #     Host, X-Forwarded-Proto, X-Forwarded-For
 # Sin `X-Forwarded-Proto` la app asume `https` (login por HTTP → 403); sin
 # `X-Forwarded-For` el rate limiting puede fallar (500). Ver `docs/deployment.md`.
 #
 # Cómo usarlo:
-#   docker compose up -d                    # app en http://127.0.0.1:8090 (tras el proxy)
-#   docker compose -f compose.yaml -f compose.build.yaml up -d --build   # build local
-#   docker compose -f compose.yaml -f compose.dev.yaml up -d db          # solo PostgreSQL (dev)
+#   docker compose pull && docker compose up -d          # imagen GHCR (por defecto)
+#   docker compose up -d --build                          # compila en local
+#   docker compose --profile caddy up -d                  # proxy Caddy con HTTPS automático
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d db   # solo PostgreSQL (dev)
 #
-# ¿Sin proxy? Hay Caddy incluido como añadido opcional (HTTPS automático):
-#   docker compose -f compose.yaml -f compose.caddy.yaml up -d
-#
-# `.env` es opcional: el compose tiene defaults razonables y `install.sh` genera uno.
+# `.env` es opcional (defaults razonables); `install.sh` genera uno con secretos.
 
 # --- Extensión: rotación de logs ------------------------------------------------
-# Evita que los logs de los contenedores llenen el disco del servidor.
 x-logging: &logging
   driver: json-file
   options:
@@ -34,14 +31,11 @@ x-logging: &logging
     max-file: '3'
 
 # --- Extensión: URL interna de PostgreSQL ---------------------------------------
-# Se construye contra el host `db` (red interna), ignorando cualquier `DATABASE_URL`
-# del `.env` pensada para desarrollo en el host. Se reutiliza en `migrate` y `app`.
 x-database-url: &database-url postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
 
 # --- Extensión: entorno común de la app -----------------------------------------
-# El origen público se deriva de la petición (no se hornea en la imagen), así que no
-# hay que reconstruir al cambiar de dominio. Tu proxy es el único ingreso y debe añadir
-# `X-Forwarded-Proto`/`X-Forwarded-For`, que la app exige para el origen y la IP real.
+# El origen público se deriva de la petición (no se hornea en la imagen). El proxy
+# debe añadir `X-Forwarded-Proto`/`X-Forwarded-For`, que la app exige.
 x-app-environment: &app-environment
   DATABASE_URL: *database-url
   PHOTO_STORAGE_PATH: /data/photos
@@ -60,8 +54,8 @@ x-app-environment: &app-environment
   VAPID_SUBJECT: ${VAPID_SUBJECT:-}
 
 services:
-  # Base de datos. NO se publica ningún puerto: solo la alcanzan `migrate` y `app`
-  # por la red interna de Compose. Para desarrollo en el host, usa `compose.dev.yaml`.
+  # Base de datos. No se publica: solo la alcanzan `migrate` y `app` por la red
+  # interna de Compose. Para desarrollo en el host, usa `compose.dev.yaml`.
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -71,7 +65,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumen}
       POSTGRES_DB: ${POSTGRES_DB:-lumen}
     volumes:
-      # Datos SQL. Respalda este volumen junto con `lumen_photos` (ver backup.sh).
+      # Datos SQL. Respalda este volumen junto con `lumen_photos` (ver deploy/backup.sh).
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       # `$$` escapa la interpolación de Compose para que la evalúe la shell del contenedor.
@@ -87,10 +81,12 @@ services:
           memory: ${DB_MEM_LIMIT:-1g}
           cpus: ${DB_CPUS:-2}
 
-  # Servicio efímero: aplica las migraciones y termina. `app` espera a que complete
-  # con éxito, de modo que nunca arranca contra un esquema desactualizado.
+  # Servicio efímero: aplica las migraciones y termina. `app` espera a que complete.
   migrate:
     image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
+    build:
+      context: .
+      target: runtime
     restart: 'no'
     security_opt: ['no-new-privileges:true']
     environment:
@@ -102,10 +98,13 @@ services:
     logging: *logging
     # Sin límites de recursos: es un proceso corto que termina tras migrar.
 
-  # Aplicación. Se publica SOLO en 127.0.0.1 (tu proxy reenvía ahí, en el host). Corre
-  # como usuario sin privilegios y con `init` para cerrar limpiamente ante señales.
+  # Aplicación. Se publica SOLO en 127.0.0.1 (tu proxy reenvía ahí).
+  # Con `image` + `build`: `docker compose pull` usa GHCR y `--build` compila en local.
   app:
     image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
+    build:
+      context: .
+      target: runtime
     restart: unless-stopped
     init: true
     security_opt: ['no-new-privileges:true']
@@ -142,7 +141,38 @@ services:
           memory: ${APP_MEM_LIMIT:-1g}
           cpus: ${APP_CPUS:-2}
 
+  # Proxy opcional (perfil `caddy`). Úsalo si NO tienes ya un proxy inverso:
+  #   docker compose --profile caddy up -d
+  # `DOMAIN` es una dirección de sitio de Caddy: `http://localhost` (HTTP) o un
+  # dominio (HTTPS con Let's Encrypt). Requiere `deploy/Caddyfile`.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ['caddy']
+    restart: unless-stopped
+    security_opt: ['no-new-privileges:true']
+    environment:
+      DOMAIN: ${DOMAIN:-http://localhost}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+      - '${HTTPS_PORT:-443}:443/udp'
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_started
+    logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: ${CADDY_MEM_LIMIT:-256m}
+          cpus: ${CADDY_CPUS:-1}
+
 # Volúmenes persistentes. `down` los conserva; `down -v` los borra (pierde datos).
 volumes:
   postgres_data: # base de datos SQL
   lumen_photos: # fotografías y miniaturas
+  caddy_data: # certificados TLS y cuentas ACME (solo con el perfil caddy)
+  caddy_config: # configuración autoguardada de Caddy (solo con el perfil caddy)

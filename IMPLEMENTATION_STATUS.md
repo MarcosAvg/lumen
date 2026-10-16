@@ -209,9 +209,8 @@ eliminado y los archivos limpiados.
 
 #### Operaciones
 
-- `scripts/backup.mjs` / `scripts/restore.mjs` (+ `scripts/lib/backup.mjs`): `pg_dump`/`pg_restore`
-  y tar del volumen de fotos con `manifest.json` (tamaños y `sha256`); usan `pg_dump` local o el
-  contenedor `db` de Compose.
+- `deploy/backup.sh` / `deploy/restore.sh`: `pg_dump`/`pg_restore` y tar del volumen de fotos con
+  `manifest.json` (tamaños y `sha256`); usan el contenedor `db`/`app` de Compose (solo requieren Docker).
 - **Restauración probada** (drill real): backup de BD + fotos, restauración en una base separada y
   en un directorio nuevo, verificando filas y archivos.
 - `maintenance:cleanup` ahora **registra el uso de disco** del volumen de fotos.
@@ -620,7 +619,7 @@ de restauración manual documentado y ejecutado.
 
 ### Próximos pasos (mantenimiento v1)
 
-1. Programar `pnpm backup` y `pnpm maintenance:cleanup` por cron y ejecutar pruebas de restauración
+1. Programar `./deploy/backup.sh` y `pnpm maintenance:cleanup` por cron y ejecutar pruebas de restauración
    periódicas.
 2. Publicar imagen versionada en GHCR (`git tag`) y desplegar detrás de HTTPS siguiendo
    `docs/deployment.md`.

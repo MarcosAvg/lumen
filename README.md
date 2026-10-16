@@ -36,7 +36,7 @@ exige). Ejemplos y avisos en [`DEPLOY.md`](DEPLOY.md) §3. Después abre
 [`DEPLOY.md`](DEPLOY.md) en una carpeta y ejecuta `docker compose up -d`.
 
 La imagen publicada (`ghcr.io/marcosavg/lumen`, **multi-arquitectura amd64/arm64**)
-se usa por defecto; `compose.build.yaml` permite compilar en local.
+se usa por defecto; `docker compose up --build` compila en local.
 
 ## Qué incluye
 
@@ -164,17 +164,17 @@ Programa el respaldo y la limpieza con cron (ver `docs/deployment.md`).
 
 ## Solución de problemas
 
-| Síntoma                                      | Causa probable / solución                                                                  |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `-f compose.build.yaml`.                                      |
-| La app no responde                           | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                                 |
-| No sé cómo publicar la app                   | Proxy a `127.0.0.1:${APP_PORT}`, o Caddy (`-f compose.caddy.yaml` / `install.sh --caddy`). |
-| `403` en formularios                         | Falta `X-Forwarded-Proto` en el proxy (sin ella la app asume `https`).                     |
-| `500` «Address header…»                      | Falta `X-Forwarded-For` en el proxy.                                                       |
-| `413` al subir fotos                         | Sube `client_max_body_size` del proxy (≥ `BODY_SIZE_LIMIT`, 30M).                          |
-| HTTPS no emite certificado (Caddy)           | `DOMAIN` debe resolver al servidor y 80/443 estar libres.                                  |
-| Puertos 80/443 ocupados (Caddy)              | Ya tienes un proxy: no uses Caddy; o cambia `HTTP_PORT`/`HTTPS_PORT`.                      |
-| Push no llega                                | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual.                          |
+| Síntoma                                      | Causa probable / solución                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `docker compose pull` o `up --build`.                   |
+| La app no responde                           | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                           |
+| No sé cómo publicar la app                   | Proxy a `127.0.0.1:${APP_PORT}`, o Caddy (`--profile caddy` / `install.sh --caddy`). |
+| `403` en formularios                         | Falta `X-Forwarded-Proto` en el proxy (sin ella la app asume `https`).               |
+| `500` «Address header…»                      | Falta `X-Forwarded-For` en el proxy.                                                 |
+| `413` al subir fotos                         | Sube `client_max_body_size` del proxy (≥ `BODY_SIZE_LIMIT`, 30M).                    |
+| HTTPS no emite certificado (Caddy)           | `DOMAIN` debe resolver al servidor y 80/443 estar libres.                            |
+| Puertos 80/443 ocupados (Caddy)              | Ya tienes un proxy: no uses Caddy; o cambia `HTTP_PORT`/`HTTPS_PORT`.                |
+| Push no llega                                | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual.                    |
 
 ## Documentación
 

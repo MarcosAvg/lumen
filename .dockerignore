@@ -11,8 +11,8 @@ data
 .vscode
 docs
 *.md
+compose.yaml
 compose.dev.yaml
-compose.build.yaml
 deploy
 install.sh
 backups
