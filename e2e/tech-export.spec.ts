@@ -77,8 +77,14 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.getAttribute('href');
 	const contractId = (contractHref ?? '').split('/').pop() ?? '';
 
-	// El admin puede exportar contrato, servicio y trabajo.
-	expect((await page.request.get(`/api/contracts/${contractId}/export.zip`)).status()).toBe(200);
+	// El admin puede exportar contrato, servicio y trabajo; el ZIP de contrato
+	// incluye el registro XLSX en la raíz del contrato.
+	const contractZip = await page.request.get(`/api/contracts/${contractId}/export.zip`);
+	expect(contractZip.status()).toBe(200);
+	expect(contractZip.headers()['content-type']).toContain('zip');
+	const contractBody = await contractZip.body();
+	expect(contractBody.includes(Buffer.from('General/General.xlsx'))).toBe(true);
+	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(200);
 	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(200);
 
 	// Desde la ficha se abre el modal de asignaciones.

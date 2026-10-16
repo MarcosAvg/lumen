@@ -164,9 +164,17 @@ Las acciones críticas deben realizarse contra el servidor, nunca únicamente co
 2. Jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`; solo la **última entrega aprobada** de cada objetivo.
 3. Transmite ZIP o prepara temporal acotado; limpia recursos aun si el navegador interrumpe.
 
+### Registro XLSX (incluido en cada ZIP)
+
+1. Cada ZIP (contrato, servicio o trabajo) incluye un libro `<Ámbito>/<Ámbito>.xlsx` en su raíz.
+2. Una hoja **`Resumen`** (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) y **una hoja por servicio** con **una fila por trabajo**.
+3. Columnas por fila: edificio, servicio, trabajo, tipo, elementos (aprobados/total), estado (derivado en trabajos divididos), requisitos obligatorios (X/Y), fotografías, última entrega, decisión, revisor, fecha de decisión, motivo de rechazo, **evidencia** (hipervínculo relativo al PDF del trabajo) y notas.
+4. Se incluye **todo el estado** (pendientes y rechazados también); las **fotos del ZIP siguen siendo solo las aprobadas**.
+5. La columna «Evidencia» enlaza (ruta relativa) con el PDF del trabajo en su carpeta; el PDF se genera en una fase posterior.
+
 ### Exportación de datos
 
-Retirada por ahora (antes era un CSV administrativo). Volverá en **XLSX** en una tarea posterior; no hay `resumen.csv` dentro de los ZIP.
+Retirada por ahora como CSV; el registro de datos se entrega en **XLSX** dentro de cada ZIP.
 
 ## 12. Búsqueda global
 

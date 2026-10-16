@@ -13,8 +13,11 @@ import {
 	getContractArchive,
 	getServiceArchive,
 	getSubmissionArchive,
-	getWorkArchive
+	getWorkArchive,
+	buildExportPlan
 } from '#lib/server/domain/exports';
+import { buildWorkbook } from '#lib/server/exports/workbook';
+import ExcelJS from 'exceljs';
 import {
 	listPendingReviews,
 	reviewSubmission,
@@ -334,6 +337,113 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 			'Contrato/Nave/Bombas Nave/Trabajo/Fotografías/01.jpg',
 			'Contrato/Torre/UMAs Torre/Trabajo/Fotografías/01.jpg'
 		]);
+	});
+
+	it('EXP-05: el XLSX trae Resumen, una hoja por servicio y enlaces al PDF', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
+
+		const catalog = await createCatalog(db, { name: `Edificios-${Date.now()}`, actorId: admin });
+		const torre = await createCatalogItem(db, {
+			catalogId: catalog.id,
+			name: 'Torre',
+			actorId: admin
+		});
+
+		// Servicio con trabajo directo aprobado.
+		const serviceA = await createService(db, { contractId, name: 'UMAs Torre', actorId: admin });
+		await updateService(db, {
+			serviceId: serviceA.id,
+			name: 'UMAs Torre',
+			buildingCatalogItemId: torre.id,
+			actorId: admin
+		});
+		const direct = await createWork(db, {
+			serviceId: serviceA.id,
+			mode: 'direct',
+			name: 'Piso 1',
+			actorId: admin
+		});
+		const directPhoto = await upload(storage, direct.targetId as string, admin, null);
+		const directSubmission = await submitEvidence(db, {
+			targetId: direct.targetId as string,
+			expectedVersion: directPhoto.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: directSubmission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
+
+		// Servicio con trabajo dividido: un elemento aprobado y otro rechazado.
+		const serviceB = await createService(db, { contractId, name: 'Bombas Torre', actorId: admin });
+		const divided = await createWork(db, {
+			serviceId: serviceB.id,
+			mode: 'divided',
+			name: 'Bombas',
+			elements: [{ name: 'Primaria 1' }, { name: 'Primaria 2' }],
+			actorId: admin
+		});
+		const approvedElement = await getTargetForElement(db, divided.elementIds[0]);
+		const approvedElementPhoto = await upload(storage, approvedElement.id, admin, null);
+		const approvedElementSubmission = await submitEvidence(db, {
+			targetId: approvedElement.id,
+			expectedVersion: approvedElementPhoto.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: approvedElementSubmission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
+		const rejectedElement = await getTargetForElement(db, divided.elementIds[1]);
+		const rejectedPhoto = await upload(storage, rejectedElement.id, admin, null);
+		const rejectedSubmission = await submitEvidence(db, {
+			targetId: rejectedElement.id,
+			expectedVersion: rejectedPhoto.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: rejectedSubmission.submissionId,
+			decision: 'rejected',
+			reason: 'Falta la placa',
+			reviewerId: admin
+		});
+
+		const plan = await buildExportPlan(db, { kind: 'contract', contractId });
+		const buffer = await buildWorkbook(plan);
+
+		const wb = new ExcelJS.Workbook();
+		await wb.xlsx.load(buffer);
+		expect(wb.worksheets.map((ws) => ws.name)).toEqual(['Resumen', 'UMAs Torre', 'Bombas Torre']);
+
+		// Hoja del servicio directo.
+		const sheetA = wb.getWorksheet('UMAs Torre');
+		expect(sheetA?.getRow(3).getCell(1).value).toBe('Edificio');
+		const rowA = sheetA?.getRow(4);
+		expect(rowA?.getCell(3).value).toBe('Piso 1'); // Trabajo
+		expect(rowA?.getCell(4).value).toBe('Directo');
+		expect(rowA?.getCell(6).value).toBe('Aprobado');
+		const evidence = rowA?.getCell(14).value as { text: string; hyperlink: string };
+		expect(evidence.text).toBe('PDF');
+		expect(evidence.hyperlink.startsWith('Torre/UMAs Torre/Piso 1/')).toBe(true);
+		expect(evidence.hyperlink.endsWith('.pdf')).toBe(true);
+
+		// Hoja del trabajo dividido: estado derivado y contador de elementos.
+		const sheetB = wb.getWorksheet('Bombas Torre');
+		const rowB = sheetB?.getRow(4);
+		expect(rowB?.getCell(4).value).toBe('Dividido');
+		expect(rowB?.getCell(5).value).toBe('1/2'); // Elementos aprobados/total
+		expect(rowB?.getCell(6).value).toBe('Rechazado');
+		expect(rowB?.getCell(13).value).toBe('Falta la placa'); // Motivo de rechazo
+
+		// Resumen con una fila por servicio y total.
+		const summary = wb.getWorksheet('Resumen');
+		expect(summary?.getRow(5).getCell(2).value).toBe('UMAs Torre');
+		expect(summary?.getRow(6).getCell(2).value).toBe('Bombas Torre');
+		expect(summary?.getRow(7).getCell(2).value).toBe('TOTAL');
 	});
 
 	it('sanea nombres de ZIP y desambigua duplicados', () => {

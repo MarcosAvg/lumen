@@ -174,7 +174,7 @@ Una función se considera terminada cuando:
 - Descarga de foto optimizada en evidencia actual e histórica.
 - ZIP de entrega desde snapshot: requisitos, Adicionales, números en orden.
 - ZIP de servicio: última entrega aprobada por target, jerarquía de carpetas y `resumen.csv` con omitidos.
-- ZIP de contrato (`Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`) y ZIP de trabajo (`Trabajo ▸ (Elemento) ▸ Requisito`), solo con la última entrega aprobada.
+- ZIP de contrato (`Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`) y de trabajo (`Trabajo ▸ (Elemento) ▸ Requisito`), con la última entrega aprobada, más el **registro XLSX** (hoja `Resumen` + una por servicio, fila por trabajo, enlaces relativos al PDF de evidencia).
 - Streaming o temporal controlado y nombres seguros para ZIP.
 
 **Aceptación**
@@ -186,7 +186,7 @@ Una función se considera terminada cuando:
 - Supervisor ajeno o técnico no puede descargar el ZIP de contrato/servicio/trabajo ni manipulando el endpoint.
 - Nombres con tildes, barras o duplicados no provocan traversal ni colisión al exportar.
 - Descargas grandes no disparan uso de RAM proporcional al peso total del ZIP.
-- Los ZIP no incluyen archivos de resumen; la exportación de datos (XLSX) queda pendiente.
+- El XLSX abre en Excel/LibreOffice/Sheets; los enlaces relativos al PDF resuelven en Excel y LibreOffice (no en Google Sheets).
 
 ## 11. Etapa 8 — Calidad, operaciones y publicación
 

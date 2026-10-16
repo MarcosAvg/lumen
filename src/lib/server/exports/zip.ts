@@ -7,6 +7,8 @@ export interface ZipInput {
 	fileName: string;
 	files: { path: string; storagePath: string }[];
 	texts?: { path: string; content: string }[];
+	/** Entradas binarias generadas al vuelo (p. ej. el XLSX del registro). */
+	extra?: { name: string; content: Buffer }[];
 }
 
 /** `Content-Disposition` seguro, con variante RFC 5987 para nombres no ASCII. */
@@ -32,6 +34,9 @@ export function buildZipResponse(input: ZipInput, storage: Storage): Response {
 
 	for (const text of input.texts ?? []) {
 		archive.append(text.content, { name: text.path });
+	}
+	for (const entry of input.extra ?? []) {
+		archive.append(entry.content, { name: entry.name });
 	}
 	for (const file of input.files) {
 		archive.append(createReadStream(storage.absolute(file.storagePath)), { name: file.path });

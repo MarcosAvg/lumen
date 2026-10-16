@@ -108,7 +108,7 @@ Funciones servidor como `appendPhoto`, `removePhoto`, `reorderPhotos`, `validate
 
 ### Exportaciones
 
-`exportSubmissionZip(submissionId)`, `exportWorkZip(workId)`, `exportServiceZip(serviceId)`, `exportContractZip(contractId)`. Accesibles a **administradores y supervisores** (el de contrato, solo a supervisores del contrato); los **técnicos no exportan** ZIP. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
+`buildExportPlan(scope)` (rutas + agregados), `exportSubmissionZip(submissionId)`, `exportWorkZip(workId)`, `exportServiceZip(serviceId)`, `exportContractZip(contractId)` y `buildWorkbook(plan)` (XLSX). Accesibles a **administradores y supervisores** (el de contrato, solo a supervisores del contrato); los **técnicos no exportan** ZIP. Paths de ZIP provenientes de IDs y nombres saneados, con desambiguación para repetidos.
 
 ## 5. Endpoints y acciones orientativas
 
@@ -129,8 +129,9 @@ La ruta exacta se puede ajustar a SvelteKit. **No usar CRUD público genérico**
 | GET | `/api/photos/:id/thumbnail` | Ámbito de servicio | Igual autorización que foto |
 | GET | `/api/submissions/:id/export.zip` | Ámbito de servicio | Foto snapshot histórica |
 | GET | `/api/services/:id/export.zip` | Ámbito de servicio | Últimas aprobadas + resumen |
-| GET | `/api/contracts/:id/export.zip` | Admin o supervisor del contrato | Última entrega aprobada por objetivo |
+| GET | `/api/contracts/:id/export.zip` | Admin o supervisor del contrato | Fotos aprobadas por objetivo + registro XLSX |
 | GET | `/api/works/:id/export.zip` | Admin o supervisor asignado | Ídem, jerarquía por trabajo |
+| GET | `/api/services/:id/export.zip` | Admin o supervisor asignado | Ídem, jerarquía por servicio |
 | GET | `/api/search?q=...` | Sesión activa | Resultados filtrados por acceso |
 | POST | `/api/push/subscriptions` | Sesión activa | Endpoint validado |
 
@@ -177,7 +178,7 @@ Valores **sugeridos, configurables** para v1: tamaño máximo de subida por arch
 - **ZIP entrega**: recorrer `submission_photos` ordenadas (grupo y posición), copiar binarios, carpetas con nombre congelado; fotos numeradas `01`, `02`... sin depender de nombres originales.
 - **ZIP servicio**: recorrer todos los objetivos (trabajo directo o elementos), seleccionar solo última entrega **aprobada**; incluir `resumen.csv` con todas las unidades incluyendo omitidas. Mantener contextos de carpetas trabajo/elemento y tratar nombres repetidos añadiendo identificadores cortos seguros.
 - **Streaming**: preferir salida ZIP bajo demanda y conexión de lectura controlada; alternativa temporal en volumen con cuotas/expiración. Si el cliente corta conexión, cerrar streams/limpiar temporales. Evitar generar ZIP entero en RAM.
-- **Exportación de datos**: retirada por ahora (antes CSV administrativo); se reintroducirá en **XLSX**. Cuando se implemente, neutralizar celdas que comiencen `=`, `+`, `-`, `@` o caracteres de control para mitigar inyección de fórmulas.
+- **Registro XLSX**: cada ZIP incluye `<Ámbito>/<Ámbito>.xlsx` (hoja `Resumen` + una hoja por servicio, una fila por trabajo) generado con **`exceljs`** (MIT) y añadido al ZIP como entrada binaria. Los hipervínculos son **relativos** al libro y apuntan al PDF de evidencia de cada trabajo; Excel/LibreOffice los resuelven, Google Sheets no. Si algún día se admiten datos de usuario, neutralizar celdas que comiencen `=`, `+`, `-`, `@` o caracteres de control.
 - **Archivos históricos**: las rutas del ZIP se derivan de los nombres de grupo guardados **en cada entrega**, no de requisitos actuales.
 
 ## 8. Seguridad de aplicación

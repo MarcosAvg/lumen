@@ -254,6 +254,23 @@ Auditoría y refuerzo de jerarquía, navegación y modales, sin tocar dominio ni
   `RenameDialog` y `ConfirmSubmit`. La gestión de asignaciones se mueve a un modal de la ficha del
   servicio (`/admin/services/[serviceId]` redirige a la ficha).
 
+## Registro XLSX dentro de las exportaciones
+
+Cada ZIP (contrato, servicio y trabajo) incluye `<Ámbito>/<Ámbito>.xlsx` con el registro de evidencias, generado con
+**`exceljs@4.4.0`** (MIT):
+
+- Hoja **`Resumen`** (por servicio: trabajos, aprobados, en revisión, rechazados, pendientes y % de avance) y **una hoja
+  por servicio**, con **una fila por trabajo** (no por elemento).
+- Columnas: edificio, servicio, trabajo, tipo, elementos (X/Y), estado, requisitos obligatorios (X/Y), fotografías,
+  última entrega, decisión, revisor, fecha de decisión, motivo de rechazo, **evidencia** y notas.
+- **Estado derivado** en trabajos divididos: aprobado si todos sus elementos lo están; si no, el más prioritario
+  (`Rechazado > En revisión > En progreso > Pendiente`), con contador de elementos.
+- Refleja **todo el estado**; las fotos del ZIP siguen siendo solo las aprobadas.
+- La columna **Evidencia** es un **hipervínculo relativo** al PDF del trabajo en su carpeta (PDF pendiente de generar);
+  Excel/LibreOffice resuelven rutas relativas, Google Sheets no.
+- `buildExportPlan(scope)` calcula rutas y agregados una sola vez (ZIP + XLSX); `buildZipResponse` acepta ahora entradas
+  binarias generadas. Pruebas: integración EXP-05 y E2E `tech-export` (el ZIP de contrato contiene `General/General.xlsx`).
+
 ## Exportaciones ZIP por nivel (contrato, servicio, trabajo, entrega)
 
 Jerarquía de carpetas consistente en todos los niveles, solo con la **última entrega aprobada** de cada objetivo:
@@ -265,7 +282,7 @@ Jerarquía de carpetas consistente en todos los niveles, solo con la **última e
 - `trabajo-<nombre>.zip`: `Trabajo ▸ (Elemento) ▸ Requisito ▸ fotos`. Nuevo endpoint `GET /api/works/:id/export.zip`.
 - `entrega-<n>.zip`: sin cambios (snapshot inmutable).
 - **Retirada la exportación CSV** (`/api/admin/exports/services.csv`, `getServicesCsv`, `exports/csv.ts` y el ítem del
-  sidebar). La exportación de datos volverá en **XLSX** en una tarea posterior.
+  sidebar); la exportación de datos se entrega ahora como **XLSX** dentro de cada ZIP (ver sección anterior).
 - Botones «Exportar ZIP» en las fichas de contrato, trabajo y servicio (los técnicos no exportan). Pruebas: integración
   `search-exports.spec.ts` (EXP-03/EXP-04) y E2E `tech-export` ampliado.
 

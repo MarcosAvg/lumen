@@ -270,7 +270,8 @@ Motivo de rechazo obligatorio, con aviso de campo vacío y longitud máxima razo
 - **Contrato**: «Exportar ZIP» en la ficha (admin o supervisor del contrato). Jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
 - **Trabajo**: «Exportar ZIP» en la ficha (admin o supervisor asignado). Jerarquía `Trabajo ▸ (Elemento) ▸ Requisito`.
 - **Servicio**: «Exportar ZIP» en el detalle (admin o supervisor asignado). Jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
-- Solo se incluye la **última entrega aprobada** de cada objetivo; **no** se generan archivos de resumen (la exportación de datos volverá en XLSX).
+- Solo se incluye la **última entrega aprobada** de cada objetivo para las fotos; **no** se generan archivos de resumen.
+- **Registro XLSX**: cada ZIP añade `<Ámbito>/<Ámbito>.xlsx` con hoja `Resumen` (por servicio) y una hoja por servicio, **una fila por trabajo** (estado derivado en divididos, requisitos X/Y, fotos, decisión, revisor, motivo y **enlace relativo al PDF** de evidencia del trabajo). Refleja **todo** el estado.
 - En descargas grandes, feedback de inicio/error; no prometer barra de progreso si streaming nativo no permite medirlo de manera robusta.
 
 ## 16. Estados de interfaz y accesibilidad

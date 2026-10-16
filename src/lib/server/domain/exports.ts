@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
 import {
@@ -7,10 +7,12 @@ import {
 	elements,
 	evidenceSubmissions,
 	evidenceTargets,
+	photoRequirements,
 	photos,
 	reviews,
 	services,
 	submissionPhotos,
+	users,
 	works
 } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
@@ -20,15 +22,16 @@ import { DomainError } from './errors';
 import { getTargetContext } from './targets';
 
 /**
- * Exportaciones ZIP (docs/06 §10). Solo se generan **listas de entradas**; el
- * streaming lo hace la capa HTTP. Jerarquía consistente en todos los niveles:
+ * Exportaciones ZIP (docs/06 §10). `buildExportPlan` calcula **una vez** las
+ * rutas y los datos; de ahí salen el ZIP (fotos) y el XLSX (datos + enlaces).
  *
  *   contrato ▸ edificio ▸ servicio ▸ trabajo ▸ (elemento) ▸ requisito ▸ fotos
  *   servicio ▸ trabajo ▸ (elemento) ▸ requisito ▸ fotos
  *   trabajo ▸ (elemento) ▸ requisito ▸ fotos
  *   entrega ▸ requisito ▸ fotos
  *
- * Solo se incluye la **última entrega aprobada** de cada objetivo.
+ * Solo se incluyen **fotos de la última entrega aprobada** de cada objetivo; el
+ * XLSX refleja **todo** el estado.
  */
 
 export const NO_BUILDING_LABEL = 'Sin edificio';
@@ -48,10 +51,56 @@ export interface SubmissionArchive {
 	files: ArchiveFile[];
 }
 
+/** Agregados de una unidad (trabajo directo o elemento) para el XLSX. */
+export interface UnitAggregate {
+	status: TargetStatus;
+	requiredTotal: number;
+	requiredSatisfied: number;
+	photoCount: number;
+	lastSubmissionAt: Date | null;
+	decision: 'approved' | 'rejected' | null;
+	reviewerName: string | null;
+	reviewedAt: Date | null;
+	rejectionReason: string | null;
+}
+
+export interface ExportPlanRow {
+	workId: string;
+	workName: string;
+	mode: WorkMode;
+	/** Carpeta del trabajo relativa a la raíz del ZIP, p. ej. `Servicio/Trabajo`. */
+	workPath: string;
+	/** Nombre del PDF de evidencia del trabajo (aún por generar). */
+	pdfName: string;
+	/** Ruta del PDF relativa a la raíz del ZIP = enlace del XLSX. */
+	pdfPath: string;
+	files: ArchiveFile[];
+	serviceId: string;
+	serviceName: string;
+	buildingName: string | null;
+	units: UnitAggregate[];
+}
+
+export interface ExportPlan {
+	kind: 'contract' | 'service' | 'work';
+	/** Nombre saneado de la raíz (carpeta del ZIP y base del XLSX). */
+	root: string;
+	/** Título sin sanear del ámbito. */
+	title: string;
+	services: { id: string; name: string; buildingName: string | null }[];
+	rows: ExportPlanRow[];
+}
+
+export type ExportScope =
+	| { kind: 'contract'; contractId: string }
+	| { kind: 'service'; serviceId: string }
+	| { kind: 'work'; workId: string };
+
 export interface ServiceArchive {
 	serviceId: string;
 	fileName: string;
 	files: ArchiveFile[];
+	plan: ExportPlan;
 }
 
 export interface WorkArchive {
@@ -59,12 +108,14 @@ export interface WorkArchive {
 	serviceId: string;
 	fileName: string;
 	files: ArchiveFile[];
+	plan: ExportPlan;
 }
 
 export interface ContractArchive {
 	contractId: string;
 	fileName: string;
 	files: ArchiveFile[];
+	plan: ExportPlan;
 }
 
 interface SubmissionPhotoRow {
@@ -74,6 +125,10 @@ interface SubmissionPhotoRow {
 	requirementName: string | null;
 	storagePath: string;
 }
+
+const visibleBuildingName = sql<
+	string | null
+>`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot})`;
 
 async function loadSubmissionPhotos(
 	db: Database,
@@ -212,6 +267,117 @@ async function latestApprovedSubmissions(
 	return result;
 }
 
+/** Agregados por objetivo para el XLSX (estado completo, no solo aprobados). */
+async function loadTargetAggregates(
+	db: Database,
+	targetIds: string[]
+): Promise<Map<string, UnitAggregate>> {
+	const result = new Map<string, UnitAggregate>();
+	if (targetIds.length === 0) return result;
+
+	const requiredCount = sql<number>`cast(count(*) as int)`;
+	const satisfiedCount = sql<number>`cast(count(distinct ${photoRequirements.id}) as int)`;
+
+	const [requiredRows, satisfiedRows, photoRows, submissionRows] = await Promise.all([
+		db
+			.select({ targetId: photoRequirements.targetId, value: requiredCount })
+			.from(photoRequirements)
+			.where(
+				and(inArray(photoRequirements.targetId, targetIds), eq(photoRequirements.isRequired, true))
+			)
+			.groupBy(photoRequirements.targetId),
+		db
+			.select({ targetId: photoRequirements.targetId, value: satisfiedCount })
+			.from(photoRequirements)
+			.innerJoin(photos, eq(photos.requirementId, photoRequirements.id))
+			.where(
+				and(
+					inArray(photoRequirements.targetId, targetIds),
+					eq(photoRequirements.isRequired, true),
+					isNull(photos.removedAt),
+					eq(photos.processingStatus, 'ready')
+				)
+			)
+			.groupBy(photoRequirements.targetId),
+		db
+			.select({
+				targetId: photos.targetId,
+				value: sql<number>`cast(count(*) as int)`
+			})
+			.from(photos)
+			.where(
+				and(
+					inArray(photos.targetId, targetIds),
+					isNull(photos.removedAt),
+					eq(photos.processingStatus, 'ready')
+				)
+			)
+			.groupBy(photos.targetId),
+		// Última entrega de cada objetivo (la de mayor número de secuencia).
+		db
+			.selectDistinctOn([evidenceSubmissions.targetId], {
+				targetId: evidenceSubmissions.targetId,
+				submissionId: evidenceSubmissions.id,
+				submittedAt: evidenceSubmissions.submittedAt
+			})
+			.from(evidenceSubmissions)
+			.where(inArray(evidenceSubmissions.targetId, targetIds))
+			.orderBy(evidenceSubmissions.targetId, desc(evidenceSubmissions.sequenceNo))
+	]);
+
+	const requiredByTarget = new Map(requiredRows.map((row) => [row.targetId, row.value]));
+	const satisfiedByTarget = new Map(satisfiedRows.map((row) => [row.targetId, row.value]));
+	const photosByTarget = new Map(photoRows.map((row) => [row.targetId, row.value]));
+
+	const submissionIds = submissionRows.map((row) => row.submissionId);
+	const reviewRows = submissionIds.length
+		? await db
+				.select({
+					submissionId: reviews.submissionId,
+					decision: reviews.decision,
+					reason: reviews.reason,
+					reviewedAt: reviews.reviewedAt,
+					reviewerName: sql<string | null>`coalesce(${reviews.reviewerName}, ${users.displayName})`
+				})
+				.from(reviews)
+				.leftJoin(users, eq(users.id, reviews.reviewerId))
+				.where(inArray(reviews.submissionId, submissionIds))
+		: [];
+	const reviewBySubmission = new Map(reviewRows.map((row) => [row.submissionId, row]));
+
+	for (const submission of submissionRows) {
+		const review = reviewBySubmission.get(submission.submissionId);
+		result.set(submission.targetId, {
+			status: 'pending',
+			requiredTotal: requiredByTarget.get(submission.targetId) ?? 0,
+			requiredSatisfied: satisfiedByTarget.get(submission.targetId) ?? 0,
+			photoCount: photosByTarget.get(submission.targetId) ?? 0,
+			lastSubmissionAt: submission.submittedAt,
+			decision: review?.decision ?? null,
+			reviewerName: review?.reviewerName ?? null,
+			reviewedAt: review?.reviewedAt ?? null,
+			rejectionReason: review?.decision === 'rejected' ? (review.reason ?? null) : null
+		});
+	}
+	// Objetivos sin entregas: agregados a cero.
+	for (const targetId of targetIds) {
+		if (!result.has(targetId)) {
+			result.set(targetId, {
+				status: 'pending',
+				requiredTotal: requiredByTarget.get(targetId) ?? 0,
+				requiredSatisfied: satisfiedByTarget.get(targetId) ?? 0,
+				photoCount: photosByTarget.get(targetId) ?? 0,
+				lastSubmissionAt: null,
+				decision: null,
+				reviewerName: null,
+				reviewedAt: null,
+				rejectionReason: null
+			});
+		}
+	}
+	return result;
+}
+
 interface WorkRef {
 	id: string;
 	serviceId: string;
@@ -238,16 +404,18 @@ interface LoadedUnits {
 	targets: TargetRef[];
 	approved: Map<string, { submissionId: string; sequenceNo: number }>;
 	photosBySubmission: Map<string, SubmissionPhotoRow[]>;
+	aggregates: Map<string, UnitAggregate>;
 }
 
-/** Carga trabajos, elementos, objetivos y fotos aprobadas de unos servicios. */
+/** Carga trabajos, elementos, objetivos y datos de un conjunto de servicios. */
 async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise<LoadedUnits> {
 	const empty: LoadedUnits = {
 		works: [],
 		elements: [],
 		targets: [],
 		approved: new Map(),
-		photosBySubmission: new Map()
+		photosBySubmission: new Map(),
+		aggregates: new Map()
 	};
 	if (serviceIds.length === 0) return empty;
 
@@ -302,10 +470,16 @@ async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise
 				.where(targetCondition)
 		: [];
 
-	const approved = await latestApprovedSubmissions(
-		db,
-		targetRows.map((row) => row.id)
-	);
+	const targetIds = targetRows.map((row) => row.id);
+	const [approved, aggregates] = await Promise.all([
+		latestApprovedSubmissions(db, targetIds),
+		loadTargetAggregates(db, targetIds)
+	]);
+	// El estado autoritativo vive en el objetivo; se copia al agregado.
+	for (const target of targetRows) {
+		const aggregate = aggregates.get(target.id);
+		if (aggregate) aggregate.status = target.status;
+	}
 	const photosBySubmission = await loadSubmissionPhotos(
 		db,
 		[...approved.values()].map((entry) => entry.submissionId)
@@ -316,7 +490,8 @@ async function loadUnitsForServices(db: Database, serviceIds: string[]): Promise
 		elements: elementRows,
 		targets: targetRows,
 		approved,
-		photosBySubmission
+		photosBySubmission,
+		aggregates
 	};
 }
 
@@ -337,22 +512,14 @@ function unitsForWork(
 		}));
 }
 
-/**
- * Añade las fotos aprobadas de un trabajo bajo `parentPath`.
- * `includeWorkFolder` = false cuando `parentPath` ya **es** la carpeta del trabajo.
- */
-function addWorkFiles(
-	files: ArchiveFile[],
-	dirRegistries: Map<string, NameRegistry>,
+/** Fotos aprobadas de un trabajo, con la carpeta de cada unidad. */
+function workFiles(
 	state: LoadedUnits,
 	work: WorkRef,
-	parentPath: string,
-	includeWorkFolder: boolean
-): void {
-	const workPath = includeWorkFolder
-		? `${parentPath}/${getRegistry(dirRegistries, parentPath).unique(work.name, work.id)}`
-		: parentPath;
-
+	workPath: string,
+	dirRegistries: Map<string, NameRegistry>
+): ArchiveFile[] {
+	const files: ArchiveFile[] = [];
 	for (const unit of unitsForWork(state, work)) {
 		const unitPath = unit.element
 			? `${workPath}/${getRegistry(dirRegistries, workPath).unique(unit.element.name, unit.element.id)}`
@@ -365,120 +532,207 @@ function addWorkFiles(
 			...photosToFiles(unitPath, rows, submission.submissionId, additionalFolderLabel(rows))
 		);
 	}
+	return files;
+}
+
+/** Nombre del PDF de evidencia de un trabajo (se generará más adelante). */
+function pdfNameFor(workName: string, date: Date | null): string {
+	const dd = String(date ? date.getDate() : 0).padStart(2, '0');
+	const mm = String(date ? date.getMonth() + 1 : 0).padStart(2, '0');
+	const yy = String(date ? date.getFullYear() : 0).slice(-2);
+	return `${sanitizeSegment(workName, 'trabajo')} - [${dd}-${mm}-${yy}].pdf`;
+}
+
+/** Última fecha de entrega de un trabajo (para nombrar el PDF). */
+function lastDeliveryDate(units: UnitAggregate[]): Date | null {
+	let last: Date | null = null;
+	for (const unit of units) {
+		if (unit.lastSubmissionAt && (!last || unit.lastSubmissionAt > last)) {
+			last = unit.lastSubmissionAt;
+		}
+	}
+	return last;
+}
+
+export async function buildExportPlan(db: Database, scope: ExportScope): Promise<ExportPlan> {
+	// 1. Resolver el ámbito: nombre del ámbito y servicios implicados.
+	let scopeName: string;
+	let serviceRows: { id: string; name: string; buildingName: string | null }[];
+	let restrictWorkId: string | null = null;
+
+	if (scope.kind === 'contract') {
+		const [contract] = await db
+			.select({ name: contracts.name })
+			.from(contracts)
+			.where(eq(contracts.id, scope.contractId))
+			.limit(1);
+		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+		scopeName = contract.name;
+		serviceRows = await db
+			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+			.from(services)
+			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
+			.where(eq(services.contractId, scope.contractId))
+			.orderBy(asc(services.createdAt));
+	} else if (scope.kind === 'service') {
+		const [service] = await db
+			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+			.from(services)
+			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
+			.where(eq(services.id, scope.serviceId))
+			.limit(1);
+		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+		scopeName = service.name;
+		serviceRows = [service];
+	} else {
+		const workCatalog = alias(catalogItems, 'work_catalog');
+		const [work] = await db
+			.select({
+				id: works.id,
+				serviceId: works.serviceId,
+				name: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
+			})
+			.from(works)
+			.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
+			.where(eq(works.id, scope.workId))
+			.limit(1);
+		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		const [service] = await db
+			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
+			.from(services)
+			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
+			.where(eq(services.id, work.serviceId))
+			.limit(1);
+		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+		scopeName = work.name;
+		serviceRows = [service];
+		restrictWorkId = work.id;
+	}
+
+	// 2. Cargar trabajos/elementos/objetivos/agregados de esos servicios.
+	const state = await loadUnitsForServices(
+		db,
+		serviceRows.map((row) => row.id)
+	);
+	const serviceById = new Map(serviceRows.map((row) => [row.id, row]));
+
+	const root = sanitizeSegment(scopeName, scope.kind);
+	const dirRegistries = new Map<string, NameRegistry>();
+	const rows: ExportPlanRow[] = [];
+
+	const inScope = (work: WorkRef): boolean => {
+		if (restrictWorkId) return work.id === restrictWorkId;
+		return serviceById.has(work.serviceId);
+	};
+
+	// 3. Recorrer en orden de edificio → servicio → trabajo (contrato) o directo.
+	const scopedWorks = state.works.filter(inScope);
+
+	const buildRow = (work: WorkRef, workPath: string): ExportPlanRow => {
+		const service = serviceById.get(work.serviceId);
+		const units = unitsForWork(state, work);
+		const unitAggregates = units.map(
+			(unit) =>
+				(unit.target ? state.aggregates.get(unit.target.id) : null) ?? {
+					status: 'pending' as TargetStatus,
+					requiredTotal: 0,
+					requiredSatisfied: 0,
+					photoCount: 0,
+					lastSubmissionAt: null,
+					decision: null,
+					reviewerName: null,
+					reviewedAt: null,
+					rejectionReason: null
+				}
+		);
+		const pdfName = pdfNameFor(work.name, lastDeliveryDate(unitAggregates));
+		return {
+			workId: work.id,
+			workName: work.name,
+			mode: work.mode,
+			workPath,
+			pdfName,
+			pdfPath: `${workPath}/${pdfName}`,
+			files: workFiles(state, work, workPath, dirRegistries),
+			serviceId: work.serviceId,
+			serviceName: service?.name ?? '',
+			buildingName: service?.buildingName ?? null,
+			units: unitAggregates
+		};
+	};
+
+	if (scope.kind === 'work') {
+		for (const work of scopedWorks) rows.push(buildRow(work, root));
+	} else if (scope.kind === 'service') {
+		for (const work of scopedWorks) {
+			const workFolder = getRegistry(dirRegistries, root).unique(work.name, work.id);
+			rows.push(buildRow(work, `${root}/${workFolder}`));
+		}
+	} else {
+		// Contrato: agrupar por edificio y servicio, en orden estable.
+		const byBuilding = new Map<string, typeof serviceRows>();
+		for (const service of serviceRows) {
+			const key = service.buildingName?.trim() ? service.buildingName : NO_BUILDING_LABEL;
+			const list = byBuilding.get(key) ?? [];
+			list.push(service);
+			byBuilding.set(key, list);
+		}
+		for (const [building, list] of [...byBuilding.entries()].sort(([a], [b]) =>
+			a.localeCompare(b, 'es')
+		)) {
+			const buildingPath = `${root}/${getRegistry(dirRegistries, root).unique(building, building)}`;
+			for (const service of list) {
+				const servicePath = `${buildingPath}/${getRegistry(dirRegistries, buildingPath).unique(
+					service.name,
+					service.id
+				)}`;
+				for (const work of scopedWorks.filter((row) => row.serviceId === service.id)) {
+					const workFolder = getRegistry(dirRegistries, servicePath).unique(work.name, work.id);
+					rows.push(buildRow(work, `${servicePath}/${workFolder}`));
+				}
+			}
+		}
+	}
+
+	return { kind: scope.kind, root, title: scopeName, services: serviceRows, rows };
+}
+
+export function planFiles(plan: ExportPlan): ArchiveFile[] {
+	return plan.rows.flatMap((row) => row.files);
 }
 
 export async function getServiceArchive(db: Database, serviceId: string): Promise<ServiceArchive> {
-	const [service] = await db
-		.select({ id: services.id, name: services.name })
-		.from(services)
-		.where(eq(services.id, serviceId))
-		.limit(1);
-	if (!service) throw new DomainError(404, 'Servicio no encontrado.');
-
-	const state = await loadUnitsForServices(db, [service.id]);
-	const root = sanitizeSegment(service.name, 'servicio');
-	const files: ArchiveFile[] = [];
-	const dirRegistries = new Map<string, NameRegistry>();
-
-	for (const work of state.works) {
-		addWorkFiles(files, dirRegistries, state, work, root, true);
-	}
-
+	const plan = await buildExportPlan(db, { kind: 'service', serviceId });
 	return {
-		serviceId: service.id,
-		fileName: `servicio-${sanitizeSegment(service.name, 'servicio')}.zip`,
-		files
+		serviceId,
+		fileName: `servicio-${plan.root}.zip`,
+		files: planFiles(plan),
+		plan
 	};
 }
 
 export async function getWorkArchive(db: Database, workId: string): Promise<WorkArchive> {
-	const workCatalog = alias(catalogItems, 'work_catalog');
-	const [work] = await db
-		.select({
-			id: works.id,
-			serviceId: works.serviceId,
-			mode: works.mode,
-			name: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
-		})
-		.from(works)
-		.leftJoin(workCatalog, eq(workCatalog.id, works.catalogItemId))
-		.where(eq(works.id, workId))
-		.limit(1);
-	if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
-
-	const state = await loadUnitsForServices(db, [work.serviceId]);
-	const root = sanitizeSegment(work.name, 'trabajo');
-	const files: ArchiveFile[] = [];
-	const dirRegistries = new Map<string, NameRegistry>();
-	addWorkFiles(files, dirRegistries, state, work, root, false);
-
+	const plan = await buildExportPlan(db, { kind: 'work', workId });
+	const row = plan.rows[0];
+	if (!row) throw new DomainError(404, 'Trabajo no encontrado.');
 	return {
-		workId: work.id,
-		serviceId: work.serviceId,
-		fileName: `trabajo-${sanitizeSegment(work.name, 'trabajo')}.zip`,
-		files
+		workId,
+		serviceId: row.serviceId,
+		fileName: `trabajo-${plan.root}.zip`,
+		files: planFiles(plan),
+		plan
 	};
 }
-
-const visibleBuildingName = sql<
-	string | null
->`coalesce(${catalogItems.name}, ${services.buildingNameSnapshot})`;
 
 export async function getContractArchive(
 	db: Database,
 	contractId: string
 ): Promise<ContractArchive> {
-	const [contract] = await db
-		.select({ id: contracts.id, name: contracts.name })
-		.from(contracts)
-		.where(eq(contracts.id, contractId))
-		.limit(1);
-	if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
-
-	const serviceRows = await db
-		.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
-		.from(services)
-		.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
-		.where(eq(services.contractId, contractId))
-		.orderBy(asc(services.createdAt));
-
-	const state = await loadUnitsForServices(
-		db,
-		serviceRows.map((row) => row.id)
-	);
-	const root = sanitizeSegment(contract.name, 'contrato');
-	const files: ArchiveFile[] = [];
-	const dirRegistries = new Map<string, NameRegistry>();
-
-	// Agrupar servicios por edificio (solo edificios con servicios); los que no
-	// tienen edificio van a «Sin edificio».
-	const byBuilding = new Map<string, typeof serviceRows>();
-	for (const service of serviceRows) {
-		const key = service.buildingName?.trim() ? service.buildingName : NO_BUILDING_LABEL;
-		const list = byBuilding.get(key) ?? [];
-		list.push(service);
-		byBuilding.set(key, list);
-	}
-
-	for (const [building, serviceList] of [...byBuilding.entries()].sort(([a], [b]) =>
-		a.localeCompare(b, 'es')
-	)) {
-		const buildingFolder = getRegistry(dirRegistries, root).unique(building, building);
-		const buildingPath = `${root}/${buildingFolder}`;
-		for (const service of serviceList) {
-			const servicePath = `${buildingPath}/${getRegistry(dirRegistries, buildingPath).unique(
-				service.name,
-				service.id
-			)}`;
-			for (const work of state.works.filter((row) => row.serviceId === service.id)) {
-				addWorkFiles(files, dirRegistries, state, work, servicePath, true);
-			}
-		}
-	}
-
+	const plan = await buildExportPlan(db, { kind: 'contract', contractId });
 	return {
-		contractId: contract.id,
-		fileName: `contrato-${sanitizeSegment(contract.name, 'contrato')}.zip`,
-		files
+		contractId,
+		fileName: `contrato-${plan.root}.zip`,
+		files: planFiles(plan),
+		plan
 	};
 }

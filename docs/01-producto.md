@@ -195,10 +195,12 @@ Solo se permite convertir `direct` ↔ `divided` cuando el trabajo **nunca ha te
 | Entrega ZIP | Los tres, con permiso de servicio | **Una entrega histórica o vigente**, exactamente su snapshot, carpetas por requisito + `Adicionales`, archivos ordenados |
 | Trabajo ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo del trabajo; jerarquía `Trabajo ▸ (Elemento) ▸ Requisito` |
 | Servicio ZIP | Admin y supervisor asignado | **Última entrega aprobada** de cada objetivo; jerarquía `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito` |
-| Contrato ZIP | Admin y supervisor del contrato | **Última entrega aprobada** de cada objetivo; jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito` |
+| Contrato ZIP | Admin y supervisor del contrato | **Última entrega aprobada** de cada objetivo; jerarquía `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`; incluye el **registro XLSX** |
+| Registro XLSX | En cada ZIP | Hoja `Resumen` + una hoja por servicio, **una fila por trabajo** con estado, requisitos, fotos, revisión y **enlace relativo al PDF** de evidencia del trabajo |
 
-- La exportación de datos (XLSX) está **retirada por ahora**; se reintroducirá en una tarea posterior (antes existía como CSV administrativo).
-- Un ZIP puede exportarse **antes** de completarse; solo incluye lo aprobado y omite el resto.
+- La exportación de datos (antes CSV) se entrega ahora como **XLSX** dentro de cada ZIP.
+- Un ZIP puede exportarse **antes** de completarse; solo incluye fotos aprobadas y omite el resto (el XLSX sí lista todo el estado).
+- El **registro XLSX** se entrega en la raíz del ámbito: `<Ámbito>/<Ámbito>.xlsx`.
 - Cuando el trabajo es directo, sus carpetas de requisito viven en la carpeta del **trabajo**; no inventar elemento hijo.
 - El ZIP respeta el orden de cada grupo y usa nombres de carpetas saneados, únicos y compatibles con distintos sistemas operativos.
 - Toda exportación se genera con comprobación de permisos en servidor y sin modificar registros. ZIP grandes: streaming o temporales con limpieza.
