@@ -111,7 +111,8 @@ reales por defecto.
 ## 6. Imagen publicada (GHCR)
 
 El workflow `release.yml` publica `ghcr.io/marcosavg/lumen:<tag>` al etiquetar (`git tag v1.0.0`) y
-actualiza `:latest`. El compose usa esa imagen por defecto:
+actualiza `:latest`. La imagen es **multi-arquitectura** (`linux/amd64` y `linux/arm64`), así que sirve
+tanto en VPS x86-64 como en Raspberry Pi / VPS ARM. El compose usa esa imagen por defecto:
 
 ```bash
 docker compose pull && docker compose up -d
