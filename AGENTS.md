@@ -33,7 +33,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 - PWA instalable, **en línea**, con Web Push estándar VAPID e inbox interno.
 - Autenticación local por sesión segura en cookie; primera cuenta admin configurada en el primer arranque.
 - No añadir Redis, S3, Firebase, colas externas, microservicios, WebSockets ni servicios cloud obligatorios por defecto.
-- Imagen publicable en GHCR usada **por defecto** por Compose (o `--build` para compilar en local); **origen público en runtime** (no hornear `ORIGIN`); **el proxy inverso lo gestiona el usuario** (la app se publica en `127.0.0.1:${APP_PORT}`) con **Caddy opcional** (perfil `caddy`), sin asumir un despliegue concreto.
+- Imagen publicable en GHCR usada **por defecto** por Compose (o `--build` para compilar en local); **origen público en runtime** (no hornear `ORIGIN`); la app se publica **solo en `127.0.0.1:8090`** y el dominio se expone con **Cloudflare Tunnel** (`cloudflared` en el host). El proxy inverso (p. ej. Nginx Proxy Manager) queda para otros servicios, fuera de la ruta de Lumen.
 
 ## Invariantes que nunca deben romperse
 

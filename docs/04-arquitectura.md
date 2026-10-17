@@ -226,24 +226,19 @@ compose.yaml
   migrate: runner de Drizzle (una vez) antes de arrancar la app
   app:     SvelteKit/Node (imagen GHCR), healthcheck,
            volumen /data/photos (lectura/escritura),
-           publicado solo en 127.0.0.1:${APP_PORT}
-
-perfil `caddy` (opcional)
-  caddy:   proxy inverso con HTTPS automático (Let's Encrypt)
+           publicado solo en 127.0.0.1:8090
 
 volumes:
   postgres_data: persistente
   lumen_photos: persistente
-  caddy_data / caddy_config: estado de Caddy (solo con el override)
 ```
 
-- **El proxy inverso lo gestiona el usuario** (convención self-host): la app se publica solo en
-  `127.0.0.1` y el proxy debe enviar `Host`, `X-Forwarded-Proto` y `X-Forwarded-For`. Como alternativa
-  sin proxy, el perfil `caddy` añade Caddy (HTTPS automático). **PostgreSQL nunca** sale a Internet;
-  `compose.dev.yaml` publica `db` solo en `127.0.0.1` para desarrollo.
-- HTTPS en el proxy con `X-Forwarded-*` confiables; la app usa `PROTOCOL_HEADER`/`ADDRESS_HEADER`/
-  `XFF_DEPTH`. El **origen público se deriva de la petición** (no se hornea), así que la misma imagen
-  sirve para cualquier dominio sin reconstruir.
+- **Publicación con Cloudflare Tunnel**: `cloudflared` (servicio del host) reenvía el dominio público a
+  `127.0.0.1:8090`; no se abren puertos entrantes. Cloudflare termina TLS y entrega
+  `X-Forwarded-Proto` y `CF-Connecting-IP`, que la app usa (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
+  **PostgreSQL nunca** sale a Internet; `compose.dev.yaml` publica `db` solo en `127.0.0.1`.
+- El **origen público se deriva de la petición** (no se hornea), así que la misma imagen sirve para
+  cualquier dominio sin reconstruir.
 - Base de datos inicializada antes de marcar app lista; migraciones con comando específico y bloqueo de
   asesoría ante despliegues concurrentes.
 - La app no contiene ni exige secretos de ejemplo: proceso como usuario sin privilegios, healthchecks y
@@ -255,18 +250,22 @@ volumes:
 
 | Variable | Finalidad |
 |---|---|
-| `DATABASE_URL` | URL interna PostgreSQL con credenciales protegidas |
-| `ORIGIN` | *(opcional)* origen fijado en **build**; la imagen lo deriva de la petición, no hace falta |
+| `POSTGRES_PASSWORD` | **Obligatoria**: contraseña de PostgreSQL |
+| `DATABASE_URL` | URL interna de PostgreSQL (la construye Compose) |
 | `PHOTO_STORAGE_PATH` | Ruta montada de archivos persistentes |
-| `MAX_UPLOAD_BYTES` | Tamaño máximo permitido por archivo |
-| `IMAGE_MAX_DIMENSION` | Dimensión de normalización |
-| `IMAGE_THUMB_DIMENSION` | Dimensión de miniatura |
 | `VAPID_PUBLIC_KEY` | Clave pública para registrar PushSubscription |
 | `VAPID_PRIVATE_KEY` | **Secreta**: firma de push |
-| `VAPID_SUBJECT` | Identificador de contacto/operador para VAPID |
-| `TZ` | Zona de presentación/operación de contenedor (persistir UTC) |
+| `VAPID_SUBJECT` | Identificador de contacto (`mailto:…`) para VAPID |
+| `TZ` | Zona de presentación/operación (persistir UTC) |
+| `LUMEN_TAG` | Etiqueta de imagen a desplegar (por defecto `latest`) |
 
-Se debe proveer `.env.example` **sin secretos reales** y validar entorno al arrancar. Si Push no está configurado, la aplicación y la bandeja interna siguen operables, con UX que indica «push no configurado» a administración.
+Parámetros avanzados no expuestos en `.env` (tienen valores por defecto en el
+código): `MAX_UPLOAD_BYTES`, `IMAGE_MAX_DIMENSION`, `IMAGE_THUMB_DIMENSION` y
+`ORIGIN` (origen fijado en build; la imagen lo deriva de la petición).
+
+Se debe proveer `.env.example` **sin secretos reales** y validar entorno al
+arrancar. Web Push forma parte del núcleo: `install.sh` genera las claves y la
+bandeja interna sigue operando aunque el navegador no admita push.
 
 ## 11. Copias de seguridad, restauración y mantenimiento
 

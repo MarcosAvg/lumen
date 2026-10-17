@@ -30,8 +30,8 @@
 ## Convenciones (SvelteKit 3)
 
 - Imports internos con el alias **`#lib`** (SvelteKit 3 retiró `$lib`).
-- El **origen público se deriva de la petición** (runtime): no se hornea `ORIGIN`. El proxy inverso
-  debe enviar `X-Forwarded-Proto`/`X-Forwarded-For` (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
+- El **origen público se deriva de la petición** (runtime): no se hornea `ORIGIN`. Cloudflare Tunnel
+  entrega `X-Forwarded-Proto`/`CF-Connecting-IP` (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
 - Rutas con `resolve()`; los componentes shadcn quedan exentos de la regla de navegación.
 - **CSRF** de SvelteKit activo: las mutaciones exigen `Origin` acorde (el proxy lo preserva).
 
@@ -57,8 +57,8 @@
   (simple/extendida) con hipervínculos relativos.
 - **UX/PWA**: tablas unificadas (`DataTable`) y tarjetas en móvil, sidebar y barra inferior por rol,
   modales, estados de error/carga propios, CSP y service worker **sin caché** (online-only).
-- **Operación**: `compose.yaml` único (imagen GHCR multi-arquitectura o `--build`; **Caddy opcional**
-  por perfil), `install.sh`, `deploy/backup.sh`/`restore.sh` (solo Docker), limpieza por cron, CI
+- **Operación**: `compose.yaml` único (imagen GHCR multi-arquitectura o `--build`), `install.sh`,
+  `deploy/backup.sh`/`restore.sh` (solo Docker), limpieza por cron, CI
   (check/lint/unit/integración/build/E2E) y publicación de la imagen en GHCR por tag.
 
 ## Pruebas y verificación
@@ -87,5 +87,5 @@
 
 - El rate limiting es por instancia (suficiente para un contenedor).
 - Programar `./deploy/backup.sh` y `pnpm maintenance:cleanup` por cron y probar restauraciones.
-- Publicar la imagen por tag (`git tag`) y desplegar tras el proxy con HTTPS
+- Publicar la imagen por tag (`git tag`) y desplegar con Cloudflare Tunnel
   ([`docs/deployment.md`](docs/deployment.md)).

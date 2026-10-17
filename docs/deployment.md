@@ -1,185 +1,165 @@
 # Despliegue, seguridad y operación de Lumen
 
-Guía operativa para **autoalojar** Lumen, ponerlo detrás de HTTPS, actualizarlo,
-respaldarlo y restaurarlo. Complementa `docs/04-arquitectura.md` y el `README.md`.
-
-> Para desplegar **sin clonar el repositorio**, usa la guía autocontenida
-> [`../DEPLOY.md`](../DEPLOY.md). Índice de toda la documentación: [`README.md`](README.md).
+Guía operativa para **autoalojar** Lumen detrás de **Cloudflare Tunnel**,
+actualizarlo, respaldarlo y restaurarlo. Complementa `docs/04-arquitectura.md` y
+el `README.md`.
 
 ## 1. Requisitos
 
-- **Docker + Docker Compose** (todo lo demás va en contenedores). No hace falta Node en el servidor.
-- Un **proxy inverso** con TLS (Nginx, Traefik, Caddy…) — o el **Caddy opcional** incluido.
-  Lumen es online-only y Web Push requiere un origen seguro.
-- Un **dominio** apuntando al servidor si vas a publicarlo; para probar basta con `localhost`.
-- Almacenamiento persistente para PostgreSQL y para el volumen de fotos (volúmenes Docker).
+- **Docker + Docker Compose** (no hace falta Node en el servidor).
+- Un **dominio gestionado en Cloudflare**.
+- **`cloudflared`** instalado como servicio en el host.
+- Almacenamiento persistente para PostgreSQL y para las fotografías (volúmenes
+  Docker).
+- **2 GB de RAM** como mínimo razonable (PostgreSQL + procesado de imágenes).
 
 ## 2. Arranque en 3 pasos
 
 ```bash
 git clone https://github.com/MarcosAvg/lumen.git
 cd lumen
-./install.sh                 # crea .env con secretos aleatorios y arranca la app
+./install.sh --email tu@correo      # .env, claves VAPID y arranque
 ```
 
-- Por defecto **sin proxy**: la app queda en `http://127.0.0.1:8090`, lista para tu Nginx/Traefik.
-- `install.sh` es **opcional**: `docker compose up -d` también funciona con los valores por defecto.
-- **Con Caddy opcional** (HTTPS automático): `./install.sh --domain lumen.midominio.com`
-  (o `./install.sh --caddy` para HTTP en el puerto 80).
-- Primer arranque: abre la app y completa **Configurar Lumen** para crear la cuenta administradora.
+- La aplicación queda en **`http://127.0.0.1:8090`**, sin puertos públicos.
+- `install.sh` genera la contraseña de PostgreSQL y las claves VAPID, levanta
+  Compose y espera a que `/health` responda.
+- Primer arranque: se publica el dominio con el túnel (§4) y se completa
+  **Configurar Lumen** para crear la cuenta administradora.
 
-**Compilar la imagen en local** (en lugar de usar la publicada en GHCR):
+**Compilar la imagen en local** (en lugar de usar GHCR):
 
 ```bash
-docker compose up -d --build
+./install.sh --build
+# o bien: docker compose up -d --build
 ```
 
-Detener sin perder datos: `docker compose down` (usa `down -v` solo para borrar volúmenes).
+Detener sin perder datos: `docker compose down` (`down -v` borra los volúmenes).
 
 ## 3. Servicios del `compose.yaml`
 
-| Servicio | Función |
-|---|---|
-| `db` | PostgreSQL 17 con volumen `postgres_data`. **No se publica al exterior.** |
-| `migrate` | Aplica migraciones Drizzle una sola vez y termina. |
-| `app` | Lumen (imagen GHCR por defecto). Publicado en `127.0.0.1:${APP_PORT:-8090}`. |
-| `caddy` *(opcional)* | Perfil `caddy`: proxy con HTTPS automático (`DOMAIN`). |
+| Servicio  | Función                                                          |
+| --------- | ---------------------------------------------------------------- |
+| `db`      | PostgreSQL 17 con volumen `postgres_data`. No se publica.        |
+| `migrate` | Aplica las migraciones Drizzle una sola vez y termina.           |
+| `app`     | Lumen. Escucha solo en `127.0.0.1:8090`; la alcanza `cloudflared`. |
 
-- La app **no** se expone a Internet: se publica solo en `127.0.0.1` y tu proxy reenvía ahí enviando
-  `Host`, `X-Forwarded-Proto` y `X-Forwarded-For` (la app los exige para el origen y la IP real).
-- El orden está garantizado: `db` sana → `migrate` termina → `app` arranca.
-- Rotación de logs y límites de memoria/CPU tienen valores por defecto (ver `.env.example`).
+- Orden garantizado: `db` sana → `migrate` termina → `app` arranca.
+- Rotación de logs activa (10 MB × 3 por servicio).
+- Sin límites de CPU/RAM: Docker usa los recursos del host.
 
-### Overrides
+### Override de desarrollo
 
-- `docker compose up -d --build`: compila la imagen en local.
-- `compose.dev.yaml`: publica PostgreSQL en `127.0.0.1:5432` para `pnpm dev`, `pnpm db:migrate` y las
-  pruebas de integración (`docker compose -f compose.yaml -f compose.dev.yaml up -d db`).
-- Perfil `caddy`: añade Caddy con HTTPS automático (para quien no tenga proxy).
-
-## 4. Proxy inverso (lo gestionas tú)
-
-Lumen no trae proxy por defecto, como el resto de proyectos self-host. Configura el tuyo para reenviar
-a `127.0.0.1:${APP_PORT}` con estas cabeceras:
-
-| Cabecera | Por qué |
-|---|---|
-| `Host` | La app construye URLs y valida el origen con él |
-| `X-Forwarded-Proto` | Sin ella la app **asume `https`** y el login por HTTP da **403 (CSRF)** |
-| `X-Forwarded-For` | `ADDRESS_HEADER` la exige; sin ella el rate limiting da **500** |
-
-Ejemplo con **Nginx**:
-
-```nginx
-server {
-	listen 443 ssl http2;
-	server_name lumen.midominio.com;
-
-	# ssl_certificate ...; ssl_certificate_key ...;
-
-	client_max_body_size 30m;   # >= BODY_SIZE_LIMIT
-	proxy_read_timeout 300s;    # ZIP/PDF de evidencias
-
-	location / {
-		proxy_pass http://127.0.0.1:8090;
-		proxy_http_version 1.1;
-		proxy_set_header Host $host;
-		proxy_set_header X-Forwarded-Proto $scheme;
-		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-		proxy_set_header X-Real-IP $remote_addr;
-	}
-}
-```
-
-Con **Traefik** (u otro proxy en contenedor) apunta el servicio a `http://app:3000` en la red de
-Compose, o a `127.0.0.1:${APP_PORT}` si corre en el host. Si pones un **CDN** delante, ajusta
-`XFF_DEPTH` (número de proxies).
-
-**¿Sin proxy?** Añade Caddy con `DOMAIN` (HTTPS automático):
+`compose.dev.yaml` publica PostgreSQL en `127.0.0.1:5432` para `pnpm dev`,
+`pnpm db:migrate` y las pruebas de integración:
 
 ```bash
-docker compose --profile caddy up -d
+docker compose -f compose.yaml -f compose.dev.yaml up -d db
 ```
 
-- `DOMAIN=http://localhost` (por defecto) → HTTP en el puerto 80; un dominio → HTTPS con Let's Encrypt.
-- Puertos públicos con `HTTP_PORT`/`HTTPS_PORT`; avisos de expiración: añade `email tu@correo` al
-  bloque global de `deploy/Caddyfile`.
+## 4. Publicación con Cloudflare Tunnel
 
-### Por qué no hay que reconstruir al cambiar de dominio
+`cloudflared` abre una conexión **saliente** a Cloudflare; no hay IP de origen
+expuesta ni puertos entrantes.
 
-La imagen **deriva el origen público de cada petición** (SvelteKit usa `paths.origin` si está fijado;
-si no, el origen de la petición). Por eso la misma imagen sirve para cualquier dominio. Solo si quieres
-fijarlo a la fuerza, compila con `ORIGIN=https://… pnpm build` (afecta a builds locales, no a la
-imagen publicada).
+```
+Internet → Cloudflare (TLS + WAF) → cloudflared (host) → 127.0.0.1:8090
+```
+
+En **Zero Trust → Tunnels → Public Hostname**:
+
+| Campo      | Valor                   |
+| ---------- | ----------------------- |
+| Subdominio | `lumen` (o el elegido)  |
+| Dominio    | `midominio.com`         |
+| Servicio   | `http://127.0.0.1:8090` |
+
+- Usar `127.0.0.1`, **no** `localhost` (Docker publica en IPv4).
+- No abrir `8090` en el firewall.
+- Cloudflare entrega `X-Forwarded-Proto: https` y `CF-Connecting-IP`; la app las
+  usa para derivar el origen y la IP real (`ADDRESS_HEADER=cf-connecting-ip`).
+
+### Ajustes de Cloudflare
+
+| Ajuste                    | Valor                                                                 |
+| ------------------------- | --------------------------------------------------------------------- |
+| Rocket Loader / Auto Minify | **Off** (rompen la hidratación de Svelte y la CSP con nonces)       |
+| Cache Rules               | **Bypass** para `/api/*`, `/login`, `/setup`, `/health`, `/sw.js`, `/manifest.webmanifest` |
+| Bot Fight Mode            | Off (puede bloquear POST legítimos)                                   |
+| Timeout                   | **100 s** en planes Free/Pro: las exportaciones grandes pueden dar 524 |
+
+`sw.js` es el punto más sensible de la PWA: si se cachea, los clientes quedan en
+una versión antigua.
+
+### Alternativa con proxy inverso
+
+El proyecto asume el túnel. Si se usa un proxy propio (Nginx Proxy Manager,
+Traefik…), debe reenviar a `127.0.0.1:8090` con `Host`, `X-Forwarded-Proto` y
+`X-Forwarded-For`; en ese caso hay que cambiar `ADDRESS_HEADER` y valorar
+`XFF_DEPTH` según el número de saltos. No es la configuración por defecto.
 
 ## 5. Variables de entorno
 
-Copia `.env.example` a `.env` (o deja que `install.sh` lo genere). Ninguna variable contiene secretos
-reales por defecto.
+Copia `.env.example` a `.env` (o deja que `install.sh` lo genere).
 
-| Variable | Uso |
-|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Credenciales de PostgreSQL |
-| `APP_PORT` | Puerto local donde se publica la app (por defecto `8090`) |
-| `LUMEN_IMAGE` / `LUMEN_TAG` | Imagen y etiqueta a usar (`ghcr.io/marcosavg/lumen:latest`) |
-| `DOMAIN` *(Caddy)* | Dirección de sitio de Caddy: `http://localhost` (por defecto) o un dominio (HTTPS) |
-| `HTTP_PORT` / `HTTPS_PORT` *(Caddy)* | Puertos públicos de Caddy (por defecto `80`/`443`) |
-| `PHOTO_STORAGE_PATH` | Ruta del volumen de fotos (en Compose, `/data/photos`) |
-| `MAX_UPLOAD_BYTES` | Tamaño máximo por archivo |
-| `BODY_SIZE_LIMIT` | Límite del cuerpo HTTP de adapter-node (debe superar `MAX_UPLOAD_BYTES`) |
-| `IMAGE_MAX_DIMENSION` / `IMAGE_THUMB_DIMENSION` | Normalización y miniaturas |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (opcional) |
-| `TZ` | Zona horaria de presentación (persistencia en UTC) |
-| `APP_MEM_LIMIT` / `APP_CPUS` (y `DB_*`, `CADDY_*`) | Límites de recursos de cada contenedor |
-| `ADDRESS_HEADER` / `XFF_DEPTH` | (Ya fijados en Compose) IP real tras el proxy |
+| Variable                                                   | Obligatoria | Uso                                              |
+| ---------------------------------------------------------- | ----------- | ------------------------------------------------ |
+| `POSTGRES_PASSWORD`                                        | Sí          | Contraseña de PostgreSQL (evita `@ : / %`)       |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Sí          | Web Push; el sujeto debe ser `mailto:…`          |
+| `TZ`                                                       | No          | Zona horaria de presentación (por defecto `UTC`) |
+| `LUMEN_TAG`                                                | No          | Versión de la imagen (por defecto `latest`)      |
+
+El resto de parámetros (tamaño de subida, dimensiones de imagen, límites de tasa)
+tiene valores por defecto en el código y no se expone en `.env`.
 
 ## 6. Imagen publicada (GHCR)
 
-El workflow `release.yml` publica `ghcr.io/marcosavg/lumen:<tag>` al etiquetar (`git tag v1.0.0`) y
-actualiza `:latest`. La imagen es **multi-arquitectura** (`linux/amd64` y `linux/arm64`), así que sirve
-tanto en VPS x86-64 como en Raspberry Pi / VPS ARM. El compose usa esa imagen por defecto:
+El workflow `release.yml` publica `ghcr.io/marcosavg/lumen:<tag>` al etiquetar
+(`git tag v0.2.0`) y actualiza `:latest`. La imagen es **multi-arquitectura**
+(`linux/amd64` y `linux/arm64`), así que sirve tanto en VPS x86-64 como en ARM.
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-Para fijar una versión, define `LUMEN_TAG=v1.0.0` en `.env`.
+Para fijar una versión, define `LUMEN_TAG=v0.2.0` en `.env`.
 
 ## 7. Actualización
 
 ```bash
-./deploy/backup.sh            # 1. respalda
-docker compose pull           # 2. trae la imagen nueva
-docker compose run --rm migrate   # 3. migra (idempotente)
-docker compose up -d          # 4. recrea los contenedores
-curl http://127.0.0.1:8090/health
+./deploy/backup.sh              # 1. respalda
+docker compose pull             # 2. trae la imagen nueva
+docker compose run --rm migrate # 3. migra (idempotente)
+docker compose up -d            # 4. recrea los contenedores
 ```
 
-El runner de migraciones usa un bloqueo de asesoría, así que despliegues solapados no aplican dos veces.
+El runner de migraciones usa un bloqueo de asesoría, así que despliegues
+solapados no aplican dos veces.
 
-## 8. Web Push (opcional)
+## 8. Web Push
+
+Web Push forma parte del núcleo. `install.sh` genera las claves automáticamente;
+también puede hacerse a mano:
 
 ```bash
-./install.sh --vapid          # genera y añade las claves a .env
-# o bien: pnpm vapid:generate
+pnpm vapid:generate             # copiar el resultado en .env
 ```
 
-Con `--vapid`, `install.sh` ejecuta el generador dentro de un contenedor y añade
-`VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` a `.env`. La clave privada es un **secreto**:
-no la compartas ni la incluyas en imágenes. Sin VAPID, la bandeja interna sigue operativa y
-**Ajustes** indica «Push no configurado». Web Push requiere HTTPS.
+La clave privada es un **secreto**: no compartirla ni incluirla en imágenes.
+Requiere HTTPS (lo aporta Cloudflare) y, en iOS, añadir la PWA a la pantalla de
+inicio. En **Ajustes** se activa el push por dispositivo y se envía una
+**notificación de prueba**.
 
 ## 9. Copias de seguridad y restauración
 
-Respalda **juntos** PostgreSQL y el volumen de fotos, o dos copias tomadas en momentos distintos
-pueden no coincidir.
+Respaldar **juntos** PostgreSQL y el volumen de fotos:
 
 ```bash
 ./deploy/backup.sh                      # ./backups/<fecha>/{db.dump,photos.tar.gz,manifest.json}
 BACKUP_DIR=/mnt/backups ./deploy/backup.sh
 ```
 
-- **Solo necesita Docker** (no Node). Usa `pg_dump --format=custom` y archiva el volumen de fotos.
+- Solo necesita Docker (no Node): `pg_dump --format=custom` y archivo del volumen.
 - `manifest.json` incluye tamaño y `sha256` de cada archivo.
 
 Restauración (pide confirmación; **destructiva**):
@@ -189,59 +169,57 @@ Restauración (pide confirmación; **destructiva**):
 docker compose restart app
 ```
 
-Prueba siempre primero en un entorno separado. Verifica tras restaurar: recuento de fotos, que las
-miniaturas cargan, que el historial de entregas sigue accesible y que las descargas (foto/ZIP) funcionan.
-
-
-**Retención y prueba:** conserva varias generaciones y realiza una **prueba de restauración periódica**.
+Probar siempre primero en un entorno separado. Tras restaurar, verificar el
+recuento de fotos, las miniaturas, el historial de entregas y las descargas.
 
 ### Programar respaldo y limpieza (cron)
 
 ```cron
-# Respaldo diario a las 03:00 y limpieza de temporales/huérfanos a las 04:00
+# Respaldo diario a las 03:00 y limpieza a las 04:00
 0 3 * * * cd /opt/lumen && ./deploy/backup.sh >>/var/log/lumen-backup.log 2>&1
 0 4 * * * cd /opt/lumen && docker compose exec -T app node scripts/cleanup.mjs >>/var/log/lumen-cleanup.log 2>&1
 ```
 
-La limpieza también purga las **suscripciones push revocadas** con más de 30 días de antigüedad
-(las activas nunca se tocan).
+La limpieza también purga las **suscripciones push revocadas** con más de 30 días
+de antigüedad.
 
 ## 10. Mantenimiento y observabilidad
 
 ```bash
-docker compose exec app node scripts/cleanup.mjs   # purga staging/huérfanos, push revocado y registra uso de disco
+docker compose exec app node scripts/cleanup.mjs   # temporales, huérfanos y push revocado
 docker compose logs -f app
+docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r => console.log(r.status))"
 ```
 
 - Nunca borra archivos referenciados por entregas.
-- `/health` responde `200` solo si la base responde y las migraciones están aplicadas; `503` en caso
-  contrario, sin exponer detalles.
-- Registra en logs: fallos de conversión, limpieza, errores de BD, tiempos de ZIP y errores push.
-- Una caída de PostgreSQL o del volumen de fotos se traduce en errores claros; **no** se confirman
-  envíos/aprobaciones parciales.
+- `/health` responde `200` solo si la base responde y las migraciones están
+  aplicadas; `503` en caso contrario.
+- Registra fallos de conversión, limpieza, errores de BD, tiempos de ZIP y errores
+  push.
 
 ## 11. Seguridad
 
-- **Rate limiting** en login, setup y subidas (en memoria; por instancia si hay varias réplicas).
+- **Rate limiting** en login, setup y subidas (en memoria; por instancia).
 - **CSRF/Origin** verificado por SvelteKit; no desactivarlo.
-- Sesiones en cookies `HttpOnly`/`Secure`/`SameSite`; nunca autenticación en `localStorage`.
-- Autorización de ámbito en cada lectura, descarga, búsqueda y ZIP (revalidada al descargar).
-- Validación de archivos por **contenido** (JPEG/PNG/WebP) y límites de tamaño/píxeles.
-- **PostgreSQL no se publica** al exterior; la app solo escucha en `127.0.0.1`.
-- Los contenedores de la app corren como usuario sin privilegios `node`.
-- Mantén la imagen actualizada y revisa dependencias periódicamente.
+- Sesiones en cookies `HttpOnly`/`Secure`/`SameSite`; nunca en `localStorage`.
+- Autorización de ámbito en cada lectura, descarga, búsqueda y ZIP.
+- Validación de archivos por **contenido** (JPEG/PNG/WebP) y límites de
+  tamaño/píxeles.
+- **PostgreSQL no se publica**; la app escucha solo en `127.0.0.1`.
+- Contenedores como usuario sin privilegios, `cap_drop: ALL` y
+  `no-new-privileges`.
+- Mantener la imagen actualizada y revisar dependencias periódicamente.
 
 ## 12. Resolución de problemas
 
-| Síntoma | Causa probable / solución |
-|---|---|
-| `docker compose up` falla al traer la imagen | No hay imagen publicada: usa `docker compose pull` o `up --build`. |
-| La app no responde | `docker compose logs app`; ¿`db` sana y `migrate` terminó? |
-| No sé cómo publicar la app | Configura tu proxy a `127.0.0.1:${APP_PORT}`, o usa Caddy (`--profile caddy`). |
-| `403` en formularios (login/setup) | Falta `X-Forwarded-Proto` en el proxy; sin ella la app asume `https`. |
-| `500` con «Address header was specified…» | Falta `X-Forwarded-For` en el proxy (rate limiting). |
-| `413` al subir fotos | Sube `client_max_body_size` del proxy (≥ `BODY_SIZE_LIMIT`, 30M). |
-| HTTPS no emite certificado (Caddy) | `DOMAIN` debe resolver al servidor y los puertos 80/443 estar libres. |
-| El puerto 80/443 está ocupado (Caddy) | Ya tienes un proxy: no uses el perfil `caddy`; o cambia `HTTP_PORT`/`HTTPS_PORT`. |
-| Cookies no persisten en móvil | Accede por HTTPS con un dominio real. |
-| Empujes push no llegan | Requiere HTTPS y claves VAPID; la bandeja interna funciona igual. |
+| Síntoma                                     | Causa probable / solución                                                                 |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `docker compose up` falla al traer la imagen | No hay imagen publicada: usar `docker compose pull` o `up --build`.                       |
+| La app no responde                          | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                                |
+| El dominio no abre                          | Revisar la ruta del túnel (`http://127.0.0.1:8090`) y que `cloudflared` esté activo.      |
+| `403` en formularios                        | `X-Forwarded-Proto` no llega como `https`; revisar la ruta del túnel.                     |
+| `500` «Address header…»                     | Falta `CF-Connecting-IP`: la petición no pasó por Cloudflare.                             |
+| `413` al subir fotos                        | Límite de Cloudflare (100 MB) o `BODY_SIZE_LIMIT` (30 MB).                                |
+| `524` al exportar                           | Cloudflare corta a los 100 s; usar un subdominio sin proxy o dividir la exportación.      |
+| La PWA no se actualiza                      | `/sw.js` cacheado: añadir una regla de bypass en Cloudflare.                              |
+| Push no llega                               | Revisar claves VAPID y el sujeto `mailto:`; en iOS hace falta instalar la PWA.            |

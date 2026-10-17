@@ -2,16 +2,14 @@
 #
 # Lumen · instalador de autoalojamiento.
 #
-# Genera `.env` con secretos aleatorios (si no existe), levanta Docker Compose y
-# espera a que la app responda. Por defecto **sin proxy**: la app queda en
-# `127.0.0.1:${APP_PORT}` lista para tu Nginx/Traefik/Caddy.
+# Genera `.env` (contraseña y claves Web Push), levanta Docker Compose y espera a
+# que la app responda. La app queda en `127.0.0.1:8090`, para publicarla con
+# Cloudflare Tunnel (ver docs/deployment.md).
 #
 # Uso:
-#   ./install.sh                       # app en http://127.0.0.1:8090 (tras tu proxy)
-#   ./install.sh --caddy               # añade Caddy (HTTP local en el puerto 80)
-#   ./install.sh --domain mi.dominio   # añade Caddy con HTTPS automático
-#   ./install.sh --build               # compila la imagen en local (sin GHCR)
-#   ./install.sh --vapid               # genera y añade claves Web Push
+#   ./install.sh                     # instala con la imagen publicada
+#   ./install.sh --build             # compila la imagen en local
+#   ./install.sh --email tu@correo   # sujeto VAPID (por defecto admin@example.com)
 #
 set -euo pipefail
 
@@ -20,31 +18,25 @@ cd "$ROOT"
 # shellcheck source=./deploy/lib.sh
 source "$ROOT/deploy/lib.sh"
 
-DOMAIN=""
-CADDY=0
 BUILD=0
-VAPID=0
+EMAIL=""
 
 usage() {
 	cat <<'EOF'
 Uso: ./install.sh [opciones]
 
-  --domain <dominio>   Añade Caddy con HTTPS automático (Let's Encrypt).
-  --caddy              Añade Caddy (HTTP en el puerto 80) para pruebas locales.
   --build              Compila la imagen en local en lugar de usar GHCR.
-  --vapid              Genera claves Web Push y las añade a `.env`.
+  --email <correo>     Sujeto VAPID para Web Push (mailto:<correo>).
   -h, --help           Muestra esta ayuda.
 
-El puerto local de la app y el resto de ajustes se cambian en `.env` (ver .env.example).
+La app queda en 127.0.0.1:8090; el dominio se publica con Cloudflare Tunnel.
 EOF
 }
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--domain) DOMAIN="${2:?falta el dominio}"; CADDY=1; shift 2 ;;
-		--caddy) CADDY=1; shift ;;
 		--build) BUILD=1; shift ;;
-		--vapid) VAPID=1; shift ;;
+		--email) EMAIL="${2:?falta el correo}"; shift 2 ;;
 		-h | --help) usage; exit 0 ;;
 		*) echo "Opción desconocida: $1" >&2; usage; exit 1 ;;
 	esac
@@ -55,49 +47,56 @@ command -v docker >/dev/null 2>&1 || {
 	exit 1
 }
 
+# Escribe o reemplaza una clave en `.env`.
+set_env() {
+	local key="$1" value="$2"
+	if grep -q "^${key}=" .env; then
+		sed -i "s|^${key}=.*|${key}=${value}|" .env
+	else
+		echo "${key}=${value}" >>.env
+	fi
+}
+
 # --- 1. `.env` con secretos aleatorios (solo si no existe) ---------------------
 if [ ! -f .env ]; then
 	{
 		echo "# Generado por install.sh el $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-		echo "POSTGRES_USER=lumen"
 		echo "POSTGRES_PASSWORD=$(lumen_random_secret)"
-		echo "POSTGRES_DB=lumen"
-		echo "LUMEN_IMAGE=ghcr.io/marcosavg/lumen"
-		echo "LUMEN_TAG=latest"
-		echo "APP_PORT=8090"
 		echo "TZ=${TZ:-UTC}"
-		[ -n "$DOMAIN" ] && echo "DOMAIN=${DOMAIN}"
+		echo "LUMEN_TAG=latest"
 	} >.env
 	echo "→ .env creado con contraseña aleatoria."
 else
 	echo "→ Usando el .env existente."
 fi
 
-# --- 2. Compose ----------------------------------------------------------------
-COMPOSE=(docker compose -f compose.yaml)
-[ "$CADDY" = 1 ] && COMPOSE+=(--profile caddy)
-APP_PORT="${APP_PORT:-$(lumen_env_value APP_PORT)}"
-APP_PORT="${APP_PORT:-8090}"
-HTTP_PORT="${HTTP_PORT:-$(lumen_env_value HTTP_PORT)}"
-HTTP_PORT="${HTTP_PORT:-80}"
-EFFECTIVE_DOMAIN="${DOMAIN:-$(lumen_env_value DOMAIN)}"
+# Sujeto VAPID (Web Push). Obligatorio en la práctica: algunos servicios push lo exigen.
+if [ -n "$EMAIL" ]; then
+	set_env VAPID_SUBJECT "mailto:${EMAIL}"
+elif ! grep -q '^VAPID_SUBJECT=' .env; then
+	set_env VAPID_SUBJECT "mailto:admin@example.com"
+fi
 
-# --- 3. VAPID opcional ---------------------------------------------------------
-if [ "$VAPID" = 1 ] && ! grep -q '^VAPID_PRIVATE_KEY=..' .env 2>/dev/null; then
+COMPOSE=(docker compose -f compose.yaml)
+
+# --- 2. Claves Web Push (push es parte del núcleo) ----------------------------
+if ! grep -q '^VAPID_PRIVATE_KEY=..' .env 2>/dev/null; then
 	echo "→ Generando claves Web Push (VAPID)…"
-	if keys="$("${COMPOSE[@]}" run --rm --no-deps --entrypoint node app scripts/generate-vapid.mjs 2>/dev/null)"; then
-		printf '%s\n' "$keys" | sed -n 's/^\(VAPID_[A-Z_]*=.*\)$/\1/p' >>.env
+	if keys="$("${COMPOSE[@]}" run --rm --no-deps $([ "$BUILD" = 1 ] && echo --build) \
+		--entrypoint node app scripts/generate-vapid.mjs 2>/dev/null)"; then
+		printf '%s\n' "$keys" |
+			sed -n 's/^\(VAPID_\(PUBLIC\|PRIVATE\)_KEY=.*\)$/\1/p' >>.env
 		echo "→ Claves VAPID añadidas a .env."
 	else
-		echo "→ No se pudieron generar las claves VAPID; se omite (push deshabilitado)." >&2
+		echo "⚠ No se pudieron generar las claves VAPID; revisa la imagen o ejecuta el generador a mano." >&2
 	fi
 fi
 
-# --- 4. Arranque ---------------------------------------------------------------
+# --- 3. Arranque ---------------------------------------------------------------
 echo "→ Levantando Lumen…"
 "${COMPOSE[@]}" up -d $([ "$BUILD" = 1 ] && echo --build)
 
-# --- 5. Espera a /health (dentro del contenedor, independiente del proxy) ------
+# --- 4. Espera a /health (dentro del contenedor) -------------------------------
 echo "→ Esperando a que la app responda…"
 ready=0
 for _ in $(seq 1 60); do
@@ -117,21 +116,8 @@ else
 	echo "⚠ La app aún no responde. Revisa: docker compose logs -f app"
 fi
 
-if [ "$CADDY" = 1 ]; then
-	if [ -n "$EFFECTIVE_DOMAIN" ]; then
-		case "$EFFECTIVE_DOMAIN" in
-			http://* | https://*) echo "  URL: ${EFFECTIVE_DOMAIN}" ;;
-			*) echo "  URL pública: https://${EFFECTIVE_DOMAIN}  (Caddy emite el certificado)" ;;
-		esac
-	elif [ "$HTTP_PORT" = 80 ]; then
-		echo "  URL local: http://localhost"
-	else
-		echo "  URL local: http://localhost:${HTTP_PORT}"
-	fi
-else
-	echo "  App escuchando en http://127.0.0.1:${APP_PORT}"
-	echo "  Configura tu proxy inverso para reenviar ahí enviando Host, X-Forwarded-Proto y"
-	echo "  X-Forwarded-For (ver DEPLOY.md). ¿Sin proxy? Ejecuta: ./install.sh --caddy"
-fi
+echo "  App escuchando en http://127.0.0.1:8090"
+echo "  Publica el dominio con Cloudflare Tunnel → http://127.0.0.1:8090"
+echo "  Guía: docs/deployment.md"
 echo
-echo "Primer arranque: abre la app y completa «Configurar Lumen» para crear el administrador."
+echo "Primer arranque: abre el dominio y completa «Configurar Lumen» para crear el administrador."

@@ -1,8 +1,8 @@
 # Documentación de Lumen
 
 Índice de la especificación y la operación. Los documentos numerados son la
-**especificación** del producto; `deployment.md` y `DEPLOY.md` cubren la
-**operación**; `IMPLEMENTATION_STATUS.md` es el registro de avance.
+**especificación** del producto; `deployment.md` cubre la **operación**;
+`IMPLEMENTATION_STATUS.md` es el registro de avance.
 
 ## Orden de lectura (especificación)
 
@@ -19,8 +19,7 @@
 
 | Documento                                                            | Propósito                                                                            |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [`deployment.md`](deployment.md)                                     | Referencia operativa **canónica**: HTTPS, variables, actualización, backup y problemas |
-| [`../DEPLOY.md`](../DEPLOY.md)                                       | Guía **breve** de despliegue con Docker Compose (remite a `deployment.md`)            |
+| [`deployment.md`](deployment.md)                                     | Referencia operativa **canónica**: Cloudflare Tunnel, variables, actualización, backup y problemas |
 | [`../IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md)          | Registro de avance por etapas, decisiones y pruebas                                    |
 | [`../research/README.md`](../research/README.md)                      | Plan y guion de investigación de UX (interno)                                          |
 

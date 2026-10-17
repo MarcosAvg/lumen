@@ -1,7 +1,7 @@
 name: lumen
 
-# Lumen: app + PostgreSQL + migraciones. Publica la app en 127.0.0.1:${APP_PORT:-8090};
-# el proxy inverso lo gestionas tú (ver `docs/deployment.md`).
+# Lumen: app + PostgreSQL + migraciones. La app escucha solo en 127.0.0.1:8090;
+# el dominio se publica con Cloudflare Tunnel (ver `docs/deployment.md`).
 
 # Rotación de logs común.
 x-logging: &logging
@@ -11,25 +11,7 @@ x-logging: &logging
     max-file: '3'
 
 # URL interna de PostgreSQL (red de Compose).
-x-database-url: &database-url postgres://${POSTGRES_USER:-lumen}:${POSTGRES_PASSWORD:-lumen}@db:5432/${POSTGRES_DB:-lumen}
-
-# Entorno común de `app` y `migrate`.
-x-app-environment: &app-environment
-  DATABASE_URL: *database-url
-  PHOTO_STORAGE_PATH: /data/photos
-  # Límite del cuerpo HTTP de adapter-node; debe superar MAX_UPLOAD_BYTES.
-  BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-30M}
-  PROTOCOL_HEADER: x-forwarded-proto
-  ADDRESS_HEADER: x-forwarded-for
-  XFF_DEPTH: '1'
-  MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-26214400}
-  IMAGE_MAX_DIMENSION: ${IMAGE_MAX_DIMENSION:-2560}
-  IMAGE_THUMB_DIMENSION: ${IMAGE_THUMB_DIMENSION:-400}
-  TZ: ${TZ:-UTC}
-  # Web Push opcional: sin claves, la bandeja interna sigue funcionando.
-  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
-  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
-  VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+x-database-url: &database-url postgres://lumen:${POSTGRES_PASSWORD}@db:5432/lumen
 
 services:
   # PostgreSQL. No se publica: solo la red interna de Compose.
@@ -38,28 +20,23 @@ services:
     restart: unless-stopped
     security_opt: ['no-new-privileges:true']
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-lumen}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lumen}
-      POSTGRES_DB: ${POSTGRES_DB:-lumen}
+      POSTGRES_USER: lumen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: lumen
     volumes:
       - postgres_data:/var/lib/postgresql/data # datos SQL
     healthcheck:
       # `$$` evita la interpolación de Compose (lo evalúa la shell del contenedor).
-      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      test: ['CMD-SHELL', 'pg_isready -U lumen -d lumen']
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
     logging: *logging
-    deploy:
-      resources:
-        limits:
-          memory: ${DB_MEM_LIMIT:-1g}
-          cpus: ${DB_CPUS:-2}
 
   # Aplica las migraciones una vez y termina; `app` espera a que complete.
   migrate:
-    image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
+    image: ghcr.io/marcosavg/lumen:${LUMEN_TAG:-latest}
     build:
       context: .
       target: runtime
@@ -73,9 +50,10 @@ services:
         condition: service_healthy
     logging: *logging
 
-  # Se publica solo en 127.0.0.1. `image` + `build`: `pull` usa GHCR, `--build` compila.
+  # Se publica solo en 127.0.0.1 (lo alcanza cloudflared). `image` + `build`:
+  # `pull` usa GHCR y `--build` compila en local.
   app:
-    image: ${LUMEN_IMAGE:-ghcr.io/marcosavg/lumen}:${LUMEN_TAG:-latest}
+    image: ghcr.io/marcosavg/lumen:${LUMEN_TAG:-latest}
     build:
       context: .
       target: runtime
@@ -84,11 +62,23 @@ services:
     security_opt: ['no-new-privileges:true']
     cap_drop: ['ALL']
     stop_grace_period: 15s
-    environment: *app-environment
+    environment:
+      DATABASE_URL: *database-url
+      PHOTO_STORAGE_PATH: /data/photos
+      # Límite del cuerpo HTTP de adapter-node; debe superar MAX_UPLOAD_BYTES.
+      BODY_SIZE_LIMIT: 30M
+      # Cloudflare entrega estas cabeceras a través del túnel.
+      PROTOCOL_HEADER: x-forwarded-proto
+      ADDRESS_HEADER: cf-connecting-ip
+      TZ: ${TZ:-UTC}
+      # Web Push es parte del núcleo; `install.sh` genera las claves.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - lumen_photos:/data/photos # fotos normalizadas y miniaturas
     ports:
-      - '127.0.0.1:${APP_PORT:-8090}:3000'
+      - '127.0.0.1:8090:3000'
     depends_on:
       db:
         condition: service_healthy
@@ -108,41 +98,7 @@ services:
       retries: 5
       start_period: 20s
     logging: *logging
-    deploy:
-      resources:
-        limits:
-          memory: ${APP_MEM_LIMIT:-1g}
-          cpus: ${APP_CPUS:-2}
 
-  # Proxy opcional (perfil `caddy`); usa `deploy/Caddyfile` y `DOMAIN`.
-  caddy:
-    image: caddy:2-alpine
-    profiles: ['caddy']
-    restart: unless-stopped
-    security_opt: ['no-new-privileges:true']
-    environment:
-      DOMAIN: ${DOMAIN:-http://localhost}
-    ports:
-      - '${HTTP_PORT:-80}:80'
-      - '${HTTPS_PORT:-443}:443'
-      - '${HTTPS_PORT:-443}:443/udp'
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      app:
-        condition: service_started
-    logging: *logging
-    deploy:
-      resources:
-        limits:
-          memory: ${CADDY_MEM_LIMIT:-256m}
-          cpus: ${CADDY_CPUS:-1}
-
-# Persisten con `down`; `down -v` los borra (pierde datos).
 volumes:
   postgres_data: # base de datos SQL
   lumen_photos: # fotografías y miniaturas
-  caddy_data: # certificados TLS y cuentas ACME (perfil caddy)
-  caddy_config: # configuración autoguardada de Caddy (perfil caddy)
