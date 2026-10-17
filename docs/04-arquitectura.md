@@ -201,6 +201,7 @@ Valores **sugeridos, configurables** para v1: tamaño máximo de subida por arch
 ### PWA
 
 - Manifest instalable con nombre `Lumen`, `short_name`, iconos adecuados y modo `standalone`.
+- Iconos PWA: `192`/`512` (`any`), maskable 512 a sangre con zona segura, `apple-touch` 180 opaco, monochrome 512 y badge 96 para notificaciones. Se regeneran con `pnpm icons:generate` desde los SVG de `static/icons`.
 - Service worker cachea recursos **estáticos** versionados; no cachea indiscriminadamente fotos privadas, respuestas autenticadas o formularios editables.
 - Mostrar indicación de **sin conexión**; las acciones que requieren servidor están deshabilitadas o devuelven error claro. No simular envíos pendientes offline.
 - Diseñar uso de cámara/galería y carga múltiple con rendimiento móvil.
