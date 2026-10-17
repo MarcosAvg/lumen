@@ -205,8 +205,8 @@ Retirada por ahora como CSV; el registro de datos se entrega en **XLSX** dentro 
 
 ## 13. Notificaciones internas y push
 
-1. Después de persistir una entrega, se crean notificaciones internas para supervisores activos asignados y se intenta push tras confirmar transacción.
-2. Después de la decisión, se crean notificaciones internas para técnicos activos asignados y se intenta push.
+1. Después de persistir una entrega, se crean notificaciones internas para supervisores activos asignados y administradores activos (excepto quien envía) y se intenta push tras confirmar transacción.
+2. Después de la decisión, se crean notificaciones internas para técnicos activos asignados y administradores activos (excepto quien revisa) y se intenta push.
 3. El icono de campana muestra no leídas. Bandeja permite abrir, marcar una o todas leídas.
 4. Push abre ruta profunda a recurso con control de permisos en servidor.
 5. Si el navegador deniega permiso push, no está instalado como PWA en iOS o el servicio push falla, **la bandeja interna sigue funcionando** y el usuario puede operar normalmente.

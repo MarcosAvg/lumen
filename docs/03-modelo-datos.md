@@ -256,7 +256,7 @@ Estado permitido: `pending`, `in_progress`, `in_review`, `rejected`, `approved`.
 4. Calcular siguiente `sequence_no`; insertar `evidence_submissions` con autor/fecha/versión.
 5. Insertar `submission_photos` con ID, grupo, nombre y posición congelados, incluidos adicionales.
 6. Actualizar `current_status='in_review'`, `latest_submission_id` y `version=version+1`.
-7. Insertar notificaciones internas de supervisores asignados activos usando clave de evento idempotente; commit.
+7. Insertar notificaciones internas de supervisores asignados activos y administradores activos (excepto el emisor) usando clave de evento idempotente; commit.
 8. **Después del commit**, intentar Web Push, con tolerancia a error.
 
 ### 9.4 Revisar
@@ -264,7 +264,7 @@ Estado permitido: `pending`, `in_progress`, `in_review`, `rejected`, `approved`.
 1. Abrir transacción, bloquear target y verificar que `latest_submission_id` coincide con entrega solicitada y estado `in_review`.
 2. Verificar supervisor actualmente asignado/admin, usuario activo; validar confirmación de intención en UI (en servidor la decisión y razón bastan; nunca confiar solo en JS).
 3. Insertar `reviews` UNIQUE por submission; `reason` requerido al rechazar.
-4. Actualizar estado objetivo a `approved` o `rejected`; incrementar versión e insertar notificaciones de técnicos asignados activos.
+4. Actualizar estado objetivo a `approved` o `rejected`; incrementar versión e insertar notificaciones de técnicos asignados activos y administradores activos (excepto el revisor).
 5. Commit, Web Push best effort. Revisión simultánea incompatible produce `409`, nunca una segunda decisión.
 
 ### 9.5 Borrar catálogo/servicio

@@ -88,6 +88,18 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		return id;
 	}
 
+	async function makeAdmin(username: string, actorId: string): Promise<string> {
+		const passwordHash = await hashPassword(PASSWORD);
+		const { id } = await createUser(db, {
+			username,
+			displayName: username,
+			passwordHash,
+			role: 'admin',
+			actorId
+		});
+		return id;
+	}
+
 	async function seedServiceWithDirectWork(actorId: string) {
 		const service = await createService(db, {
 			contractId: await seedContract(db, actorId),
@@ -115,7 +127,7 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		return submitEvidence(db, { targetId, expectedVersion: photo.version, userId });
 	}
 
-	it('la entrega notifica solo a supervisores asignados y activos', async () => {
+	it('la entrega notifica a supervisores y administradores (excepto al emisor)', async () => {
 		const admin = await seedAdmin();
 		const storage = await makeStorage();
 		const { serviceId, targetId } = await seedServiceWithDirectWork(admin);
@@ -146,6 +158,11 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		expect(await listNotifications(db, inactiveSupervisor)).toHaveLength(0);
 		// El técnico que envía no recibe la notificación de envío.
 		expect(await listNotifications(db, technician)).toHaveLength(0);
+
+		// El administrador activo también la recibe (ámbito global).
+		const forAdmin = await listNotifications(db, admin);
+		expect(forAdmin).toHaveLength(1);
+		expect(forAdmin[0].eventType).toBe('submission.submitted');
 	});
 
 	it('la notificación de entrega es idempotente por destinatario y evento', async () => {
@@ -156,6 +173,9 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		await assignUser(db, { serviceId, userId: supervisor, role: 'supervisor', actorId: admin });
 
 		const submission = await submit(storage, targetId, admin);
+
+		// El administrador que envía no recibe su propia notificación.
+		expect(await listNotifications(db, admin)).toHaveLength(0);
 
 		const before = await db
 			.select()
@@ -171,8 +191,10 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 			sequenceNo: submission.sequenceNo,
 			serviceName: 'Servicio',
 			workName: 'Trabajo',
-			label: 'Trabajo'
+			label: 'Trabajo',
+			actorId: admin
 		});
+		expect(await listNotifications(db, admin)).toHaveLength(0);
 		const after = await db
 			.select()
 			.from(notifications)
@@ -180,8 +202,9 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		expect(after).toHaveLength(1);
 	});
 
-	it('la revisión notifica a todos los técnicos asignados activos', async () => {
+	it('la revisión notifica a técnicos y administradores (excepto al revisor)', async () => {
 		const admin = await seedAdmin();
+		const otherAdmin = await makeAdmin('admin-2', admin);
 		const storage = await makeStorage();
 		const { serviceId, targetId, workId } = await seedServiceWithDirectWork(admin);
 
@@ -215,6 +238,18 @@ await describeWithDatabase('Notificaciones y Web Push', ({ db, client }) => {
 		expect(await listNotifications(db, inactiveTechnician)).toHaveLength(0);
 		// El supervisor solo recibe el aviso de entrega, no el de decisión.
 		expect(await listNotifications(db, supervisor)).toHaveLength(1);
+
+		// El revisor (admin) recibe la entrega, pero no su propia decisión.
+		const forReviewer = await listNotifications(db, admin);
+		expect(forReviewer).toHaveLength(1);
+		expect(forReviewer[0].eventType).toBe('submission.submitted');
+
+		// Otro administrador activo recibe ambos eventos.
+		const forOtherAdmin = await listNotifications(db, otherAdmin);
+		expect(forOtherAdmin.map((item) => item.eventType).sort()).toEqual([
+			'submission.approved',
+			'submission.submitted'
+		]);
 	});
 
 	it('marcar leído solo afecta a las notificaciones propias', async () => {

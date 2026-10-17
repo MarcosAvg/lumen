@@ -180,8 +180,8 @@ Solo se permite convertir `direct` ↔ `divided` cuando el trabajo **nunca ha te
 
 ## 9. Notificaciones
 
-- Al crear una entrega (incluida corrección), notificar **a todos los supervisores activos actualmente asignados** al servicio; no al resto de usuarios ni automáticamente a los administradores.
-- Al aprobar/rechazar, notificar **a todos los técnicos activos actualmente asignados** al servicio, porque comparten evidencia.
+- Al crear una entrega (incluida corrección), notificar **a todos los supervisores activos actualmente asignados** al servicio **y a los administradores activos** (ámbito global), excluyendo al usuario que envía. No al resto de usuarios.
+- Al aprobar/rechazar, notificar **a todos los técnicos activos actualmente asignados** al servicio (porque comparten evidencia) **y a los administradores activos**, excluyendo al usuario que revisa.
 - Cada destinatario recibe una entrada en su **bandeja interna** con estado leído/no leído, fecha, texto, enlace protegido, contador y acción marcar leído (individual/todos).
 - Intentar **Web Push VAPID** a sus suscripciones activas. El error de push no invalida la entrega/revisión ni su notificación interna.
 - El enlace profundo debe comprobar rol y asignación **al abrirse**; revocar acceso o desactivar usuario impide abrirlo incluso si el push ya llegó.

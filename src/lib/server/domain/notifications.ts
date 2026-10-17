@@ -57,6 +57,21 @@ export async function resolveServiceRecipients(
 	return [...new Set(rows.map((row) => row.userId))];
 }
 
+/**
+ * Administradores **activos** (ámbito global). Se excluye al actor para no
+ * notificarle su propia acción.
+ */
+export async function resolveAdminRecipients(
+	db: Database,
+	excludeUserId?: string
+): Promise<string[]> {
+	const rows = await db
+		.select({ userId: users.id })
+		.from(users)
+		.where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
+	return rows.map((row) => row.userId).filter((userId) => userId !== excludeUserId);
+}
+
 export interface NotificationInput {
 	recipientUserId: string;
 	serviceId: string | null;
@@ -86,7 +101,7 @@ export interface OutboundNotification {
 	message: PushMessage;
 }
 
-/** Notificaciones de una entrega para los supervisores asignados (no admins). */
+/** Notificaciones de una entrega para supervisores y administradores activos (excepto el actor). */
 export async function createSubmissionNotifications(
 	db: Database,
 	context: {
@@ -97,9 +112,15 @@ export async function createSubmissionNotifications(
 		serviceName: string;
 		workName: string;
 		label: string;
+		/** Usuario que envía: no recibe su propia notificación. */
+		actorId: string;
 	}
 ): Promise<OutboundNotification> {
-	const recipientIds = await resolveServiceRecipients(db, context.serviceId, 'supervisor');
+	const [supervisors, admins] = await Promise.all([
+		resolveServiceRecipients(db, context.serviceId, 'supervisor'),
+		resolveAdminRecipients(db, context.actorId)
+	]);
+	const recipientIds = [...new Set([...supervisors, ...admins])];
 	const message = submissionSubmittedMessage(context);
 
 	await insertNotifications(
@@ -121,7 +142,7 @@ export async function createSubmissionNotifications(
 	return { recipientIds, message: message.push };
 }
 
-/** Notificaciones de una decisión para todos los técnicos asignados activos. */
+/** Notificaciones de una decisión para técnicos y administradores activos (excepto el actor). */
 export async function createReviewNotifications(
 	db: Database,
 	context: {
@@ -134,9 +155,15 @@ export async function createReviewNotifications(
 		workName: string;
 		label: string;
 		targetDeepLink: string;
+		/** Usuario que revisa: no recibe su propia notificación. */
+		actorId: string;
 	}
 ): Promise<OutboundNotification> {
-	const recipientIds = await resolveServiceRecipients(db, context.serviceId, 'technician');
+	const [technicians, admins] = await Promise.all([
+		resolveServiceRecipients(db, context.serviceId, 'technician'),
+		resolveAdminRecipients(db, context.actorId)
+	]);
+	const recipientIds = [...new Set([...technicians, ...admins])];
 	const message = submissionReviewedMessage(context);
 
 	await insertNotifications(

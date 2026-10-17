@@ -204,7 +204,8 @@ export async function submitEvidence(
 			sequenceNo,
 			serviceName: context.serviceName,
 			workName: context.workName,
-			label: context.label
+			label: context.label,
+			actorId: input.userId
 		});
 
 		return { submissionId: submission.id, sequenceNo, version: updated.version, outbound };
@@ -314,7 +315,10 @@ export async function reviewSubmission(
 			serviceName: context.serviceName,
 			workName: context.workName,
 			label: context.label,
-			targetDeepLink: context.workId ? `/works/${context.workId}` : `/elements/${context.elementId}`
+			targetDeepLink: context.workId
+				? `/works/${context.workId}`
+				: `/elements/${context.elementId}`,
+			actorId: input.reviewerId
 		});
 
 		return {
