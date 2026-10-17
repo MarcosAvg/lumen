@@ -57,7 +57,8 @@ una búsqueda no conceden acceso fuera del ámbito autorizado.
 ## Puesta en marcha
 
 **Requisitos:** Docker y Docker Compose v2, un dominio en Cloudflare y
-`cloudflared` en el host. No se requiere Node en el servidor.
+`cloudflared` (en Docker, unido a la red `proxy`, o en el host). No se requiere
+Node en el servidor.
 
 ```bash
 git clone https://github.com/MarcosAvg/lumen.git
@@ -65,14 +66,13 @@ cd lumen
 ./install.sh                 # .env con secretos, VAPID y arranque
 ```
 
-Al finalizar, la aplicación escucha en `http://127.0.0.1:8090` y las claves de
-Web Push quedan generadas. Después se publica el dominio con Cloudflare Tunnel
-(ver la sección siguiente) y se completa el asistente **Configurar Lumen** para
-crear la cuenta administradora.
+Al finalizar, la aplicación queda disponible en la red Docker `proxy` como
+`lumen:3000` y las claves de Web Push quedan generadas. Después se publica el
+dominio con Cloudflare Tunnel (ver la sección siguiente) y se completa el
+asistente **Configurar Lumen** para crear la cuenta administradora.
 
 `install.sh` es opcional: `docker compose up -d` funciona con un `.env` propio.
-Requiere que exista la red Docker `proxy` (o la indicada en `PROXY_NETWORK`); si
-no existe, `install.sh` muestra cómo crearla.
+Requiere que exista la red Docker `proxy`; si no, `install.sh` muestra cómo crearla.
 
 | Comando                                       | Efecto                                           |
 | --------------------------------------------- | ------------------------------------------------ |
@@ -91,25 +91,32 @@ además los volúmenes persistentes.
 
 ## Publicación con Cloudflare Tunnel
 
-La aplicación escucha **solo en `127.0.0.1:8090`** y no abre puertos a Internet.
-`cloudflared`, como servicio del host, publica el dominio a través de Cloudflare:
+La aplicación **no publica puertos en el host**: se une a la red externa `proxy`
+y se alcanza como **`lumen:3000`**. `cloudflared` publica el dominio a través de
+Cloudflare:
 
 ```
-Internet → Cloudflare (TLS + WAF) → cloudflared (host) → 127.0.0.1:8090
+Internet → Cloudflare (TLS + WAF) → cloudflared → lumen:3000
+```
+
+La red `proxy` debe existir; si no:
+
+```bash
+docker network create proxy
 ```
 
 En **Zero Trust → Tunnels → Public Hostname**:
 
-| Campo      | Valor                   |
-| ---------- | ----------------------- |
-| Subdominio | `lumen` (o el elegido)  |
-| Dominio    | `midominio.com`         |
-| Servicio   | `http://127.0.0.1:8090` |
+| Campo      | Valor                  |
+| ---------- | ---------------------- |
+| Subdominio | `lumen` (o el elegido) |
+| Dominio    | `midominio.com`        |
+| Servicio   | `http://lumen:3000`    |
 
 Notas de operación:
 
-- Usar `127.0.0.1`, no `localhost` (Docker publica en IPv4).
-- No abrir `8090` en el firewall: el túnel no requiere puertos entrantes.
+- Usar el puerto **3000** (el del contenedor), no un puerto publicado en el host.
+- No abrir puertos en el firewall: el túnel no requiere entradas.
 - La aplicación confía en `X-Forwarded-Proto` y `CF-Connecting-IP`, cabeceras que
   Cloudflare entrega a través del túnel.
 - Desactivar **Rocket Loader** y **Auto Minify**, y añadir una regla de
@@ -117,19 +124,9 @@ Notas de operación:
 - Cloudflare corta las peticiones a los **100 s** (planes Free y Pro): las
   exportaciones muy grandes pueden agotar ese tiempo.
 
-Un proxy inverso propio (Nginx Proxy Manager, Traefik…) sigue siendo válido para
-otros servicios, pero Lumen no lo necesita.
-
-**Si `cloudflared` corre en Docker**, no puede alcanzar `127.0.0.1`: la app se
-conecta a su red. Por defecto se llama `proxy`; si usas otra, defínela en `.env`:
-
-```dotenv
-PROXY_NETWORK=npm_default   # opcional; por defecto `proxy`
-```
-
-Si la red no existe, créala (`docker network create proxy`, o el nombre elegido).
-El _Service_ del túnel pasa a ser **`http://lumen:3000`** (puerto del contenedor,
-no el publicado en el host). `install.sh` comprueba que la red existe.
+Si `cloudflared` corriera en el host (fuera de Docker), añade un
+`compose.override.yaml` local con `ports: ['127.0.0.1:8090:3000']` y apunta el
+túnel a `http://127.0.0.1:8090`; ese archivo está en `.gitignore`.
 
 ## Uso
 
@@ -155,8 +152,6 @@ La configuración se define en `.env` (plantilla en [`.env.example`](.env.exampl
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Sí          | Web Push; el sujeto debe ser `mailto:…`          |
 | `TZ`                                                       | No          | Zona horaria de presentación (por defecto `UTC`) |
 | `LUMEN_TAG`                                                | No          | Versión de la imagen (por defecto `latest`)      |
-| `APP_PORT`                                                 | No          | Puerto local de depuración (por defecto `8090`)  |
-| `PROXY_NETWORK`                                            | No          | Red Docker de `cloudflared` (si corre en Docker) |
 
 `install.sh` genera la contraseña y las claves VAPID. Referencia completa:
 [`docs/deployment.md` §5](docs/deployment.md#5-variables-de-entorno).
@@ -246,7 +241,7 @@ prueba de restauración y verificación están en
 | -------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `docker compose up` falla al traer la imagen | No hay imagen publicada: usar `docker compose pull` o `up --build`.                      |
 | La aplicación no responde                    | Revisar `docker compose logs app`; comprobar que `db` está sana y `migrate` terminó.     |
-| El dominio no abre                           | Revisar la ruta del túnel (`http://127.0.0.1:8090`) y que `cloudflared` esté activo.     |
+| El dominio no abre                           | Revisar la ruta del túnel (`http://lumen:3000`) y que `cloudflared` esté activo.         |
 | `403` en formularios (login o configuración) | `X-Forwarded-Proto` no llega como `https`; revisar la ruta del túnel.                    |
 | `500` «Address header…»                      | Falta `CF-Connecting-IP`: la petición no pasó por Cloudflare (acceso directo al puerto). |
 | `413` al subir fotos                         | Supera el límite de Cloudflare (100 MB) o `BODY_SIZE_LIMIT` (30 MB).                     |

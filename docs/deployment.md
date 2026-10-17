@@ -8,7 +8,7 @@ el `README.md`.
 
 - **Docker + Docker Compose** (no hace falta Node en el servidor).
 - Un **dominio gestionado en Cloudflare**.
-- **`cloudflared`** instalado como servicio en el host.
+- **`cloudflared`** en Docker (unido a la red `proxy`) o como servicio del host.
 - Almacenamiento persistente para PostgreSQL y para las fotografías (volúmenes
   Docker).
 - **2 GB de RAM** como mínimo razonable (PostgreSQL + procesado de imágenes).
@@ -21,10 +21,9 @@ cd lumen
 ./install.sh --email tu@correo      # .env, claves VAPID y arranque
 ```
 
-- La aplicación queda en **`http://127.0.0.1:${APP_PORT:-8090}`**, sin puertos
-  públicos.
-- La app se une a la red externa `proxy` (configurable con `PROXY_NETWORK`);
-  debe existir. `install.sh` lo comprueba y explica cómo crearla.
+- La aplicación queda en la red externa `proxy` como **`lumen:3000`**; no publica
+  puertos en el host.
+- La red `proxy` debe existir. `install.sh` lo comprueba y explica cómo crearla.
 - `install.sh` genera la contraseña de PostgreSQL y las claves VAPID, levanta
   Compose y espera a que `/health` responda.
 - Primer arranque: se publica el dominio con el túnel (§4) y se completa
@@ -45,7 +44,7 @@ Detener sin perder datos: `docker compose down` (`down -v` borra los volúmenes)
 | --------- | ---------------------------------------------------------------- |
 | `db`      | PostgreSQL 17 con volumen `postgres_data`. No se publica.        |
 | `migrate` | Aplica las migraciones Drizzle una sola vez y termina.           |
-| `app`     | Lumen. Escucha en `127.0.0.1:${APP_PORT}` y en la red de `cloudflared` como `lumen:3000`. |
+| `app`     | Lumen. En la red `proxy` como `lumen:3000`; no publica puertos en el host. |
 
 - Orden garantizado: `db` sana → `migrate` termina → `app` arranca.
 - Rotación de logs activa (10 MB × 3 por servicio).
@@ -69,47 +68,42 @@ expuesta ni puertos entrantes.
 Internet → Cloudflare (TLS + WAF) → cloudflared → app
 ```
 
-### Si `cloudflared` corre en el host
+### Red y túnel
+
+La app no publica puertos en el host: se une a la red externa **`proxy`** y se
+alcanza como **`lumen:3000`**. La red debe existir:
+
+```bash
+docker network create proxy
+```
 
 En **Zero Trust → Tunnels → Public Hostname**:
 
-| Campo      | Valor                            |
-| ---------- | -------------------------------- |
-| Subdominio | `lumen` (o el elegido)           |
-| Dominio    | `midominio.com`                  |
-| Servicio   | `http://127.0.0.1:${APP_PORT}`   |
+| Campo      | Valor                |
+| ---------- | -------------------- |
+| Subdominio | `lumen` (o el elegido) |
+| Dominio    | `midominio.com`      |
+| Servicio   | `http://lumen:3000`  |
 
-- Usar `127.0.0.1`, **no** `localhost` (Docker publica en IPv4).
-- No abrir el puerto en el firewall.
+- El puerto es el **interno del contenedor** (3000), no un puerto del host.
+- No hay que abrir puertos en el firewall.
+- `install.sh` comprueba que la red existe antes de arrancar.
 - Cloudflare entrega `X-Forwarded-Proto: https` y `CF-Connecting-IP`; la app las
   usa para derivar el origen y la IP real (`ADDRESS_HEADER=cf-connecting-ip`).
 
-### Si `cloudflared` corre en Docker
+### Si `cloudflared` corre en el host
 
-`127.0.0.1` dentro del contenedor es su propio loopback, no el host. La app se
-une a la red de `cloudflared`; por defecto se llama `proxy`:
+El compose base no publica puertos. Para ese caso, añade un
+`compose.override.yaml` local (ignorado por git):
 
-```dotenv
-# .env
-PROXY_NETWORK=npm_default   # opcional; por defecto `proxy`
+```yaml
+services:
+  app:
+    ports:
+      - '127.0.0.1:8090:3000'
 ```
 
-Si la red no existe, créala (`docker network create proxy`). Después:
-
-```bash
-docker compose up -d
-```
-
-En el túnel:
-
-| Campo    | Valor                |
-| -------- | -------------------- |
-| Servicio | `http://lumen:3000`  |
-
-- El puerto es el **interno del contenedor** (3000), no el publicado en el host.
-- `install.sh` comprueba que la red existe antes de arrancar.
-- Si el puerto 8090 no está libre, ajusta `APP_PORT` (solo afecta al acceso desde
-  el host; el túnel usa la red).
+y apunta el túnel a `http://127.0.0.1:8090`.
 
 ### Ajustes de Cloudflare
 
@@ -126,9 +120,11 @@ una versión antigua.
 ### Alternativa con proxy inverso
 
 El proyecto asume el túnel. Si se usa un proxy propio (Nginx Proxy Manager,
-Traefik…), debe reenviar a `127.0.0.1:8090` con `Host`, `X-Forwarded-Proto` y
-`X-Forwarded-For`; en ese caso hay que cambiar `ADDRESS_HEADER` y valorar
-`XFF_DEPTH` según el número de saltos. No es la configuración por defecto.
+Traefik…), debe unirse a la red `proxy` y reenviar a `lumen:3000`; si corre en el
+host, añade el `compose.override.yaml` con `ports`. En ambos casos debe enviar
+`Host`, `X-Forwarded-Proto` y `X-Forwarded-For`; si no es Cloudflare, ajusta
+`ADDRESS_HEADER`/`XFF_DEPTH` según el número de saltos. No es la configuración
+por defecto.
 
 ## 5. Variables de entorno
 
@@ -140,8 +136,6 @@ Copia `.env.example` a `.env` (o deja que `install.sh` lo genere).
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Sí          | Web Push; el sujeto debe ser `mailto:…`          |
 | `TZ`                                                       | No          | Zona horaria de presentación (por defecto `UTC`) |
 | `LUMEN_TAG`                                                | No          | Versión de la imagen (por defecto `latest`)      |
-| `APP_PORT`                                                 | No          | Puerto local de depuración (por defecto `8090`)  |
-| `PROXY_NETWORK`                                            | No          | Red Docker de `cloudflared` (si corre en Docker) |
 
 El resto de parámetros (tamaño de subida, dimensiones de imagen, límites de tasa)
 tiene valores por defecto en el código y no se expone en `.env`.
@@ -250,8 +244,9 @@ docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r =>
 | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `docker compose up` falla al traer la imagen | No hay imagen publicada: usar `docker compose pull` o `up --build`.                       |
 | La app no responde                          | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                                |
-| `502` con el túnel                          | `cloudflared` no alcanza el origen: si está en Docker, usa la red compartida y `http://lumen:3000`; si está en el host, `http://127.0.0.1:${APP_PORT}`. |
-| El dominio no abre                          | Revisar la ruta del túnel (`http://127.0.0.1:${APP_PORT}` o `http://lumen:3000`) y que `cloudflared` esté activo. |
+| `502` con el túnel                          | `cloudflared` no alcanza el origen: comprobar que está en la red `proxy` y que el túnel apunta a `http://lumen:3000`. |
+| El dominio no abre                          | Revisar que el túnel apunta a `http://lumen:3000` y que `cloudflared` está activo.        |
+| No se abre `http://127.0.0.1:8090`          | La app no publica puertos: usar el túnel o añadir `ports` en un `compose.override.yaml` local. |
 | `525` / «SSL handshake failed»              | El servicio del túnel está en `https://` o el DNS apunta a un origen sin TLS; usar `http://` y el CNAME del túnel. |
 | `403` en formularios                        | `X-Forwarded-Proto` no llega como `https`; revisar la ruta del túnel.                     |
 | `500` «Address header…»                     | Falta `CF-Connecting-IP`: la petición no pasó por Cloudflare.                             |

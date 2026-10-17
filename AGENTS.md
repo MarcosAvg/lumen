@@ -33,7 +33,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 - PWA instalable, **en línea**, con Web Push estándar VAPID e inbox interno.
 - Autenticación local por sesión segura en cookie; primera cuenta admin configurada en el primer arranque.
 - No añadir Redis, S3, Firebase, colas externas, microservicios, WebSockets ni servicios cloud obligatorios por defecto.
-- Imagen publicable en GHCR usada **por defecto** por Compose (o `--build` para compilar en local); **origen público en runtime** (no hornear `ORIGIN`); la app se publica en `127.0.0.1:${APP_PORT}` y el dominio se expone con **Cloudflare Tunnel**. La app se une a la red externa `proxy` (configurable con `PROXY_NETWORK`) para que un `cloudflared` en Docker la alcance como `lumen:3000`. El proxy inverso (p. ej. Nginx Proxy Manager) queda para otros servicios.
+- Imagen publicable en GHCR usada **por defecto** por Compose (o `--build` para compilar en local); **origen público en runtime** (no hornear `ORIGIN`); la app se une a la red externa `proxy` y se alcanza como `lumen:3000`, **sin publicar puertos en el host**. El dominio se expone con **Cloudflare Tunnel** (`cloudflared` en Docker); si corriera en el host, se añade un `compose.override.yaml` local con `ports`. El proxy inverso (p. ej. Nginx Proxy Manager) queda para otros servicios.
 
 ## Invariantes que nunca deben romperse
 

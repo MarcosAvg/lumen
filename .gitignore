@@ -30,6 +30,9 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# Ajustes locales de Compose (red/puertos del servidor)
+compose.override.yaml
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

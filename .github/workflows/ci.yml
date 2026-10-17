@@ -63,7 +63,6 @@ jobs:
       - name: Validar compose (base y dev)
         env:
           POSTGRES_PASSWORD: ci
-          PROXY_NETWORK: proxy
         run: |
           docker compose -f compose.yaml config -q
           docker compose -f compose.yaml -f compose.dev.yaml config -q

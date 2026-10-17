@@ -226,7 +226,7 @@ compose.yaml
   migrate: runner de Drizzle (una vez) antes de arrancar la app
   app:     SvelteKit/Node (imagen GHCR), healthcheck,
            volumen /data/photos (lectura/escritura),
-           publicado solo en 127.0.0.1:8090
+           en la red `proxy` como `lumen:3000` (sin puerto de host)
 
 volumes:
   postgres_data: persistente
@@ -234,9 +234,10 @@ volumes:
 ```
 
 - **Publicación con Cloudflare Tunnel**: `cloudflared` reenvía el dominio público a la app sin abrir
-  puertos entrantes. Si corre en el host, apunta a `127.0.0.1:${APP_PORT}`; si corre en Docker, la app
-  se une a su red (por defecto `proxy`) y el túnel apunta a `lumen:3000`. Cloudflare termina TLS y
-  entrega `X-Forwarded-Proto` y `CF-Connecting-IP`, que la app usa (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
+  puertos entrantes. La app se une a la red externa `proxy` y el túnel apunta a `lumen:3000`;
+  si `cloudflared` corriera en el host, se añade un `compose.override.yaml` local con `ports`.
+  Cloudflare termina TLS y entrega `X-Forwarded-Proto` y `CF-Connecting-IP`, que la app usa
+  (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
   **PostgreSQL nunca** sale a Internet; `compose.dev.yaml` publica `db` solo en `127.0.0.1`.
 - El **origen público se deriva de la petición** (no se hornea), así que la misma imagen sirve para
   cualquier dominio sin reconstruir.

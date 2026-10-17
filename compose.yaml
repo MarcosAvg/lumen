@@ -1,7 +1,7 @@
 name: lumen
 
-# Lumen: app + PostgreSQL + migraciones. La app escucha solo en 127.0.0.1:8090;
-# el dominio se publica con Cloudflare Tunnel (ver `docs/deployment.md`).
+# Lumen: app + PostgreSQL + migraciones. La app se alcanza en la red externa
+# `proxy` como `lumen:3000` (Cloudflare Tunnel / NPM en Docker).
 
 # Rotación de logs común.
 x-logging: &logging
@@ -50,7 +50,7 @@ services:
         condition: service_healthy
     logging: *logging
 
-  # Se publica solo en 127.0.0.1 (lo alcanza cloudflared). `image` + `build`:
+  # Se alcanza en la red `proxy` como `lumen:3000`. `image` + `build`:
   # `pull` usa GHCR y `--build` compila en local.
   app:
     image: ghcr.io/marcosavg/lumen:${LUMEN_TAG:-latest}
@@ -82,8 +82,6 @@ services:
       proxy:
         aliases:
           - lumen
-    ports:
-      - '127.0.0.1:${APP_PORT:-8090}:3000'
     depends_on:
       db:
         condition: service_healthy
@@ -113,4 +111,3 @@ networks:
   # Red compartida con cloudflared/NPM (Docker). La app se alcanza como `lumen:3000`.
   proxy:
     external: true
-    name: ${PROXY_NETWORK:-proxy}

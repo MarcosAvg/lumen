@@ -3,8 +3,8 @@
 # Lumen · instalador de autoalojamiento.
 #
 # Genera `.env` (contraseña y claves Web Push), levanta Docker Compose y espera a
-# que la app responda. La app queda en `127.0.0.1:8090`, para publicarla con
-# Cloudflare Tunnel (ver docs/deployment.md).
+# que la app responda. La app se publica en la red `proxy` como `lumen:3000`
+# (Cloudflare Tunnel; ver docs/deployment.md).
 #
 # Uso:
 #   ./install.sh                     # instala con la imagen publicada
@@ -29,7 +29,7 @@ Uso: ./install.sh [opciones]
   --email <correo>     Sujeto VAPID para Web Push (mailto:<correo>).
   -h, --help           Muestra esta ayuda.
 
-La app queda en 127.0.0.1:8090; el dominio se publica con Cloudflare Tunnel.
+La app se publica en la red `proxy` como lumen:3000; el túnel apunta ahí.
 EOF
 }
 
@@ -79,18 +79,12 @@ fi
 
 COMPOSE=(docker compose -f compose.yaml)
 
-# Red externa compartida con cloudflared/NPM. Debe existir.
-PROXY_NETWORK="${PROXY_NETWORK:-$(lumen_env_value PROXY_NETWORK)}"
-PROXY_NETWORK="${PROXY_NETWORK:-proxy}"
-if ! docker network inspect "$PROXY_NETWORK" >/dev/null 2>&1; then
-	echo "La red «${PROXY_NETWORK}» no existe." >&2
-	echo "Créala con: docker network create ${PROXY_NETWORK}" >&2
-	echo "o ajusta PROXY_NETWORK en .env si cloudflared usa otra red." >&2
+# Red externa compartida con cloudflared/NPM.
+if ! docker network inspect proxy >/dev/null 2>&1; then
+	echo "La red «proxy» no existe." >&2
+	echo "Créala con: docker network create proxy" >&2
 	exit 1
 fi
-
-APP_PORT="${APP_PORT:-$(lumen_env_value APP_PORT)}"
-APP_PORT="${APP_PORT:-8090}"
 
 # --- 2. Claves Web Push (push es parte del núcleo) ----------------------------
 if ! grep -q '^VAPID_PRIVATE_KEY=..' .env 2>/dev/null; then
@@ -129,10 +123,8 @@ else
 	echo "⚠ La app aún no responde. Revisa: docker compose logs -f app"
 fi
 
-if [ -n "$PROXY_NETWORK" ]; then
-	echo "  Red «${PROXY_NETWORK}»: el túnel debe apuntar a http://lumen:3000"
-fi
-echo "  Acceso local opcional: http://127.0.0.1:${APP_PORT}"
+echo "  Red «proxy»: el túnel debe apuntar a http://lumen:3000"
+echo "  Sin puerto de host; para depurar: docker compose exec app …"
 echo "  Guía: docs/deployment.md"
 echo
 echo "Primer arranque: abre el dominio y completa «Configurar Lumen» para crear el administrador."
