@@ -15,6 +15,7 @@ test('el administrador elimina un usuario', async ({ page }, testInfo) => {
 	await createDialog.locator('#new-displayName').fill(displayName);
 	await createDialog.locator('#new-username').fill(username);
 	await createDialog.locator('#new-password').fill('contrasena-segura');
+	await createDialog.locator('#new-role').selectOption('technician');
 	await createDialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 	await expect(page.getByText(displayName).filter({ visible: true })).toBeVisible();

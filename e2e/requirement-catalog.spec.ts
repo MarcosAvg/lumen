@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ensureAdmin } from './helpers';
+import { chooseCatalog, ensureAdmin } from './helpers';
 
 test('catálogo de requisitos: separación por tipo y alta en la evidencia', async ({
 	page
@@ -44,6 +44,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	// Servicio con trabajo directo.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -56,7 +57,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
-	await page.locator('#work-mode').selectOption('direct');
+	await page.getByRole('dialog').getByText('Directo', { exact: true }).click();
 	await page.locator('#work-name').fill(workName);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -72,7 +73,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await page.getByRole('button', { name: 'Nuevo requisito' }).click();
 	const reqDialog = page.getByRole('dialog');
 	await reqDialog.getByRole('tab', { name: 'Desde catálogo' }).click();
-	await reqDialog.getByLabel('Catálogo').selectOption({ label: catalogName });
+	await chooseCatalog(page, reqDialog, catalogName);
 	await reqDialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	for (const name of [antes, despues]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();

@@ -46,7 +46,7 @@ test('la ficha del contrato: cabecera con avance, dos columnas y participantes e
 	// Participantes se gestionan en modal.
 	await page.getByRole('button', { name: 'Gestionar participantes' }).click();
 	const membersDialog = page.getByRole('dialog');
-	await expect(membersDialog.getByText('Añadir técnico')).toBeVisible();
+	await expect(membersDialog.getByRole('heading', { name: 'Añadir participante' })).toBeVisible();
 	await membersDialog.getByRole('button', { name: 'Cerrar' }).first().click();
 
 	// El borrado exige confirmación explícita.

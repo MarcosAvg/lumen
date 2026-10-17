@@ -529,7 +529,7 @@
 		{#each requirements as requirement (requirement.id)}
 			<Card.Root>
 				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-					<Card.Title class="flex items-center gap-2 text-base">
+					<Card.Title class="flex min-w-0 flex-wrap items-center gap-2 text-base">
 						{requirement.name}
 						{#if requirement.isRequired}<Badge variant="secondary">Obligatorio</Badge>{/if}
 						{#if editable && requirement.isRequired && groupPhotos(requirement.id).length === 0}
@@ -539,7 +539,7 @@
 							{groupPhotos(requirement.id).length} foto(s)
 						</span>
 					</Card.Title>
-					<div class="flex items-center gap-1">
+					<div class="grid w-full grid-cols-2 gap-1 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
 						<Button
 							variant="ghost"
 							size="sm"
@@ -595,7 +595,7 @@
 				<Card.Title class="text-base">
 					{requirements.length === 0 ? NO_REQUIREMENT_GROUP_LABEL : ADDITIONAL_GROUP_LABEL}
 				</Card.Title>
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center justify-end gap-2">
 					<span class="text-sm text-muted-foreground">{additionalPhotos.length} foto(s)</span>
 					<Button
 						variant="ghost"
@@ -650,59 +650,69 @@
 							Los requisitos se congelan tras el primer envío.
 						</Dialog.Description>
 					</Dialog.Header>
-					<Tabs.Root bind:value={requirementTab}>
-						<Tabs.List class="grid w-full grid-cols-2">
-							<Tabs.Trigger value="custom">Nuevo</Tabs.Trigger>
-							<Tabs.Trigger value="catalog" disabled={requirementCatalogs.length === 0}>
-								Desde catálogo
-							</Tabs.Trigger>
-						</Tabs.List>
-					</Tabs.Root>
-
-					{#if requirementTab === 'custom'}
-						<form
-							class="space-y-4"
-							onsubmit={(event) => {
-								event.preventDefault();
-								createRequirement();
-							}}
+					<Dialog.Body class="space-y-5">
+						<Dialog.Section
+							title="Datos del requisito"
+							description="Crea uno nuevo o elige varios de un catálogo."
 						>
-							<div class="space-y-2">
-								<Label for="new-requirement">Nombre</Label>
-								<Input
-									id="new-requirement"
-									bind:value={newRequirement}
-									placeholder="p. ej. Antes"
-									required
-								/>
-							</div>
-							<LabeledCheckbox bind:checked={newRequired} label="Obligatorio" />
-							<Dialog.Footer>
-								<Dialog.Close>Cancelar</Dialog.Close>
-								<Button type="submit" disabled={busy}>Añadir requisito</Button>
-							</Dialog.Footer>
-						</form>
-					{:else}
-						<div class="space-y-4">
-							<CatalogItemMultiPicker
-								catalogs={requirementCatalogs}
-								bind:value={catalogRequirementIds}
-								itemPlaceholder="Elegir requisitos…"
-								disabled={busy}
-							/>
-							<LabeledCheckbox bind:checked={catalogRequired} label="Obligatorio" />
-							<Dialog.Footer>
-								<Dialog.Close>Cancelar</Dialog.Close>
-								<Button
-									type="button"
-									disabled={busy || catalogRequirementIds.length === 0}
-									onclick={addCatalogRequirements}
+							<Tabs.Root bind:value={requirementTab}>
+								<Tabs.List class="grid w-full grid-cols-2">
+									<Tabs.Trigger value="custom">Nuevo</Tabs.Trigger>
+									<Tabs.Trigger value="catalog" disabled={requirementCatalogs.length === 0}>
+										Desde catálogo
+									</Tabs.Trigger>
+								</Tabs.List>
+							</Tabs.Root>
+
+							{#if requirementTab === 'custom'}
+								<form
+									id="requirement-custom-form"
+									class="space-y-4"
+									onsubmit={(event) => {
+										event.preventDefault();
+										createRequirement();
+									}}
 								>
-									Añadir seleccionados
-								</Button>
-							</Dialog.Footer>
-						</div>
-					{/if}
+									<div class="space-y-2">
+										<Label for="new-requirement">Nombre</Label>
+										<Input
+											id="new-requirement"
+											bind:value={newRequirement}
+											placeholder="p. ej. Antes"
+											required
+										/>
+									</div>
+									<LabeledCheckbox bind:checked={newRequired} label="Obligatorio" />
+								</form>
+							{:else}
+								<div class="space-y-4">
+									<CatalogItemMultiPicker
+										catalogs={requirementCatalogs}
+										bind:value={catalogRequirementIds}
+										itemPlaceholder="Elegir requisitos…"
+										disabled={busy}
+									/>
+									<LabeledCheckbox bind:checked={catalogRequired} label="Obligatorio" />
+								</div>
+							{/if}
+						</Dialog.Section>
+					</Dialog.Body>
+					<Dialog.Footer>
+						<Dialog.Close>Cancelar</Dialog.Close>
+						{#if requirementTab === 'custom'}
+							<Button type="submit" form="requirement-custom-form" disabled={busy}>
+								Añadir requisito
+							</Button>
+						{:else}
+							<Button
+								type="button"
+								disabled={busy || catalogRequirementIds.length === 0}
+								onclick={addCatalogRequirements}
+							>
+								Añadir seleccionados
+							</Button>
+						{/if}
+					</Dialog.Footer>
 				</Dialog.Content>
 			</Dialog.Root>
 		{/if}
@@ -866,9 +876,9 @@
 			if (!open) renameTarget = null;
 		}}
 	>
-		<Dialog.Content>
+		<Dialog.Content size="sm">
 			<form
-				class="space-y-4"
+				class="flex min-h-0 flex-1 flex-col"
 				onsubmit={(event) => {
 					event.preventDefault();
 					const requirement = renameTarget;
@@ -883,10 +893,12 @@
 						Al renombrarlo queda desvinculado del catálogo y conserva este nombre propio.
 					</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="req-rename">Nombre</Label>
-					<Input id="req-rename" bind:value={renameValue} required />
-				</div>
+				<Dialog.Body class="space-y-5">
+					<div class="space-y-2">
+						<Label for="req-rename">Nombre</Label>
+						<Input id="req-rename" bind:value={renameValue} required />
+					</div>
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
 					<Button type="submit">Guardar</Button>

@@ -12,6 +12,7 @@ test('el botón «Volver» de la cabecera lleva al padre', async ({ page }, test
 	// Crear un servicio.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -27,7 +28,7 @@ test('el botón «Volver» de la cabecera lleva al padre', async ({ page }, test
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByRole('tab', { name: 'Nombre propio' }).click();
-	await dialog.locator('#work-mode').selectOption('direct');
+	await dialog.getByText('Directo', { exact: true }).click();
 	await dialog.locator('#work-name').fill(workName);
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();

@@ -61,7 +61,11 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.items as item (item.id)}
 				<li class="relative">
-					<Card.Root class="transition-colors active:bg-muted/50 {item.readAt ? 'opacity-60' : ''}">
+					<Card.Root
+						class="border-l-2 transition-colors active:bg-muted/50 {item.readAt
+							? 'border-l-border opacity-60'
+							: 'border-l-primary/40'}"
+					>
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<!-- eslint-disable svelte/no-navigation-without-resolve -->

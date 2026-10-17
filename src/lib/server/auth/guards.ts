@@ -23,7 +23,7 @@ export function requireAdmin(locals: App.Locals): SessionUser {
 
 /**
  * Autoriza la exportación de ZIP (entrega/servicio): administrador o supervisor.
- * Los técnicos no exportan (docs/01 §2); en su defecto responde `403`.
+ * Los técnicos no exportan (docs/producto/reglas.md); en su defecto responde `403`.
  */
 export function requireExportZip(locals: App.Locals): SessionUser {
 	const user = requireUser(locals);
@@ -72,7 +72,7 @@ export async function requireContractManage(
 
 /**
  * Autoriza la edición de evidencia: administrador o **técnico asignado**. Los
- * supervisores solo consultan y revisan (docs/01 §2).
+ * supervisores solo consultan y revisan (docs/producto/reglas.md).
  */
 export async function requireCapture(locals: App.Locals, targetId: string): Promise<TargetContext> {
 	const user = requireUser(locals);
@@ -102,7 +102,7 @@ export async function requirePhotoAccess(
 
 /**
  * Autoriza la revisión de una entrega: administrador o **supervisor asignado**.
- * Los técnicos no revisan (docs/01 §2).
+ * Los técnicos no revisan (docs/producto/reglas.md).
  */
 export async function requireReview(
 	locals: App.Locals,

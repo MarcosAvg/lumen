@@ -8,6 +8,8 @@ export interface CatalogItemRef {
 export interface CatalogGroup {
 	id: string;
 	name: string;
+	description?: string | null;
+	purpose?: 'general' | 'buildings' | 'requirements' | null;
 	items: CatalogItemRef[];
 }
 

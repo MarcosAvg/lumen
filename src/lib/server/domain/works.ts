@@ -597,7 +597,7 @@ export async function listServiceProgress(
 }
 
 /**
- * Progreso derivado (docs/03 §10): nunca se persiste. Un servicio se completa si
+ * Progreso derivado (docs/referencia/modelo-datos.md): nunca se persiste. Un servicio se completa si
  * tiene al menos un trabajo y todos están aprobados; un trabajo dividido sin
  * elementos nunca está aprobado.
  */

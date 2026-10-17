@@ -17,7 +17,7 @@
 
 {#if description || children}
 	<div
-		class="flex flex-col gap-2 border-b pb-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6 lg:pb-5 {children
+		class="flex flex-col gap-2 pb-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6 lg:pb-5 {children
 			? ''
 			: 'max-lg:hidden'}"
 	>

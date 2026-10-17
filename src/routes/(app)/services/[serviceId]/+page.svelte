@@ -17,6 +17,8 @@
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import TableActions from '#lib/components/app/table-actions.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import ParticipantManager from '#lib/components/app/participant-manager.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
 	import GenerateStructureDialog from '#lib/components/catalog/generate-structure-dialog.svelte';
@@ -41,7 +43,7 @@
 	let workOpen = $state(false);
 	let generateOpen = $state(false);
 	let workSource = $state<'catalog' | 'custom'>('catalog');
-	let workMode = $state<'direct' | 'divided'>('direct');
+	let workMode = $state<'direct' | 'divided' | ''>('');
 	let workElements = $state<ElementDraft[]>([]);
 	let workRequirements = $state<RequirementDraft[]>([]);
 	let workRequirementsRequired = $state(true);
@@ -55,7 +57,7 @@
 		if (action?.success) {
 			workOpen = false;
 			workSource = catalogsForPicker.length > 0 ? 'catalog' : 'custom';
-			workMode = 'direct';
+			workMode = '';
 			workElements = [];
 			workRequirements = [];
 			workRequirementsRequired = true;
@@ -68,7 +70,6 @@
 	// Participantes (asignar/revocar) en modal, solo admin.
 	let assignmentsOpen = $state(false);
 	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
-	const assignmentLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
 	const technicians = $derived(data.members.filter((member) => member.role === 'technician'));
 	const supervisors = $derived(data.members.filter((member) => member.role === 'supervisor'));
 	const submitAssign: NonNullable<Parameters<typeof enhance>[1]> =
@@ -97,6 +98,8 @@
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
+				description: catalog.description,
+				purpose: catalog.purpose,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);
@@ -107,6 +110,8 @@
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
+				description: catalog.description,
+				purpose: catalog.purpose,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);
@@ -121,6 +126,8 @@
 		return source.map((catalog) => ({
 			id: catalog.id,
 			name: catalog.name,
+			description: catalog.description,
+			purpose: catalog.purpose,
 			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 		}));
 	});
@@ -149,44 +156,35 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="space-y-3 border-b pb-4 lg:pb-5">
+	<PageHeader>
 		<AppBreadcrumbs
 			items={[{ label: 'Inicio', href: resolve('/(app)/dashboard') }, { label: data.service.name }]}
 		/>
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-			{#if data.service.description}
-				<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
-					{data.service.description}
-				</p>
-			{/if}
-			<div class="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
-				{#if data.isAdmin}
-					<Button variant="outline" size="sm" onclick={() => (editServiceOpen = true)}
-						>Editar servicio</Button
-					>
-					<Button variant="outline" size="sm" onclick={() => (assignmentsOpen = true)}
-						>Gestionar asignaciones</Button
-					>
-				{/if}
-				{#if data.access !== 'technician'}
-					<ExportDialog href={`/api/services/${data.service.id}/export.zip`} />
-				{/if}
-			</div>
-		</div>
-		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+		{#if data.service.description}
+			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
+				{data.service.description}
+			</p>
+		{/if}
+		<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
 			<span class="flex items-baseline gap-1.5">
-				<span class="text-muted-foreground">Contrato</span>
-				<span class="font-medium text-foreground">{data.service.contractName}</span>
+				<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+					>Contrato</span
+				>
+				<span class="font-semibold text-foreground">{data.service.contractName}</span>
 			</span>
 			{#if data.service.buildingName}
 				<span class="flex items-baseline gap-1.5">
-					<span class="text-muted-foreground">Edificio</span>
-					<span class="font-medium text-foreground">{data.service.buildingName}</span>
+					<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+						>Edificio</span
+					>
+					<span class="font-semibold text-foreground">{data.service.buildingName}</span>
 				</span>
 			{/if}
 			<span class="flex items-baseline gap-1.5">
-				<span class="text-muted-foreground">Tu acceso</span>
-				<span class="font-medium text-foreground">{accessLabel[data.access]}</span>
+				<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+					>Tu acceso</span
+				>
+				<span class="font-semibold text-foreground">{accessLabel[data.access]}</span>
 			</span>
 			<StatusBadge
 				status={data.progress.completed ? 'approved' : 'in_progress'}
@@ -201,7 +199,29 @@
 				completed={data.progress.completed}
 			/>
 		</div>
-	</div>
+		{#snippet actions()}
+			{#if data.isAdmin}
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={() => (editServiceOpen = true)}>Editar servicio</Button
+				>
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={() => (assignmentsOpen = true)}>Gestionar asignaciones</Button
+				>
+			{/if}
+			{#if data.access !== 'technician'}
+				<ExportDialog
+					href={`/api/services/${data.service.id}/export.zip`}
+					class="w-full sm:w-auto"
+				/>
+			{/if}
+		{/snippet}
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert role="status">
@@ -406,7 +426,7 @@
 
 	{#if data.canManageAssignments}
 		<Dialog.Root bind:open={assignmentsOpen}>
-			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+			<Dialog.Content size="lg">
 				<Dialog.Header>
 					<Dialog.Title>Participantes</Dialog.Title>
 					<Dialog.Description>
@@ -414,79 +434,22 @@
 						servicio.
 					</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-4">
-					<form method="POST" action="?/assign" class="space-y-2" use:enhance={submitAssign}>
-						<input type="hidden" name="serviceId" value={data.service.id} />
-						<input type="hidden" name="role" value="technician" />
-						<Label for="technician">Añadir técnico</Label>
-						<div class="flex gap-2">
-							<NativeSelect
-								id="technician"
-								name="userId"
-								required
-								disabled={technicians.length === 0}
-							>
-								{#each technicians as candidate (candidate.id)}
-									<option value={candidate.id}>{candidate.displayName}</option>
-								{:else}
-									<option value="">Sin técnicos disponibles</option>
-								{/each}
-							</NativeSelect>
-							<Button type="submit" size="sm" disabled={technicians.length === 0}>Asignar</Button>
-						</div>
-					</form>
-
-					<form method="POST" action="?/assign" class="space-y-2" use:enhance={submitAssign}>
-						<input type="hidden" name="serviceId" value={data.service.id} />
-						<input type="hidden" name="role" value="supervisor" />
-						<Label for="supervisor">Añadir supervisor</Label>
-						<div class="flex gap-2">
-							<NativeSelect
-								id="supervisor"
-								name="userId"
-								required
-								disabled={supervisors.length === 0}
-							>
-								{#each supervisors as candidate (candidate.id)}
-									<option value={candidate.id}>{candidate.displayName}</option>
-								{:else}
-									<option value="">Sin supervisores disponibles</option>
-								{/each}
-							</NativeSelect>
-							<Button type="submit" size="sm" disabled={supervisors.length === 0}>Asignar</Button>
-						</div>
-					</form>
-
-					<div class="space-y-2 border-t pt-3">
-						<p class="text-sm font-medium">Asignados</p>
-						{#if data.assignments.length === 0}
-							<p class="text-sm text-muted-foreground">Sin participantes asignados.</p>
-						{:else}
-							<ul class="divide-y">
-								{#each data.assignments as assignment (assignment.id)}
-									<li class="flex items-center justify-between gap-3 py-2 text-sm">
-										<span class="flex items-center gap-2">
-											{assignment.displayName}
-											<Badge variant="secondary">{assignmentLabel[assignment.assignmentRole]}</Badge
-											>
-										</span>
-										<Button
-											variant="destructive"
-											size="sm"
-											onclick={() =>
-												(revokeTarget = {
-													id: assignment.id,
-													displayName: assignment.displayName
-												})}
-										>
-											Revocar
-										</Button>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
-				</div>
+				<Dialog.Body class="space-y-6">
+					<ParticipantManager
+						assignAction="?/assign"
+						scopeField="serviceId"
+						scopeId={data.service.id}
+						{technicians}
+						{supervisors}
+						assignments={data.assignments}
+						enhanceAssign={submitAssign}
+						onRevoke={(assignment) =>
+							(revokeTarget = {
+								id: assignment.id,
+								displayName: assignment.displayName
+							})}
+					/>
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cerrar</Dialog.Close>
 				</Dialog.Footer>
@@ -520,7 +483,12 @@
 
 		<Dialog.Root bind:open={editServiceOpen}>
 			<Dialog.Content>
-				<form method="POST" action="?/updateService" class="space-y-4" use:enhance={submitService}>
+				<form
+					method="POST"
+					action="?/updateService"
+					class="flex min-h-0 flex-1 flex-col"
+					use:enhance={submitService}
+				>
 					<input type="hidden" name="serviceId" value={data.service.id} />
 					<Dialog.Header>
 						<Dialog.Title>Editar servicio</Dialog.Title>
@@ -528,43 +496,45 @@
 							Cambia el nombre, la descripción y el edificio. No altera entregas ni revisiones.
 						</Dialog.Description>
 					</Dialog.Header>
-					<div class="space-y-2">
-						<Label for="svc-name">Nombre</Label>
-						<Input id="svc-name" name="name" value={data.service.name} required />
-					</div>
-					<div class="space-y-2">
-						<Label for="svc-desc">Descripción</Label>
-						<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
-					</div>
-					<div class="space-y-2">
-						<Label for="svc-building">Edificio</Label>
-						<CatalogItemPicker
-							name="buildingItemId"
-							catalogs={buildingCatalogs}
-							bind:value={buildingItemId}
-							itemPlaceholder="Sin edificio"
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="svc-contract">Contrato</Label>
-						<NativeSelect
-							id="svc-contract"
-							name="contractId"
-							value={data.service.contractId}
-							required
-						>
-							{#each data.contracts as contract (contract.id)}
-								<option value={contract.id}>{contract.name}</option>
-							{/each}
-						</NativeSelect>
-						<p class="text-xs text-muted-foreground">
-							Al cambiar de contrato se revocan las asignaciones de usuarios que no pertenezcan al
-							nuevo.
-						</p>
-					</div>
-					{#if action?.message}
-						<p class="text-sm text-destructive">{action.message}</p>
-					{/if}
+					<Dialog.Body class="space-y-5">
+						<div class="space-y-2">
+							<Label for="svc-name">Nombre</Label>
+							<Input id="svc-name" name="name" value={data.service.name} required />
+						</div>
+						<div class="space-y-2">
+							<Label for="svc-desc">Descripción</Label>
+							<Input id="svc-desc" name="description" value={data.service.description ?? ''} />
+						</div>
+						<div class="space-y-2">
+							<Label for="svc-building">Edificio</Label>
+							<CatalogItemPicker
+								name="buildingItemId"
+								catalogs={buildingCatalogs}
+								bind:value={buildingItemId}
+								itemPlaceholder="Sin edificio"
+							/>
+						</div>
+						<div class="space-y-2">
+							<Label for="svc-contract">Contrato</Label>
+							<NativeSelect
+								id="svc-contract"
+								name="contractId"
+								value={data.service.contractId}
+								required
+							>
+								{#each data.contracts as contract (contract.id)}
+									<option value={contract.id}>{contract.name}</option>
+								{/each}
+							</NativeSelect>
+							<p class="text-xs text-muted-foreground">
+								Al cambiar de contrato se revocan las asignaciones de usuarios que no pertenezcan al
+								nuevo.
+							</p>
+						</div>
+						{#if action?.message}
+							<p class="text-sm text-destructive">{action.message}</p>
+						{/if}
+					</Dialog.Body>
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit">Guardar cambios</Button>
@@ -574,8 +544,8 @@
 		</Dialog.Root>
 
 		<Dialog.Root bind:open={workOpen}>
-			<Dialog.Content class="max-h-[85vh] overflow-y-auto">
-				<form method="POST" action="?/createWork" class="space-y-4">
+			<Dialog.Content size="lg">
+				<form method="POST" action="?/createWork" class="flex min-h-0 flex-1 flex-col">
 					<input type="hidden" name="serviceId" value={data.service.id} />
 					<Dialog.Header>
 						<Dialog.Title>Nuevo trabajo</Dialog.Title>
@@ -584,83 +554,125 @@
 							elementos.
 						</Dialog.Description>
 					</Dialog.Header>
-					<div class="space-y-1">
-						<Label for="work-mode">Modo</Label>
-						<NativeSelect id="work-mode" name="mode" bind:value={workMode}>
-							<option value="direct">Directo</option>
-							<option value="divided">Dividido</option>
-						</NativeSelect>
-					</div>
-					<div class="space-y-2">
-						<p class="text-xs text-muted-foreground">
-							Elige un ítem del catálogo o escribe un nombre propio.
-						</p>
-						<Tabs.Root bind:value={workSource}>
-							<Tabs.List class="grid w-full grid-cols-2">
-								<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
-								<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
-							</Tabs.List>
-						</Tabs.Root>
-						{#if workSource === 'catalog'}
-							<div class="space-y-1 pt-2">
-								<Label for="work-catalog">Ítem del catálogo</Label>
-								<CatalogItemPicker
-									name="catalogItemId"
-									catalogs={catalogsForPicker}
-									itemPlaceholder="Elige ítem…"
-								/>
-							</div>
-						{:else}
-							<div class="space-y-1 pt-2">
-								<Label for="work-name">Nombre propio</Label>
-								<Input
-									id="work-name"
-									name="name"
-									required
-									aria-invalid={action?.workErrors?.name ? true : undefined}
-									aria-describedby={action?.workErrors?.name ? 'work-name-error' : undefined}
-								/>
-								{#if action?.workErrors?.name}
-									<p id="work-name-error" class="text-sm text-destructive">
-										{action.workErrors.name}
-									</p>
-								{/if}
-							</div>
-						{/if}
-					</div>
-					{#if workMode === 'divided'}
-						<div class="space-y-3 rounded-lg border p-3">
-							<Label>Elementos</Label>
-							<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
-						</div>
-					{/if}
-					{#if requirementCatalogs.length > 0}
-						<div class="space-y-3 rounded-lg border p-3">
-							<Label>Requisitos</Label>
-							<p class="text-xs text-muted-foreground">
-								{#if workMode === 'divided'}
-									Se aplicarán a cada elemento creado.
+					<Dialog.Body class="space-y-5">
+						<Dialog.Section eyebrow="Paso 1" title="Tipo de trabajo">
+							<fieldset class="space-y-2">
+								<legend class="sr-only">Tipo de trabajo</legend>
+								<div class="grid gap-2 sm:grid-cols-2">
+									<label
+										class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
+										'direct'
+											? 'border-primary bg-primary/5'
+											: 'border-border hover:bg-muted/40'}"
+									>
+										<input
+											type="radio"
+											name="mode"
+											value="direct"
+											bind:group={workMode}
+											required
+											class="sr-only"
+										/>
+										<span class="block text-sm font-semibold">Directo</span>
+										<span class="mt-1 block text-xs leading-relaxed text-muted-foreground">
+											Una evidencia única para todo el trabajo.
+										</span>
+									</label>
+									<label
+										class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
+										'divided'
+											? 'border-primary bg-primary/5'
+											: 'border-border hover:bg-muted/40'}"
+									>
+										<input
+											type="radio"
+											name="mode"
+											value="divided"
+											bind:group={workMode}
+											required
+											class="sr-only"
+										/>
+										<span class="block text-sm font-semibold">Dividido</span>
+										<span class="mt-1 block text-xs leading-relaxed text-muted-foreground">
+											La evidencia se organiza por elementos.
+										</span>
+									</label>
+								</div>
+							</fieldset>
+						</Dialog.Section>
+						<Dialog.Section eyebrow="Paso 2" title="Datos y estructura">
+							<div class="space-y-2">
+								<p class="text-xs text-muted-foreground">
+									Elige un ítem del catálogo o escribe un nombre propio.
+								</p>
+								<Tabs.Root bind:value={workSource}>
+									<Tabs.List class="grid w-full grid-cols-2">
+										<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
+										<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
+									</Tabs.List>
+								</Tabs.Root>
+								{#if workSource === 'catalog'}
+									<div class="space-y-1 pt-2">
+										<Label for="work-catalog">Ítem del catálogo</Label>
+										<CatalogItemPicker
+											name="catalogItemId"
+											catalogs={catalogsForPicker}
+											itemPlaceholder="Elige ítem…"
+										/>
+									</div>
 								{:else}
-									Se aplicarán al trabajo.
+									<div class="space-y-1 pt-2">
+										<Label for="work-name">Nombre propio</Label>
+										<Input
+											id="work-name"
+											name="name"
+											required
+											aria-invalid={action?.workErrors?.name ? true : undefined}
+											aria-describedby={action?.workErrors?.name ? 'work-name-error' : undefined}
+										/>
+										{#if action?.workErrors?.name}
+											<p id="work-name-error" class="text-sm text-destructive">
+												{action.workErrors.name}
+											</p>
+										{/if}
+									</div>
 								{/if}
-							</p>
-							<RequirementsEditor
-								catalogs={requirementCatalogs}
-								bind:value={workRequirements}
-								bind:required={workRequirementsRequired}
-							/>
-						</div>
-					{/if}
-					<input type="hidden" name="elements" value={elementsJson} />
-					<input type="hidden" name="requirements" value={requirementsJson} />
-					<input
-						type="hidden"
-						name="requirementIsRequired"
-						value={workRequirementsRequired ? 'true' : 'false'}
-					/>
+							</div>
+							{#if workMode === 'divided'}
+								<div class="space-y-3 rounded-xl border border-border p-3">
+									<Label>Elementos</Label>
+									<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
+								</div>
+							{/if}
+							{#if requirementCatalogs.length > 0}
+								<div class="space-y-3 rounded-xl border border-border p-3">
+									<Label>Requisitos</Label>
+									<p class="text-xs text-muted-foreground">
+										{#if workMode === 'divided'}
+											Se aplicarán a cada elemento creado.
+										{:else}
+											Se aplicarán al trabajo.
+										{/if}
+									</p>
+									<RequirementsEditor
+										catalogs={requirementCatalogs}
+										bind:value={workRequirements}
+										bind:required={workRequirementsRequired}
+									/>
+								</div>
+							{/if}
+						</Dialog.Section>
+						<input type="hidden" name="elements" value={elementsJson} />
+						<input type="hidden" name="requirements" value={requirementsJson} />
+						<input
+							type="hidden"
+							name="requirementIsRequired"
+							value={workRequirementsRequired ? 'true' : 'false'}
+						/>
+					</Dialog.Body>
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
-						<Button type="submit">Crear trabajo</Button>
+						<Button type="submit" disabled={!workMode}>Crear trabajo</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>

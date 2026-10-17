@@ -16,6 +16,7 @@
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import TableActions from '#lib/components/app/table-actions.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
 	import ElementsEditor from '#lib/components/catalog/elements-editor.svelte';
@@ -29,6 +30,7 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let elementOpen = $state(false);
+	let showElementRequirements = $state(false);
 	let newElements = $state<ElementDraft[]>([]);
 	let elementRequirements = $state<RequirementDraft[]>([]);
 	let elementRequirementsRequired = $state(true);
@@ -39,6 +41,8 @@
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
+				description: catalog.description,
+				purpose: catalog.purpose,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);
@@ -49,6 +53,8 @@
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
+				description: catalog.description,
+				purpose: catalog.purpose,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);
@@ -59,11 +65,17 @@
 	$effect(() => {
 		if (action?.success) {
 			elementOpen = false;
+			showElementRequirements = false;
 			newElements = [];
 			elementRequirements = [];
 			elementRequirementsRequired = true;
 		}
 	});
+
+	function toggleElementRequirements() {
+		showElementRequirements = !showElementRequirements;
+		if (!showElementRequirements) elementRequirements = [];
+	}
 
 	// Edición del trabajo en modal.
 	let editOpen = $state(false);
@@ -80,34 +92,37 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-		<div class="min-w-0">
-			<AppBreadcrumbs
-				items={[
-					{ label: 'Inicio', href: resolve('/(app)/dashboard') },
-					{
-						label: data.work.serviceName,
-						href: resolve('/(app)/services/[serviceId]', { serviceId: data.work.serviceId })
-					},
-					{ label: data.work.name }
-				]}
-			/>
-			<div class="mt-2 flex items-center gap-2">
-				<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
-			</div>
-			{#if data.work.description}
-				<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>
-			{/if}
+	<PageHeader>
+		<AppBreadcrumbs
+			items={[
+				{ label: 'Inicio', href: resolve('/(app)/dashboard') },
+				{
+					label: data.work.serviceName,
+					href: resolve('/(app)/services/[serviceId]', { serviceId: data.work.serviceId })
+				},
+				{ label: data.work.name }
+			]}
+		/>
+		<div class="flex flex-wrap items-center gap-2">
+			<Badge variant="secondary">{data.work.mode === 'direct' ? 'Directo' : 'Dividido'}</Badge>
 		</div>
-		{#if data.canExport}
-			<ExportDialog href={`/api/works/${data.work.id}/export.zip`} class="w-full sm:w-auto" />
+		{#if data.work.description}
+			<p class="line-clamp-2 text-sm text-muted-foreground">{data.work.description}</p>
 		{/if}
-		{#if data.isAdmin}
-			<Button variant="outline" size="sm" class="w-full sm:w-auto" onclick={() => (editOpen = true)}
-				>Editar trabajo</Button
-			>
-		{/if}
-	</div>
+		{#snippet actions()}
+			{#if data.canExport}
+				<ExportDialog href={`/api/works/${data.work.id}/export.zip`} class="w-full sm:w-auto" />
+			{/if}
+			{#if data.isAdmin}
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={() => (editOpen = true)}>Editar trabajo</Button
+				>
+			{/if}
+		{/snippet}
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert role="status">
@@ -125,7 +140,13 @@
 					<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 						<Card.Title class="text-base">Elementos</Card.Title>
 						{#if data.isAdmin}
-							<Button size="sm" onclick={() => (elementOpen = true)}>Añadir elementos</Button>
+							<Button
+								size="sm"
+								onclick={() => {
+									showElementRequirements = false;
+									elementOpen = true;
+								}}>Añadir elementos</Button
+							>
 						{/if}
 					</Card.Header>
 					<Card.Content>
@@ -137,7 +158,18 @@
 							<ul class="space-y-3 md:hidden">
 								{#each data.elements as element (element.id)}
 									<li class="relative">
-										<Card.Root class="transition-colors active:bg-muted/50">
+										<Card.Root
+											class="border-l-2 transition-colors active:bg-muted/50 {element.status ===
+											'approved'
+												? 'border-l-state-approved'
+												: element.status === 'rejected'
+													? 'border-l-state-rejected'
+													: element.status === 'in_review'
+														? 'border-l-state-pending/60'
+														: element.status === 'in_progress'
+															? 'border-l-primary/40'
+															: 'border-l-border'}"
+										>
 											<Card.Content class="space-y-2">
 												<div class="flex items-start justify-between gap-2">
 													<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
@@ -225,8 +257,8 @@
 				</Card.Root>
 
 				<Dialog.Root bind:open={elementOpen}>
-					<Dialog.Content class="max-h-[85vh] overflow-y-auto">
-						<form method="POST" action="?/createElements" class="space-y-4">
+					<Dialog.Content size="lg">
+						<form method="POST" action="?/createElements" class="flex min-h-0 flex-1 flex-col">
 							<input type="hidden" name="workId" value={data.work.id} />
 							<input type="hidden" name="elements" value={elementsJson} />
 							<input type="hidden" name="requirements" value={elementRequirementsJson} />
@@ -241,22 +273,49 @@
 									Añade varios ítems de un catálogo o escribe nombres propios.
 								</Dialog.Description>
 							</Dialog.Header>
-							<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
-							{#if requirementCatalogs.length > 0}
-								<div class="space-y-2 rounded-lg border p-3">
-									<Label>Requisitos (opcional)</Label>
-									<p class="text-xs text-muted-foreground">Se aplicarán a cada elemento nuevo.</p>
-									<RequirementsEditor
-										catalogs={requirementCatalogs}
-										bind:value={elementRequirements}
-										bind:required={elementRequirementsRequired}
-									/>
-								</div>
-							{/if}
-							{#if action?.elementErrors?._form}
-								<p role="alert" class="text-sm text-destructive">{action.elementErrors._form}</p>
-							{/if}
+							<Dialog.Body class="space-y-6">
+								<Dialog.Section
+									eyebrow="Paso 1"
+									title="Elementos"
+									description="Añade ítems de catálogo o nombres propios."
+								>
+									<ElementsEditor catalogs={catalogsForPicker} bind:value={newElements} />
+								</Dialog.Section>
+
+								{#if requirementCatalogs.length > 0}
+									<Dialog.Section
+										eyebrow="Paso 2 · opcional"
+										title="Requisitos iniciales"
+										description="Se aplicarán a cada elemento nuevo. Puedes añadirlos después."
+									>
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onclick={toggleElementRequirements}
+										>
+											{showElementRequirements ? 'Quitar requisitos' : 'Añadir requisitos'}
+										</Button>
+										{#if showElementRequirements}
+											<RequirementsEditor
+												catalogs={requirementCatalogs}
+												bind:value={elementRequirements}
+												bind:required={elementRequirementsRequired}
+											/>
+										{/if}
+									</Dialog.Section>
+								{/if}
+
+								{#if action?.elementErrors?._form}
+									<p role="alert" class="text-sm text-destructive">{action.elementErrors._form}</p>
+								{/if}
+							</Dialog.Body>
 							<Dialog.Footer>
+								<p class="mr-auto text-xs text-muted-foreground">
+									{newElements.length} elemento(s){#if showElementRequirements && elementRequirements.length > 0}
+										· {elementRequirements.length} requisito(s)
+									{/if}
+								</p>
 								<Dialog.Close>Cancelar</Dialog.Close>
 								<Button type="submit" disabled={newElements.length === 0}>Añadir elementos</Button>
 							</Dialog.Footer>
@@ -294,7 +353,12 @@
 	{#if data.isAdmin}
 		<Dialog.Root bind:open={editOpen}>
 			<Dialog.Content>
-				<form method="POST" action="?/updateWork" class="space-y-4" use:enhance={submitWork}>
+				<form
+					method="POST"
+					action="?/updateWork"
+					class="flex min-h-0 flex-1 flex-col"
+					use:enhance={submitWork}
+				>
 					<input type="hidden" name="workId" value={data.work.id} />
 					<Dialog.Header>
 						<Dialog.Title>Editar trabajo</Dialog.Title>
@@ -302,17 +366,19 @@
 							Renombrar un trabajo vinculado a catálogo lo desvincula y conserva el nombre propio.
 						</Dialog.Description>
 					</Dialog.Header>
-					<div class="space-y-2">
-						<Label for="work-name">Nombre</Label>
-						<Input id="work-name" name="name" value={data.work.name} required />
-					</div>
-					<div class="space-y-2">
-						<Label for="work-desc">Descripción</Label>
-						<Input id="work-desc" name="description" value={data.work.description ?? ''} />
-					</div>
-					{#if action?.message}
-						<p class="text-sm text-destructive">{action.message}</p>
-					{/if}
+					<Dialog.Body class="space-y-5">
+						<div class="space-y-2">
+							<Label for="work-name">Nombre</Label>
+							<Input id="work-name" name="name" value={data.work.name} required />
+						</div>
+						<div class="space-y-2">
+							<Label for="work-desc">Descripción</Label>
+							<Input id="work-desc" name="description" value={data.work.description ?? ''} />
+						</div>
+						{#if action?.message}
+							<p class="text-sm text-destructive">{action.message}</p>
+						{/if}
+					</Dialog.Body>
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit">Guardar</Button>

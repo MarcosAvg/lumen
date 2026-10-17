@@ -19,19 +19,24 @@
 	const description = $derived(`${approved} de ${total} objetivos aprobados (${percent}%)`);
 </script>
 
-<div class="space-y-1.5" title={description} aria-label={description}>
-	<div class="flex items-baseline justify-between gap-3">
-		<span class="tnum text-sm font-medium text-foreground">
-			{approved}<span class="text-muted-foreground">/{total}</span>
+<div class="space-y-2" title={description} aria-label={description}>
+	<div class="flex items-end justify-between gap-3">
+		<span class="tnum text-lg leading-none font-semibold tracking-tight text-foreground">
+			{approved}<span class="text-sm font-medium text-muted-foreground">/{total}</span>
 		</span>
-		<span class="tnum text-xs text-muted-foreground">{percent}%</span>
+		<span class="tnum text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+			>{percent}%</span
+		>
 	</div>
-	<div class="h-2 overflow-hidden rounded-full bg-muted">
+	<div class="relative h-2 overflow-hidden rounded-[3px] bg-muted">
 		<div
-			class="h-full rounded-full transition-[width] duration-300 {completed
-				? 'bg-state-approved'
+			class="h-full rounded-[3px] transition-[width] duration-300 {completed
+				? 'bg-teal'
 				: 'bg-primary'}"
 			style="width: {Math.max(0, Math.min(100, percent))}%"
 		></div>
+		<span class="pointer-events-none absolute inset-y-0 left-1/4 w-px bg-background/80"></span>
+		<span class="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-background/80"></span>
+		<span class="pointer-events-none absolute inset-y-0 left-3/4 w-px bg-background/80"></span>
 	</div>
 </div>

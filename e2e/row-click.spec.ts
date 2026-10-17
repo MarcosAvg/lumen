@@ -11,6 +11,7 @@ test('la fila/tarjeta completa navega, no solo el nombre', async ({ page }, test
 
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByLabel('Descripción (opcional)').fill(description);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();

@@ -81,7 +81,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<div class="space-y-4">
+		<Dialog.Body class="space-y-5">
 			<div class="space-y-2">
 				<p class="text-sm font-medium">Registro (XLSX)</p>
 				<div class="grid grid-cols-2 gap-2">
@@ -105,7 +105,7 @@
 				</p>
 			</div>
 
-			<div class="space-y-2 border-t pt-3">
+			<div class="space-y-2">
 				<LabeledCheckbox bind:checked={includeXlsx} label="Incluir registro XLSX" />
 				<LabeledCheckbox bind:checked={includePhotos} label="Incluir fotografías" />
 				<LabeledCheckbox bind:checked={includePdf} label="Incluir PDF de evidencia por trabajo" />
@@ -118,7 +118,7 @@
 					</p>
 				{/if}
 			</div>
-		</div>
+		</Dialog.Body>
 
 		<Dialog.Footer>
 			<Dialog.Close>Cancelar</Dialog.Close>

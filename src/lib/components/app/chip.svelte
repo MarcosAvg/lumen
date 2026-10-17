@@ -18,10 +18,10 @@
 
 	const tones: Record<ChipTone, string> = {
 		neutral: 'bg-muted text-muted-foreground',
-		attention: 'bg-state-attention/15 text-state-attention',
-		pending: 'bg-state-pending/15 text-state-pending',
-		approved: 'bg-state-approved/15 text-state-approved',
-		rejected: 'bg-state-rejected/15 text-state-rejected'
+		attention: 'bg-state-attention/15 text-state-attention-ink',
+		pending: 'bg-state-pending/15 text-state-pending-ink',
+		approved: 'bg-state-approved/15 text-state-approved-ink',
+		rejected: 'bg-state-rejected/15 text-state-rejected-ink'
 	};
 </script>
 

@@ -89,4 +89,4 @@
 - El rate limiting es por instancia (suficiente para un contenedor).
 - Programar `./deploy/backup.sh` y `pnpm maintenance:cleanup` por cron y probar restauraciones.
 - Publicar la imagen por tag (`git tag`) y desplegar con Cloudflare Tunnel
-  ([`docs/deployment.md`](docs/deployment.md)).
+  ([`docs/guias/instalacion.md`](docs/guias/instalacion.md)).

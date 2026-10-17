@@ -16,6 +16,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	// Crear servicio y obtener su id.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -44,7 +45,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	// Crear un trabajo directo para probar el ZIP de trabajo.
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
-	await page.locator('#work-mode').selectOption('direct');
+	await page.getByRole('dialog').getByText('Directo', { exact: true }).click();
 	await page.locator('#work-name').fill(`Trabajo ${unique}`);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -123,7 +124,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await page.goto(serviceHref ?? '/admin/services');
 	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
 	await expect(
-		page.getByRole('dialog').getByRole('heading', { name: 'Participantes' })
+		page.getByRole('dialog').getByRole('heading', { name: 'Participantes', exact: true })
 	).toBeVisible();
 	await page
 		.getByRole('dialog')
@@ -153,15 +154,17 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.click();
 	await page.getByRole('button', { name: 'Gestionar participantes' }).click();
 	const membersDialog = page.getByRole('dialog');
-	await membersDialog.locator('#member-technician').selectOption({ label: techName });
+	await membersDialog.getByRole('button', { name: 'Técnico', exact: true }).click();
+	await membersDialog.locator('#participant-user').selectOption({ label: techName });
 	await membersDialog.getByRole('button', { name: 'Añadir' }).first().click();
 	await expect(page.getByText('Participante añadido.')).toBeVisible();
 
 	await page.goto(serviceHref ?? '/admin/services');
 	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
 	const assignDialog = page.getByRole('dialog');
-	await assignDialog.locator('#technician').selectOption({ label: techName });
-	await assignDialog.getByRole('button', { name: 'Asignar' }).first().click();
+	await assignDialog.getByRole('button', { name: 'Técnico', exact: true }).click();
+	await assignDialog.locator('#participant-user').selectOption({ label: techName });
+	await assignDialog.getByRole('button', { name: 'Añadir' }).first().click();
 	await expect(page.getByText('Asignación guardada.')).toBeVisible();
 
 	// Revocar pide confirmación en modal (se cancela para conservar la asignación).

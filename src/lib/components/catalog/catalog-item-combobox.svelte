@@ -33,7 +33,7 @@
 				{...props}
 				{id}
 				variant="outline"
-				class="w-full justify-between font-normal"
+				class="h-10 w-full justify-between font-normal"
 				{disabled}
 				aria-label={selected ? `Ítem seleccionado: ${selected.name}` : placeholder}
 			>
@@ -42,7 +42,7 @@
 			</Button>
 		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content class="w-72 p-0" align="start">
+	<Popover.Content class="w-[min(420px,calc(100vw-2rem))] p-0" align="start">
 		<Command.Root>
 			<Command.Input placeholder="Buscar ítem…" />
 			<Command.List>

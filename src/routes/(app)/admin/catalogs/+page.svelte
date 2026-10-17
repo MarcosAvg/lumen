@@ -25,6 +25,13 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let createOpen = $state(false);
+	let createPurpose = $state('');
+
+	function openCreate() {
+		createPurpose = '';
+		createOpen = true;
+	}
+
 	$effect(() => {
 		if (action?.success) createOpen = false;
 	});
@@ -67,7 +74,7 @@
 	<PageIntro
 		description="Listas reutilizables (edificios, pisos, equipos…) para nombrar trabajos y elementos."
 	>
-		<Button onclick={() => (createOpen = true)}>Nuevo catálogo</Button>
+		<Button onclick={openCreate}>Nuevo catálogo</Button>
 	</PageIntro>
 
 	{#if action?.success}
@@ -81,38 +88,48 @@
 
 	<Dialog.Root bind:open={createOpen}>
 		<Dialog.Content>
-			<form method="POST" action="?/create" class="space-y-4">
+			<form method="POST" action="?/create" class="flex min-h-0 flex-1 flex-col">
 				<Dialog.Header>
 					<Dialog.Title>Nuevo catálogo</Dialog.Title>
 					<Dialog.Description>
 						Los catálogos agrupan ítems reutilizables para nombrar trabajos y elementos.
 					</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="name">Nombre</Label>
-					<Input
-						id="name"
-						name="name"
-						required
-						aria-invalid={action?.createErrors?.name ? true : undefined}
-						aria-describedby={action?.createErrors?.name ? 'name-error' : undefined}
-					/>
-					{#if action?.createErrors?.name}
-						<p id="name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="description">Descripción (opcional)</Label>
-					<Input id="description" name="description" />
-				</div>
-				<div class="space-y-2">
-					<Label for="purpose">Propósito</Label>
-					<NativeSelect id="purpose" name="purpose">
-						<option value="">General</option>
-						<option value="buildings">Edificios</option>
-						<option value="requirements">Requisitos</option>
-					</NativeSelect>
-				</div>
+				<Dialog.Body class="space-y-5">
+					<Dialog.Section title="Datos">
+						<div class="space-y-2">
+							<Label for="name">Nombre</Label>
+							<Input
+								id="name"
+								name="name"
+								required
+								aria-invalid={action?.createErrors?.name ? true : undefined}
+								aria-describedby={action?.createErrors?.name ? 'name-error' : undefined}
+							/>
+							{#if action?.createErrors?.name}
+								<p id="name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="description">Descripción (opcional)</Label>
+							<Input id="description" name="description" />
+						</div>
+					</Dialog.Section>
+					<Dialog.Section title="Tipo">
+						<div class="space-y-2">
+							<Label for="purpose">Propósito (opcional)</Label>
+							<NativeSelect id="purpose" name="purpose" bind:value={createPurpose}>
+								<option value="" disabled>Selecciona un propósito</option>
+								<option value="general">General</option>
+								<option value="buildings">Edificios</option>
+								<option value="requirements">Requisitos</option>
+							</NativeSelect>
+							<p class="text-xs text-muted-foreground">
+								Si no eliges uno, el catálogo será general.
+							</p>
+						</div>
+					</Dialog.Section>
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
 					<Button type="submit">Crear catálogo</Button>
@@ -122,12 +139,19 @@
 	</Dialog.Root>
 
 	<form method="GET" class="flex gap-2">
-		<Input name="q" value={data.q} placeholder="Buscar catálogo…" class="max-w-xs" />
+		<Label for="catalog-search" class="sr-only">Buscar catálogo</Label>
+		<Input
+			id="catalog-search"
+			name="q"
+			value={data.q}
+			placeholder="Buscar catálogo…"
+			class="max-w-xs"
+		/>
 		<Button type="submit" variant="outline">Buscar</Button>
 	</form>
 
 	<Tabs.Root bind:value={tab}>
-		<Tabs.List class="no-scrollbar max-w-full overflow-x-auto">
+		<Tabs.List class="no-scrollbar max-w-full justify-start overflow-x-auto">
 			<Tabs.Trigger value="all">Todos ({counts.all})</Tabs.Trigger>
 			<Tabs.Trigger value="general">Generales ({counts.general})</Tabs.Trigger>
 			<Tabs.Trigger value="buildings">Edificios ({counts.buildings})</Tabs.Trigger>
@@ -199,7 +223,7 @@
 									</p>
 								{/if}
 							</Table.Cell>
-							<Table.Cell>
+							<Table.Cell class="hidden lg:table-cell">
 								{#if catalog.purpose}
 									<Badge variant="secondary">{purposeLabel[catalog.purpose]}</Badge>
 								{:else}

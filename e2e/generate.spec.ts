@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ensureAdmin } from './helpers';
+import { chooseCatalog, ensureAdmin } from './helpers';
 
 test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	test.setTimeout(60_000);
@@ -29,6 +29,7 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	// Servicio.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -42,7 +43,7 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	// Generar en lote desde el modal.
 	await page.getByRole('button', { name: 'Generar en lote' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Catálogo').first().selectOption({ label: catalogName });
+	await chooseCatalog(page, dialog, catalogName);
 	await dialog.getByRole('button', { name: 'Elegir trabajos…' }).click();
 	const option = page.locator('[data-slot="command-item"]').filter({ hasText: itemName });
 	await expect(option).toBeVisible();

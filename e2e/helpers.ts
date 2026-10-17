@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 // Helpers compartidos por las pruebas E2E.
 
@@ -14,6 +14,22 @@ export function photoFile() {
 		mimeType: 'image/jpeg',
 		buffer: Buffer.from(JPEG_BASE64, 'base64')
 	};
+}
+
+/** Elige un catálogo en el selector agrupado del modal indicado. */
+export async function chooseCatalog(
+	page: Page,
+	dialog: Locator,
+	name: string,
+	index = 0
+): Promise<void> {
+	await dialog.locator('[data-slot="catalog-picker-trigger"]').nth(index).click();
+	await page.locator('[data-slot="command-item"]').filter({ hasText: name }).first().click();
+}
+
+/** Elige el tipo de trabajo en sus tarjetas de radio. */
+export async function chooseWorkMode(dialog: Locator, mode: 'Directo' | 'Dividido'): Promise<void> {
+	await dialog.getByText(mode, { exact: true }).click();
 }
 
 export async function ensureAdmin(page: Page) {

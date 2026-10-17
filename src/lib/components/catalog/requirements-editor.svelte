@@ -59,77 +59,82 @@
 	}
 </script>
 
-<div class="space-y-3">
-	<LabeledCheckbox bind:checked={required} {disabled} label="Obligatorio" />
+<div class="space-y-4">
+	<LabeledCheckbox bind:checked={required} {disabled} label="Obligatorio por defecto" />
 
 	{#if value.length > 0}
-		<ul class="divide-y rounded-lg border">
-			{#each value as requirement, index (index)}
-				<li class="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-					<span class="flex items-center gap-2">
-						{nameFor(requirement)}
-						{#if requirement.catalogItemId}
-							<span class="text-xs text-muted-foreground">catálogo</span>
-						{/if}
-					</span>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						aria-label={`Quitar ${nameFor(requirement)}`}
-						{disabled}
-						onclick={() => removeAt(index)}
-					>
-						<X class="size-3" aria-hidden="true" />
-					</Button>
-				</li>
-			{/each}
-		</ul>
+		<div class="space-y-2">
+			<p class="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+				Añadidos ({value.length})
+			</p>
+			<ul class="divide-y overflow-hidden rounded-xl border border-border bg-card">
+				{#each value as requirement, index (index)}
+					<li class="flex items-center justify-between gap-2 px-3 py-2.5 text-sm">
+						<span class="flex min-w-0 items-center gap-2">
+							<span class="truncate">{nameFor(requirement)}</span>
+							{#if requirement.catalogItemId}
+								<span class="shrink-0 text-xs text-muted-foreground">catálogo</span>
+							{/if}
+						</span>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							aria-label={`Quitar ${nameFor(requirement)}`}
+							{disabled}
+							onclick={() => removeAt(index)}
+						>
+							<X class="size-3" aria-hidden="true" />
+						</Button>
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 
-	<div class="space-y-1">
-		<Label>Desde catálogo (puedes elegir varios)</Label>
-		<div class="flex items-end gap-2">
-			<div class="flex-1">
-				<CatalogItemMultiPicker
-					{catalogs}
-					bind:value={catalogSelection}
-					itemPlaceholder="Elegir requisitos…"
-					{disabled}
-				/>
+	<div class="grid gap-3 sm:grid-cols-2">
+		<section class="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+			<div class="space-y-1">
+				<p class="text-sm font-semibold">Desde catálogo</p>
+				<p class="text-xs text-muted-foreground">Puedes seleccionar varios requisitos.</p>
 			</div>
+			<CatalogItemMultiPicker
+				{catalogs}
+				bind:value={catalogSelection}
+				itemPlaceholder="Elegir requisitos…"
+				{disabled}
+			/>
 			<Button
 				type="button"
 				variant="outline"
-				size="sm"
+				class="w-full"
 				disabled={disabled || catalogSelection.length === 0}
 				onclick={addFromCatalog}
 			>
 				Agregar {catalogSelection.length > 0 ? `(${catalogSelection.length})` : ''}
 			</Button>
-		</div>
-	</div>
+		</section>
 
-	<div class="space-y-1">
-		<Label for="requirement-name-draft">Nombre propio</Label>
-		<div class="flex items-end gap-2">
-			<div class="flex-1">
-				<Input
-					id="requirement-name-draft"
-					bind:value={nameDraft}
-					placeholder="Nombre del requisito"
-					{disabled}
-				/>
+		<section class="space-y-3 rounded-xl border border-border bg-muted/20 p-3">
+			<div class="space-y-1">
+				<Label for="requirement-name-draft">Nombre propio</Label>
+				<p class="text-xs text-muted-foreground">Para requisitos que no están en catálogo.</p>
 			</div>
+			<Input
+				id="requirement-name-draft"
+				bind:value={nameDraft}
+				placeholder="Nombre del requisito"
+				{disabled}
+			/>
 			<Button
 				type="button"
 				variant="outline"
-				size="sm"
+				class="w-full"
 				disabled={disabled || nameDraft.trim().length === 0}
 				onclick={addByName}
 			>
 				Agregar
 			</Button>
-		</div>
+		</section>
 	</div>
 </div>

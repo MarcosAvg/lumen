@@ -58,14 +58,14 @@
 	let createName = $state('');
 	let createUsername = $state('');
 	let createPassword = $state('');
-	let createRole = $state<Role>('technician');
+	let createRole = $state('');
 	let createPending = $state(false);
 
 	function openCreate() {
 		createName = '';
 		createUsername = '';
 		createPassword = '';
-		createRole = 'technician';
+		createRole = '';
 		createPending = false;
 		activeForm = null;
 		createOpen = true;
@@ -144,7 +144,12 @@
 
 	<Dialog.Root bind:open={createOpen}>
 		<Dialog.Content>
-			<form method="POST" action="?/create" class="space-y-4" use:enhance={submitCreate}>
+			<form
+				method="POST"
+				action="?/create"
+				class="flex min-h-0 flex-1 flex-col"
+				use:enhance={submitCreate}
+			>
 				<Dialog.Header>
 					<Dialog.Title>Nuevo usuario</Dialog.Title>
 					<Dialog.Description>
@@ -152,75 +157,91 @@
 					</Dialog.Description>
 				</Dialog.Header>
 
-				{#if activeForm === 'create' && action?.message}
-					<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
-				{/if}
+				<Dialog.Body class="space-y-5">
+					{#if activeForm === 'create' && action?.message}
+						<Alert variant="destructive"
+							><AlertDescription>{action.message}</AlertDescription></Alert
+						>
+					{/if}
 
-				<div class="space-y-2">
-					<Label for="new-displayName">Nombre visible</Label>
-					<Input
-						id="new-displayName"
-						name="displayName"
-						bind:value={createName}
-						required
-						aria-invalid={action?.createErrors?.displayName ? true : undefined}
-						aria-describedby={action?.createErrors?.displayName
-							? 'new-displayName-error'
-							: undefined}
-					/>
-					{#if action?.createErrors?.displayName}
-						<p id="new-displayName-error" class="text-sm text-destructive">
-							{action.createErrors.displayName}
-						</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="new-username">Usuario</Label>
-					<Input
-						id="new-username"
-						name="username"
-						bind:value={createUsername}
-						autocomplete="off"
-						required
-						aria-invalid={action?.createErrors?.username ? true : undefined}
-						aria-describedby={action?.createErrors?.username ? 'new-username-error' : undefined}
-					/>
-					{#if action?.createErrors?.username}
-						<p id="new-username-error" class="text-sm text-destructive">
-							{action.createErrors.username}
-						</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="new-password">Contraseña</Label>
-					<Input
-						id="new-password"
-						name="password"
-						type="password"
-						bind:value={createPassword}
-						autocomplete="new-password"
-						required
-						aria-invalid={action?.createErrors?.password ? true : undefined}
-						aria-describedby={action?.createErrors?.password ? 'new-password-error' : undefined}
-					/>
-					{#if action?.createErrors?.password}
-						<p id="new-password-error" class="text-sm text-destructive">
-							{action.createErrors.password}
-						</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="new-role">Rol</Label>
-					<NativeSelect id="new-role" name="role" bind:value={createRole} required>
-						<option value="technician">Técnico</option>
-						<option value="supervisor">Supervisor</option>
-						<option value="admin">Administrador</option>
-					</NativeSelect>
-				</div>
+					<Dialog.Section title="Perfil">
+						<div class="space-y-2">
+							<Label for="new-displayName">Nombre visible</Label>
+							<Input
+								id="new-displayName"
+								name="displayName"
+								bind:value={createName}
+								required
+								aria-invalid={action?.createErrors?.displayName ? true : undefined}
+								aria-describedby={action?.createErrors?.displayName
+									? 'new-displayName-error'
+									: undefined}
+							/>
+							{#if action?.createErrors?.displayName}
+								<p id="new-displayName-error" class="text-sm text-destructive">
+									{action.createErrors.displayName}
+								</p>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="new-role">Rol</Label>
+							<NativeSelect id="new-role" name="role" bind:value={createRole} required>
+								<option value="" disabled>Selecciona un rol</option>
+								<option value="technician">Técnico</option>
+								<option value="supervisor">Supervisor</option>
+								<option value="admin">Administrador</option>
+							</NativeSelect>
+						</div>
+					</Dialog.Section>
+					<Dialog.Section title="Acceso">
+						<div class="space-y-2">
+							<Label for="new-username">Usuario</Label>
+							<Input
+								id="new-username"
+								name="username"
+								bind:value={createUsername}
+								autocomplete="off"
+								required
+								aria-invalid={action?.createErrors?.username ? true : undefined}
+								aria-describedby={action?.createErrors?.username ? 'new-username-error' : undefined}
+							/>
+							{#if action?.createErrors?.username}
+								<p id="new-username-error" class="text-sm text-destructive">
+									{action.createErrors.username}
+								</p>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="new-password">Contraseña</Label>
+							<Input
+								id="new-password"
+								name="password"
+								type="password"
+								bind:value={createPassword}
+								autocomplete="new-password"
+								required
+								aria-invalid={action?.createErrors?.password ? true : undefined}
+								aria-describedby={action?.createErrors?.password ? 'new-password-error' : undefined}
+							/>
+							{#if action?.createErrors?.password}
+								<p id="new-password-error" class="text-sm text-destructive">
+									{action.createErrors.password}
+								</p>
+							{/if}
+						</div>
+					</Dialog.Section>
+				</Dialog.Body>
 
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
-					<Button type="submit" disabled={createPending}>Crear usuario</Button>
+					<Button
+						type="submit"
+						disabled={createPending ||
+							!createName.trim() ||
+							!createUsername.trim() ||
+							!createPassword ||
+							!createRole}>Crear usuario</Button
+					>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
@@ -229,7 +250,7 @@
 	<ul class="space-y-3 md:hidden">
 		{#each data.users as user (user.id)}
 			<li>
-				<Card.Root>
+				<Card.Root class="border-l-2 {user.isActive ? 'border-l-primary/40' : 'border-l-border'}">
 					<Card.Content class="space-y-3">
 						<div class="flex items-start justify-between gap-2">
 							<div class="min-w-0">
@@ -335,7 +356,7 @@
 	</div>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+		<Dialog.Content size="lg">
 			<Dialog.Header>
 				<Dialog.Title>Editar usuario</Dialog.Title>
 				<Dialog.Description>
@@ -344,128 +365,124 @@
 				</Dialog.Description>
 			</Dialog.Header>
 
-			{#if activeForm === 'edit' && action?.message}
-				<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
-			{/if}
+			<Dialog.Body class="space-y-5">
+				{#if activeForm === 'edit' && action?.message}
+					<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
+				{/if}
 
-			<div class="space-y-5">
-				<form method="POST" action="?/updateProfile" class="space-y-3" use:enhance={submitEdit}>
-					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
-					<h3 class="text-sm font-medium">Datos</h3>
-					<div class="space-y-2">
-						<Label for="edit-displayName">Nombre visible</Label>
-						<Input
-							id="edit-displayName"
-							name="displayName"
-							bind:value={editName}
-							required
-							aria-invalid={action?.profileErrors?.displayName ? true : undefined}
-							aria-describedby={action?.profileErrors?.displayName
-								? 'edit-displayName-error'
-								: undefined}
-						/>
-						{#if action?.profileErrors?.displayName}
-							<p id="edit-displayName-error" class="text-sm text-destructive">
-								{action.profileErrors.displayName}
-							</p>
-						{/if}
-					</div>
-					<div class="space-y-2">
-						<Label for="edit-username">Usuario</Label>
-						<Input
-							id="edit-username"
-							name="username"
-							bind:value={editUsername}
-							autocomplete="off"
-							required
-							aria-invalid={action?.profileErrors?.username ? true : undefined}
-							aria-describedby={action?.profileErrors?.username ? 'edit-username-error' : undefined}
-						/>
-						{#if action?.profileErrors?.username}
-							<p id="edit-username-error" class="text-sm text-destructive">
-								{action.profileErrors.username}
-							</p>
-						{/if}
-					</div>
-					<Button type="submit" size="sm" disabled={editPending}>Guardar datos</Button>
-				</form>
+				<div class="space-y-5">
+					<form method="POST" action="?/updateProfile" class="space-y-3" use:enhance={submitEdit}>
+						<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+						<h3 class="text-sm font-medium">Datos</h3>
+						<div class="space-y-2">
+							<Label for="edit-displayName">Nombre visible</Label>
+							<Input
+								id="edit-displayName"
+								name="displayName"
+								bind:value={editName}
+								required
+								aria-invalid={action?.profileErrors?.displayName ? true : undefined}
+								aria-describedby={action?.profileErrors?.displayName
+									? 'edit-displayName-error'
+									: undefined}
+							/>
+							{#if action?.profileErrors?.displayName}
+								<p id="edit-displayName-error" class="text-sm text-destructive">
+									{action.profileErrors.displayName}
+								</p>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="edit-username">Usuario</Label>
+							<Input
+								id="edit-username"
+								name="username"
+								bind:value={editUsername}
+								autocomplete="off"
+								required
+								aria-invalid={action?.profileErrors?.username ? true : undefined}
+								aria-describedby={action?.profileErrors?.username
+									? 'edit-username-error'
+									: undefined}
+							/>
+							{#if action?.profileErrors?.username}
+								<p id="edit-username-error" class="text-sm text-destructive">
+									{action.profileErrors.username}
+								</p>
+							{/if}
+						</div>
+						<Button type="submit" size="sm" disabled={editPending}>Guardar datos</Button>
+					</form>
 
-				<form
-					method="POST"
-					action="?/changeRole"
-					class="space-y-3 border-t pt-4"
-					use:enhance={submitEdit}
-				>
-					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
-					<h3 class="text-sm font-medium">Rol</h3>
-					<div class="space-y-2">
-						<Label for="edit-role">Rol global</Label>
-						<NativeSelect id="edit-role" name="role" bind:value={editRole}>
-							<option value="technician">Técnico</option>
-							<option value="supervisor">Supervisor</option>
-							<option value="admin">Administrador</option>
-						</NativeSelect>
-					</div>
-					<Button type="submit" variant="outline" size="sm" disabled={editPending}
-						>Cambiar rol</Button
-					>
-
-					{#if conflict}
-						<Alert variant="destructive">
-							<AlertDescription>
-								<p class="mb-2">Al cambiar el rol se revocarán estas asignaciones incompatibles:</p>
-								<ul class="list-inside list-disc">
-									{#each conflict.contracts as contract (contract.id)}
-										<li>Contrato: {contract.contractName} · {contract.assignmentRole}</li>
-									{/each}
-									{#each conflict.assignments as assignment (assignment.id)}
-										<li>{assignment.serviceName} · {assignment.assignmentRole}</li>
-									{/each}
-								</ul>
-							</AlertDescription>
-						</Alert>
-						<Button
-							type="submit"
-							name="confirmRevoke"
-							value="true"
-							variant="destructive"
-							size="sm"
-							disabled={editPending}>Confirmar y revocar asignaciones</Button
+					<form method="POST" action="?/changeRole" class="space-y-3" use:enhance={submitEdit}>
+						<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+						<h3 class="text-sm font-medium">Rol</h3>
+						<div class="space-y-2">
+							<Label for="edit-role">Rol global</Label>
+							<NativeSelect id="edit-role" name="role" bind:value={editRole}>
+								<option value="technician">Técnico</option>
+								<option value="supervisor">Supervisor</option>
+								<option value="admin">Administrador</option>
+							</NativeSelect>
+						</div>
+						<Button type="submit" variant="outline" size="sm" disabled={editPending}
+							>Cambiar rol</Button
 						>
-					{/if}
-				</form>
 
-				<form
-					method="POST"
-					action="?/resetPassword"
-					class="space-y-3 border-t pt-4"
-					use:enhance={submitEdit}
-				>
-					<input type="hidden" name="userId" value={editUser?.id ?? ''} />
-					<h3 class="text-sm font-medium">Contraseña</h3>
-					<div class="space-y-2">
-						<Label for="edit-password">Nueva contraseña</Label>
-						<Input
-							id="edit-password"
-							name="password"
-							type="password"
-							autocomplete="new-password"
-							required
-							aria-invalid={action?.resetErrors?.password ? true : undefined}
-							aria-describedby={action?.resetErrors?.password ? 'edit-password-error' : undefined}
-						/>
-						{#if action?.resetErrors?.password}
-							<p id="edit-password-error" class="text-sm text-destructive">
-								{action.resetErrors.password}
-							</p>
+						{#if conflict}
+							<Alert variant="destructive">
+								<AlertDescription>
+									<p class="mb-2">
+										Al cambiar el rol se revocarán estas asignaciones incompatibles:
+									</p>
+									<ul class="list-inside list-disc">
+										{#each conflict.contracts as contract (contract.id)}
+											<li>Contrato: {contract.contractName} · {contract.assignmentRole}</li>
+										{/each}
+										{#each conflict.assignments as assignment (assignment.id)}
+											<li>{assignment.serviceName} · {assignment.assignmentRole}</li>
+										{/each}
+									</ul>
+								</AlertDescription>
+							</Alert>
+							<Button
+								type="submit"
+								name="confirmRevoke"
+								value="true"
+								variant="destructive"
+								size="sm"
+								disabled={editPending}>Confirmar y revocar asignaciones</Button
+							>
 						{/if}
-					</div>
-					<p class="text-xs text-muted-foreground">Al restablecerla se cierran sus sesiones.</p>
-					<Button type="submit" variant="outline" size="sm" disabled={editPending}>
-						Restablecer contraseña
-					</Button>
-				</form>
-			</div>
+					</form>
+
+					<form method="POST" action="?/resetPassword" class="space-y-3" use:enhance={submitEdit}>
+						<input type="hidden" name="userId" value={editUser?.id ?? ''} />
+						<h3 class="text-sm font-medium">Contraseña</h3>
+						<div class="space-y-2">
+							<Label for="edit-password">Nueva contraseña</Label>
+							<Input
+								id="edit-password"
+								name="password"
+								type="password"
+								autocomplete="new-password"
+								required
+								aria-invalid={action?.resetErrors?.password ? true : undefined}
+								aria-describedby={action?.resetErrors?.password ? 'edit-password-error' : undefined}
+							/>
+							{#if action?.resetErrors?.password}
+								<p id="edit-password-error" class="text-sm text-destructive">
+									{action.resetErrors.password}
+								</p>
+							{/if}
+						</div>
+						<p class="text-xs text-muted-foreground">Al restablecerla se cierran sus sesiones.</p>
+						<Button type="submit" variant="outline" size="sm" disabled={editPending}>
+							Restablecer contraseña
+						</Button>
+					</form>
+				</div>
+			</Dialog.Body>
 
 			<Dialog.Footer>
 				<Dialog.Close>Cancelar</Dialog.Close>

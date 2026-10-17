@@ -16,7 +16,7 @@ import type { SessionUser, TargetStatus, WorkMode } from '#lib/types';
 import { listAllowedServiceIds } from './services';
 
 /**
- * Tablero por rol (docs/05 §4). Todo se calcula dentro del **ámbito** del
+ * Tablero por rol (docs/producto/experiencia.md). Todo se calcula dentro del **ámbito** del
  * usuario: administrador (global) o asignación vigente **dentro de un contrato**
  * del que siga siendo miembro. Nunca se expone un total que incluya servicios
  * ajenos.

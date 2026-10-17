@@ -7,7 +7,7 @@
 #   ./deploy/backup.sh
 #   BACKUP_DIR=/mnt/backups ./deploy/backup.sh
 #
-# Respalda **juntos** la base y el volumen de fotos (ver docs/deployment.md).
+# Respalda **juntos** la base y el volumen de fotos (ver docs/guias/operacion.md).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

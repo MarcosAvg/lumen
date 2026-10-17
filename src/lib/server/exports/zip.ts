@@ -18,7 +18,7 @@ export function contentDisposition(fileName: string): string {
 }
 
 /**
- * Construye una respuesta ZIP **en streaming** (docs/04 §7): nunca carga el ZIP
+ * Construye una respuesta ZIP **en streaming** (docs/referencia/exportaciones.md): nunca carga el ZIP
  * completo en memoria. Los binarios se leen del volumen por flujo.
  */
 export function buildZipResponse(input: ZipInput, storage: Storage): Response {

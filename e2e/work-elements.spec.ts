@@ -14,6 +14,7 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	// Crear servicio.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -28,7 +29,7 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	// Crear trabajo dividido con dos elementos (por nombre propio).
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.locator('#work-mode').selectOption('divided');
+	await dialog.getByText('Dividido', { exact: true }).click();
 	await dialog.getByRole('tab', { name: 'Nombre propio' }).click();
 	await dialog.locator('#work-name').fill(workName);
 
@@ -37,12 +38,14 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 		.locator('#element-name-draft')
 		.locator('xpath=../..')
 		.getByRole('button', { name: 'Agregar', exact: true })
+		.last()
 		.click();
 	await dialog.locator('#element-name-draft').fill('UMA 2');
 	await dialog
 		.locator('#element-name-draft')
 		.locator('xpath=../..')
 		.getByRole('button', { name: 'Agregar', exact: true })
+		.last()
 		.click();
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -65,6 +68,7 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 		.locator('#element-name-draft')
 		.locator('xpath=../..')
 		.getByRole('button', { name: 'Agregar', exact: true })
+		.last()
 		.click();
 	await elementDialog.getByRole('button', { name: 'Añadir elementos' }).click();
 

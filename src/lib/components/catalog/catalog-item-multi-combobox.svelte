@@ -26,6 +26,7 @@
 	} = $props();
 
 	let open = $state(false);
+	const selectedCount = $derived(values.length);
 
 	function toggle(itemId: string) {
 		values = values.includes(itemId)
@@ -41,15 +42,17 @@
 				{...props}
 				{id}
 				variant="outline"
-				class="w-full justify-between font-normal"
+				class="h-10 w-full justify-between font-normal"
 				{disabled}
 			>
-				<span class="truncate">{placeholder}</span>
+				<span class="truncate">
+					{selectedCount > 0 ? `${selectedCount} seleccionados` : placeholder}
+				</span>
 				<ChevronsUpDown class="size-4 shrink-0 opacity-50" aria-hidden="true" />
 			</Button>
 		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content class="w-72 p-0" align="start">
+	<Popover.Content class="w-[min(420px,calc(100vw-2rem))] p-0" align="start">
 		<Command.Root>
 			<Command.Input placeholder="Buscar ítem…" />
 			<Command.List>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ensureAdmin } from './helpers';
+import { chooseCatalog, ensureAdmin } from './helpers';
 
 async function createCatalog(page: Page, name: string, purpose?: 'requirements') {
 	await page.goto('/admin/catalogs');
@@ -32,6 +32,7 @@ async function addItem(page: Page, name: string) {
 async function createService(page: Page, name: string) {
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(name);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -68,11 +69,11 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
-	await page.locator('#work-mode').selectOption('direct');
+	await page.getByRole('dialog').getByText('Directo', { exact: true }).click();
 	await page.locator('#work-name').fill(work);
 
 	// Requisitos: dos desde catálogo y uno libre.
-	await dialog.getByLabel('Catálogo').selectOption({ label: catalog });
+	await chooseCatalog(page, dialog, catalog);
 	await dialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	for (const name of [antes, despues]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();
@@ -127,11 +128,12 @@ test('la generación en lote aplica requisitos', async ({ page }, testInfo) => {
 
 	await page.getByRole('button', { name: 'Generar en lote' }).click();
 	const dialog = page.getByRole('dialog');
-	await dialog.getByLabel('Catálogo').first().selectOption({ label: workCatalog });
+	await chooseCatalog(page, dialog, workCatalog, 0);
 	await dialog.getByRole('button', { name: 'Elegir trabajos…' }).click();
 	await page.locator('[data-slot="command-item"]').filter({ hasText: workItem }).click();
+	await page.keyboard.press('Escape');
 
-	await dialog.getByLabel('Catálogo').last().selectOption({ label: reqCatalog });
+	await chooseCatalog(page, dialog, reqCatalog, 2);
 	await dialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	await page.locator('[data-slot="command-item"]').filter({ hasText: reqItem }).click();
 	await page.keyboard.press('Escape');

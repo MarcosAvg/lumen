@@ -46,29 +46,33 @@
 	{#if data.isAdmin}
 		<Dialog.Root bind:open={createOpen}>
 			<Dialog.Content>
-				<form method="POST" action="?/create" class="space-y-4">
+				<form method="POST" action="?/create" class="flex min-h-0 flex-1 flex-col">
 					<Dialog.Header>
 						<Dialog.Title>Nuevo contrato</Dialog.Title>
 						<Dialog.Description>
 							Después podrás añadir participantes y asignarles servicios.
 						</Dialog.Description>
 					</Dialog.Header>
-					<div class="space-y-2">
-						<Label for="contract-name">Nombre</Label>
-						<Input
-							id="contract-name"
-							name="name"
-							required
-							aria-invalid={action?.createErrors?.name ? true : undefined}
-						/>
-						{#if action?.createErrors?.name}
-							<p class="text-sm text-destructive">{action.createErrors.name}</p>
-						{/if}
-					</div>
-					<div class="space-y-2">
-						<Label for="contract-description">Descripción (opcional)</Label>
-						<Input id="contract-description" name="description" />
-					</div>
+					<Dialog.Body class="space-y-5">
+						<Dialog.Section title="Datos">
+							<div class="space-y-2">
+								<Label for="contract-name">Nombre</Label>
+								<Input
+									id="contract-name"
+									name="name"
+									required
+									aria-invalid={action?.createErrors?.name ? true : undefined}
+								/>
+								{#if action?.createErrors?.name}
+									<p class="text-sm text-destructive">{action.createErrors.name}</p>
+								{/if}
+							</div>
+							<div class="space-y-2">
+								<Label for="contract-description">Descripción (opcional)</Label>
+								<Input id="contract-description" name="description" />
+							</div>
+						</Dialog.Section>
+					</Dialog.Body>
 					<Dialog.Footer>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit">Crear contrato</Button>

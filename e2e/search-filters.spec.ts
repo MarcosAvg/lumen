@@ -11,6 +11,7 @@ test('la búsqueda filtra por tipo y por servicio en servidor', async ({ page },
 
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(serviceName);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -23,7 +24,7 @@ test('la búsqueda filtra por tipo y por servicio en servidor', async ({ page },
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
-	await page.locator('#work-mode').selectOption('direct');
+	await page.getByRole('dialog').getByText('Directo', { exact: true }).click();
 	await page.locator('#work-name').fill(workName);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();

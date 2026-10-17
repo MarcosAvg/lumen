@@ -9,9 +9,9 @@
 	let { children, class: className = '' }: { children: Snippet; class?: string } = $props();
 </script>
 
-<div class="overflow-x-auto rounded-xl border bg-card">
+<div class="overflow-x-auto rounded-xl border border-border bg-card">
 	<Table.Root
-		class="[&_td]:px-4 [&_td]:py-3 [&_th]:h-11 [&_th]:px-4 [&_th]:text-xs [&_th]:font-medium [&_th]:tracking-normal [&_th]:text-muted-foreground {className}"
+		class="[&_td]:px-4 [&_td]:py-3 [&_th]:h-10 [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-4 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-[0.06em] [&_th]:text-muted-foreground [&_th]:uppercase {className}"
 	>
 		{@render children()}
 	</Table.Root>

@@ -49,6 +49,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	// Servicio con descripción larga (estresa la cabecera con acciones).
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	const serviceDialog = page.getByRole('dialog');
 	await serviceDialog.locator('#name').fill(serviceName);
 	await serviceDialog
@@ -64,6 +65,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: serviceName })
+		.first()
 		.getAttribute('href');
 	const servicePath = new URL(serviceHref ?? '/admin/services', 'http://x/').pathname;
 	await page.goto(servicePath);
@@ -71,7 +73,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	// Trabajo dividido con un elemento (para tener también la ficha de elemento).
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const workDialog = page.getByRole('dialog');
-	await workDialog.locator('#work-mode').selectOption('divided');
+	await workDialog.getByText('Dividido', { exact: true }).click();
 	await workDialog.getByRole('tab', { name: 'Nombre propio' }).click();
 	await workDialog.locator('#work-name').fill(workName);
 	await workDialog.locator('#element-name-draft').fill('UMA 1');
@@ -79,6 +81,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 		.locator('#element-name-draft')
 		.locator('xpath=../..')
 		.getByRole('button', { name: 'Agregar', exact: true })
+		.last()
 		.click();
 	await workDialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -103,7 +106,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const directDialog = page.getByRole('dialog');
 	await directDialog.getByRole('tab', { name: 'Nombre propio' }).click();
-	await directDialog.locator('#work-mode').selectOption('direct');
+	await directDialog.getByText('Directo', { exact: true }).click();
 	await directDialog.locator('#work-name').fill(`${workName} directo`);
 	await directDialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();

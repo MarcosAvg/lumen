@@ -26,9 +26,6 @@
 	// varios elementos afectados es una sola fila.
 	const rejected = $derived(data.attention.filter((work) => work.elementRejected > 0));
 	const inProgress = $derived(data.attention.filter((work) => work.elementRejected === 0));
-	const servicesHref = $derived(
-		role === 'admin' ? resolve('/(app)/admin/services') : resolve('/(app)/services')
-	);
 
 	// Muchos pendientes aglomeran el panel: se muestran los primeros y el resto
 	// se despliega bajo demanda. Seleccionar un servicio vive en su propia pestaña.
@@ -44,9 +41,16 @@
 </svelte:head>
 
 {#snippet workList(works: AttentionWork[])}
-	<ul class="divide-y overflow-hidden rounded-lg border">
+	<ul class="divide-y overflow-hidden rounded-xl border border-border bg-card">
 		{#each works as work (work.workId)}
-			<li class="relative flex min-h-14 items-start justify-between gap-3 p-3 active:bg-muted/50">
+			<li
+				class="relative flex min-h-14 items-start justify-between gap-3 border-l-2 p-3.5 hover:bg-muted/30 active:bg-muted/50 {work.status ===
+				'rejected'
+					? 'border-l-state-rejected'
+					: work.status === 'approved'
+						? 'border-l-state-approved'
+						: 'border-l-primary/40'}"
+			>
 				<div class="min-w-0 space-y-0.5">
 					<p class="flex flex-wrap items-center gap-2">
 						<!-- eslint-disable svelte/no-navigation-without-resolve -->
@@ -96,14 +100,18 @@
 	{#if role === 'technician'}
 		<section aria-label="Tu resumen" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 			<Card.Root>
-				<Card.Content>
-					<p class="text-sm text-muted-foreground">Servicios</p>
-					<p class="tnum text-2xl font-semibold">{data.summary.serviceCount}</p>
+				<Card.Content class="space-y-2">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						Servicios
+					</p>
+					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.serviceCount}</p>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-sm text-muted-foreground">Aprobados</p>
+				<Card.Content class="space-y-3">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						Aprobados
+					</p>
 					<ProgressMeter
 						approved={data.summary.workApproved}
 						total={data.summary.workTotal}
@@ -114,30 +122,41 @@
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content>
-					<p class="text-sm text-muted-foreground">Por corregir</p>
-					<p class="tnum text-2xl font-semibold" class:text-destructive={rejected.length > 0}>
+				<Card.Content class="space-y-2">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						Por corregir
+					</p>
+					<p
+						class="tnum text-3xl font-semibold tracking-tight"
+						class:text-destructive={rejected.length > 0}
+					>
 						{rejected.length}
 					</p>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content>
-					<p class="text-sm text-muted-foreground">En curso</p>
-					<p class="tnum text-2xl font-semibold">{inProgress.length}</p>
+				<Card.Content class="space-y-2">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						En curso
+					</p>
+					<p class="tnum text-3xl font-semibold tracking-tight">{inProgress.length}</p>
 				</Card.Content>
 			</Card.Root>
 		</section>
 
 		{#if rejected.length > 0}
 			<section class="space-y-2">
-				<h2 class="text-sm font-medium">Requiere tu atención</h2>
+				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+					Requiere tu atención
+				</h2>
 				{@render workList(rejected)}
 			</section>
 		{/if}
 		{#if inProgress.length > 0}
 			<section class="space-y-2">
-				<h2 class="text-sm font-medium">Pendientes</h2>
+				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+					Pendientes
+				</h2>
 				{@render workList(visibleInProgress)}
 				{#if inProgress.length > PENDING_LIMIT}
 					<Button variant="outline" size="sm" onclick={() => (showAllPending = !showAllPending)}>
@@ -147,36 +166,34 @@
 			</section>
 		{/if}
 		{#if data.attention.length === 0}
-			<p class="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+			<p class="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
 				No tienes evidencia pendiente. Buen trabajo.
 			</p>
 		{/if}
 	{:else}
-		<div class="grid gap-2 md:hidden">
-			{#if data.summary.pendingReviews > 0}
+		{#if data.summary.pendingReviews > 0}
+			<div class="md:hidden">
 				<Button href={resolve('/(app)/reviews')} class="w-full justify-between">
 					<span>Revisar pendientes</span>
 					<span class="tnum">{data.summary.pendingReviews}</span>
 				</Button>
-			{/if}
-			<Button href={servicesHref} variant="outline" class="w-full justify-between">
-				<span>Servicios</span>
-				<span class="tnum">{data.summary.serviceCount}</span>
-			</Button>
-		</div>
+			</div>
+		{/if}
 
 		<div class="grid gap-3 sm:grid-cols-3">
 			<Card.Root>
-				<Card.Content>
-					<p class="text-sm text-muted-foreground">
+				<Card.Content class="space-y-2">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
 						{role === 'admin' ? 'Servicios' : 'Servicios asignados'}
 					</p>
-					<p class="tnum text-2xl font-semibold">{data.summary.serviceCount}</p>
+					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.serviceCount}</p>
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-sm text-muted-foreground">Objetivos aprobados</p>
+				<Card.Content class="space-y-3">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						Objetivos aprobados
+					</p>
 					<ProgressMeter
 						approved={data.summary.approvedTargets}
 						total={data.summary.totalTargets}
@@ -187,16 +204,20 @@
 				</Card.Content>
 			</Card.Root>
 			<Card.Root>
-				<Card.Content>
-					<p class="text-sm text-muted-foreground">Revisiones pendientes</p>
-					<p class="tnum text-2xl font-semibold">{data.summary.pendingReviews}</p>
+				<Card.Content class="space-y-2">
+					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
+						Revisiones pendientes
+					</p>
+					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.pendingReviews}</p>
 				</Card.Content>
 			</Card.Root>
 		</div>
 
 		<section class="space-y-2">
 			<div class="flex items-center justify-between gap-2">
-				<h2 class="text-sm font-medium">Entregas por revisar</h2>
+				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+					Entregas por revisar
+				</h2>
 				{#if data.pendingTotal > 0}
 					<Button href={resolve('/(app)/reviews')} variant="ghost" size="sm">Ver todas</Button>
 				{/if}
@@ -207,9 +228,11 @@
 					description="Cuando los técnicos envíen evidencia, aparecerá aquí."
 				/>
 			{:else}
-				<ul class="divide-y overflow-hidden rounded-lg border">
+				<ul class="divide-y overflow-hidden rounded-xl border border-border bg-card">
 					{#each data.pending as item (item.submissionId)}
-						<li class="relative flex items-center justify-between gap-3 p-3 active:bg-muted/50">
+						<li
+							class="relative flex items-center justify-between gap-3 border-l-2 border-l-state-pending/60 p-3.5 hover:bg-muted/30 active:bg-muted/50"
+						>
 							<div class="space-y-0.5">
 								<a
 									class="font-medium text-foreground after:absolute after:inset-0"

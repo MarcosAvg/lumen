@@ -32,7 +32,7 @@ export type { SubmissionArchive } from './exports-submission';
 export type { ArchiveFile } from './exports-shared';
 
 /**
- * Exportaciones ZIP (docs/06 §10). `buildExportPlan` calcula **una vez** las
+ * Exportaciones ZIP (docs/referencia/exportaciones.md). `buildExportPlan` calcula **una vez** las
  * rutas y los datos; de ahí salen el ZIP (fotos) y el XLSX (datos + enlaces).
  *
  *   contrato ▸ edificio ▸ servicio ▸ trabajo ▸ (elemento) ▸ requisito ▸ fotos

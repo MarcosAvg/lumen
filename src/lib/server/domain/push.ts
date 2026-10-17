@@ -10,7 +10,7 @@ import type { PushMessage } from './push-messages';
 export type { PushMessage };
 
 /**
- * Web Push estándar con VAPID (docs/04 §9). El envío es **best-effort** y ocurre
+ * Web Push estándar con VAPID (docs/referencia/arquitectura.md). El envío es **best-effort** y ocurre
  * siempre después del commit; un fallo de push nunca revierte la operación de
  * evidencia ni la notificación interna.
  */

@@ -16,6 +16,7 @@ test('los errores de campo se asocian al control (aria-invalid/aria-describedby)
 	await dialog.locator('#new-username').fill(username);
 	// Contraseña demasiado corta: error de validación del campo.
 	await dialog.locator('#new-password').fill('corta');
+	await dialog.locator('#new-role').selectOption('technician');
 	await dialog.getByRole('button', { name: 'Crear usuario' }).click();
 
 	const input = dialog.locator('#new-password');

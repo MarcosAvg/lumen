@@ -10,7 +10,7 @@ export type Role = 'admin' | 'supervisor' | 'technician';
 
 /**
  * Quién puede exportar los ZIP de entrega/servicio. Los técnicos capturan y
- * envían evidencia, pero no exportan (docs/01 §2).
+ * envían evidencia, pero no exportan (docs/producto/reglas.md).
  */
 export function canExportZip(role: Role): boolean {
 	return role !== 'technician';

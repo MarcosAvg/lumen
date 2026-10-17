@@ -20,7 +20,7 @@ import {
  * Etapa 1: identidad, sesiones y asignaciones.
  * Etapa 2: catálogos, servicios (edificio), trabajos, elementos y objetivos.
  *
- * Convenciones (docs/03-modelo-datos.md):
+ * Convenciones (docs/referencia/modelo-datos.md):
  * - IDs `uuid` para recursos expuestos; fechas `timestamptz` en UTC.
  * - Nombres de usuario case-insensitive mediante índice funcional sobre `lower(username)`.
  * - El nombre visible de trabajos/elementos es `COALESCE(catalog_item.name, custom_name)`

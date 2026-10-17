@@ -91,6 +91,8 @@
 		return page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 	}
 
+	const isSearchPage = $derived(page.url.pathname === '/search');
+
 	// Padre al que vuelve el botón de la cabecera (lo declara cada ficha).
 	const back = $derived(
 		(page.data as unknown as { back?: { href: string; label: string } }).back ?? null
@@ -168,6 +170,12 @@
 		}));
 	});
 </script>
+
+<a
+	href="#contenido"
+	class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
+	>Saltar al contenido</a
+>
 
 <Sidebar.Provider>
 	{#if navigating.to}
@@ -262,19 +270,28 @@
 								</button>
 							{/snippet}
 						</DropdownMenu.Trigger>
-						<DropdownMenu.Content side="top" align="start" class="w-56">
-							<DropdownMenu.Label>{roleLabel[data.user.role]}</DropdownMenu.Label>
+						<DropdownMenu.Content side="top" align="start" class="w-72">
+							<div class="flex items-center gap-2.5 rounded-lg px-2 py-2">
+								<Avatar class="size-9 rounded-lg">
+									<AvatarFallback class="rounded-lg">{initials}</AvatarFallback>
+								</Avatar>
+								<div class="grid min-w-0 flex-1 leading-tight">
+									<span class="truncate text-sm font-medium">{data.user.displayName}</span>
+									<span class="truncate text-xs text-muted-foreground">@{data.user.username}</span>
+									<span class="text-[11px] text-muted-foreground">{roleLabel[data.user.role]}</span>
+								</div>
+							</div>
 							<DropdownMenu.Separator />
 							<DropdownMenu.Item>
 								{#snippet child({ props })}
 									<a href={resolve('/(app)/settings')} {...props}>
 										<Settings />
-										<span>Perfil</span>
+										<span>Perfil y apariencia</span>
 									</a>
 								{/snippet}
 							</DropdownMenu.Item>
 							<DropdownMenu.Separator />
-							<DropdownMenu.Item onSelect={() => logoutForm?.requestSubmit()}>
+							<DropdownMenu.Item variant="destructive" onSelect={() => logoutForm?.requestSubmit()}>
 								<LogOut />
 								<span>Cerrar sesión</span>
 							</DropdownMenu.Item>
@@ -288,11 +305,6 @@
 	</Sidebar.Root>
 
 	<Sidebar.Inset class="min-w-0">
-		<a
-			href="#contenido"
-			class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
-			>Saltar al contenido</a
-		>
 		<header
 			class="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur lg:min-h-16 lg:px-8"
 		>
@@ -313,7 +325,7 @@
 			{#if page.data.title}
 				<h1
 					id="page-title"
-					class="min-w-0 flex-1 truncate text-sm font-medium md:text-base"
+					class="min-w-0 flex-1 truncate text-xl font-semibold tracking-tight md:text-2xl"
 					title={page.data.title}
 				>
 					{page.data.title}
@@ -321,21 +333,23 @@
 			{:else}
 				<div class="flex-1"></div>
 			{/if}
-			<form
-				method="GET"
-				action={resolve('/(app)/search')}
-				class="hidden w-full max-w-xs md:block lg:max-w-md"
-			>
-				<label class="sr-only" for="global-search">Buscar servicios, trabajos y elementos</label>
-				<input
-					id="global-search"
-					type="search"
-					name="q"
-					placeholder="Buscar servicios, trabajos y elementos…"
-					aria-label="Buscar servicios, trabajos y elementos"
-					class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-				/>
-			</form>
+			{#if !isSearchPage}
+				<form
+					method="GET"
+					action={resolve('/(app)/search')}
+					class="hidden w-full max-w-xs md:block lg:max-w-md"
+				>
+					<label class="sr-only" for="global-search">Buscar servicios, trabajos y elementos</label>
+					<input
+						id="global-search"
+						type="search"
+						name="q"
+						placeholder="Buscar servicios, trabajos y elementos…"
+						aria-label="Buscar servicios, trabajos y elementos"
+						class="h-9 w-full rounded-md border border-input bg-card px-3 text-sm"
+					/>
+				</form>
+			{/if}
 			<div class="ml-auto flex items-center gap-1">
 				<a
 					href={resolve('/(app)/search')}
@@ -373,6 +387,7 @@
 		</div>
 	</Sidebar.Inset>
 	<BottomNav
+		user={data.user}
 		role={data.user.role}
 		unreadCount={data.unreadCount}
 		reviewsCount={data.reviewsCount}

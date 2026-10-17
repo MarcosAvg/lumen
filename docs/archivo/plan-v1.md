@@ -1,8 +1,22 @@
-# 06 — Plan de implementación, prioridades y criterios de aceptación
+# Plan de implementación de la v1 (histórico)
 
-> **Estado: plan cumplido (v1).** Las etapas 0–8 están completadas y verificadas; el estado y las
-> pruebas actuales están en [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md). Este documento
-> se conserva como referencia del plan y de la matriz de aceptación (§12 y §17).
+> **Audiencia:** desarrollo y mantenimiento.
+> **Estado:** histórico, **no normativo**.
+>
+> Este documento conserva el plan original de la v1. Las reglas vigentes están
+> en [`../producto/reglas.md`](../producto/reglas.md), la matriz de pruebas
+> actual en [`../referencia/pruebas.md`](../referencia/pruebas.md) y el estado de
+> la implementación en
+> [`../../IMPLEMENTATION_STATUS.md`](../../IMPLEMENTATION_STATUS.md).
+>
+> **Correcciones posteriores a este plan:**
+> - La jerarquía de contratos y `contract_assignments` se añadió después de la
+>   etapa 1; la etapa 1 no la menciona.
+> - La implementación final notifica también a los administradores activos. La
+>   frase «no admins automáticamente» de la etapa 6 es histórica y no describe
+>   el comportamiento vigente.
+> - XLSX y PDF de evidencia forman parte de la v1 entregada.
+> - La matriz de pruebas se movió a la referencia vigente; no se duplica aquí.
 
 ## 1. Propósito
 
@@ -158,7 +172,7 @@ Una función se considera terminada cuando:
 - Crear notificaciones SQL idempotentes en transacción de envío/revisión.
 - Bandeja con contador no leído, marcar individual/todas, enlaces autorizados.
 - Suscripciones push por usuario/dispositivo, VAPID, service worker e instalación PWA.
-- Enviar a todos los supervisores activos asignados tras envío; a todos los técnicos activos asignados tras revisión; no admins automáticamente.
+- Enviar a todos los supervisores activos asignados tras envío; a todos los técnicos activos asignados tras revisión; no admins automáticamente. *(Decisión posterior: la implementación final sí notifica a administradores activos; véase [`../producto/reglas.md`](../producto/reglas.md).)*
 - Gestionar suscripciones inválidas y errores sin revertir operaciones de evidencia.
 
 **Aceptación**
@@ -213,44 +227,9 @@ Una función se considera terminada cuando:
 - Usuarios desactivados o sin asignación no extraen fotos vía miniaturas, ZIP ni enlaces antiguos.
 - Las funciones core no dependen de servicios de terceros, aparte del canal estándar requerido por Web Push.
 
-## 12. Matriz de pruebas obligatoria
+## 12. Matriz de pruebas
 
-| ID | Escenario | Resultado esperado |
-|---|---|---|
-| AUTH-01 | Técnico consulta servicio no asignado | Bloqueado en servidor |
-| AUTH-02 | Supervisor intenta subir foto | Bloqueado |
-| AUTH-03 | Admin revisa envío de cualquier servicio | Permitido |
-| AUTH-04 | Desactivar usuario con sesión | Sesión inutilizable, autoría conserva |
-| AUTH-05 | Desactivar/degradar último admin | Bloqueado |
-| CAT-01 | Renombrar ítem maestro | Solo vinculados se actualizan dinámicamente |
-| CAT-02 | Renombrar elemento individual vinculado | Se desvincula; no cambia con futuro ítem |
-| CAT-03 | Borrar ítem usado por trabajos/edificio | Se conservan nombres y fotos |
-| WORK-01 | Trabajo dividido vacío | No aprobado |
-| WORK-02 | Agregar elemento a trabajo aprobado | Incompleto, aprobaciones intactas |
-| WORK-03 | Conversión tras envío rechazado | Prohibida |
-| WORK-04 | Conversión sin envío con fotos/requisitos | Todo se reasigna explícitamente o nada cambia |
-| REQ-01 | Requisito requerido sin foto | Envío rechazado |
-| REQ-02 | Sin requisitos obligatorios, 0 fotos | Envío rechazado |
-| REQ-03 | Eliminar requisito antes de envío | Fotos pasan a Adicionales |
-| REQ-04 | Editar requisitos después de primer envío | Prohibido |
-| PHOTO-01 | Dos técnicos suben simultáneamente | Ambas fotos y autores preservados |
-| PHOTO-02 | Cliente ordena versión vieja | `409`, sin sobrescribir |
-| PHOTO-03 | Intentar mover foto de requisito | No existe operación permitida |
-| PHOTO-04 | Retirar foto usada en entrega vieja | Foto histórica visible y descargable |
-| SUB-01 | Envío mientras alguien edita | Snapshot consistente o conflicto |
-| SUB-02 | Enviar por segunda vez en revisión | Bloqueado |
-| REV-01 | Rechazo sin razón | Bloqueado |
-| REV-02 | Dos supervisores revisan mismo envío | Exactamente una revisión |
-| REV-03 | Rechazo → corrección → reenvío | Snapshots históricos distintos e inmutables |
-| NOTIF-01 | Push falla | Bandeja/notificación interna y envío persisten |
-| NOTIF-02 | Usuario no asignado abre deep link push viejo | Acceso bloqueado |
-| EXP-01 | Exportar entrega histórica | Fotos y secciones del snapshot correcto |
-| EXP-02 | ZIP servicio parcialmente aprobado | Incluye aprobados y enumera omitidos |
-| EXP-03 | Técnico solicita ZIP de contrato/servicio/trabajo | Bloqueado (403) |
-| SEARCH-01 | Buscar recurso no asignado | No aparece |
-| DEL-01 | Borrar servicio con historial | Confirmación, cascada acotada y limpieza posterior |
-
-Automatizar tantas pruebas como sea razonable. Para operaciones concurrentes, las pruebas deben usar **transacciones/sesiones reales de PostgreSQL**, no mocks que omitan locks.
+La matriz de pruebas vigente se movió a [`../referencia/pruebas.md`](../referencia/pruebas.md). Este plan histórico no la duplica.
 
 ## 13. Datos semilla y demostración
 
@@ -302,7 +281,7 @@ Separar comando `seed:dev` explícito de `migrate`, `start` y primer arranque pr
 
 ## 17. Lista de verificación para revisión final
 
-Verificada en la implementación actual: el detalle por etapa y sus pruebas están en [`IMPLEMENTATION_STATUS.md`](../IMPLEMENTATION_STATUS.md) y en la matriz de pruebas (§12) ejecutada con `pnpm test` / `pnpm test:integration` / `pnpm test:e2e`.
+Verificada en la implementación actual: el detalle por etapa y sus pruebas están en [`IMPLEMENTATION_STATUS.md`](../../IMPLEMENTATION_STATUS.md) y en la matriz vigente de [`../referencia/pruebas.md`](../referencia/pruebas.md).
 
 - [x] Todos los permisos de lectura, escritura, fotos, búsqueda y exportación se verifican en servidor.
 - [x] Dos técnicos pueden trabajar sin locks exclusivos y sin pisarse silenciosamente.

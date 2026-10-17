@@ -33,8 +33,8 @@
 <Button type="button" variant="outline" size="sm" onclick={() => (open = true)}>{label}</Button>
 
 <Dialog.Root bind:open>
-	<Dialog.Content>
-		<form method="POST" {action} class="space-y-4">
+	<Dialog.Content size="sm">
+		<form method="POST" {action} class="flex min-h-0 flex-1 flex-col">
 			<input type="hidden" name={hiddenName} value={id} />
 			<Dialog.Header>
 				<Dialog.Title>Renombrar</Dialog.Title>
@@ -43,10 +43,12 @@
 					nombre propio.
 				</Dialog.Description>
 			</Dialog.Header>
-			<div class="space-y-2">
-				<Label for={inputId}>Nombre</Label>
-				<Input id={inputId} name={fieldName} bind:value required />
-			</div>
+			<Dialog.Body class="space-y-5">
+				<div class="space-y-2">
+					<Label for={inputId}>Nombre</Label>
+					<Input id={inputId} name={fieldName} bind:value required />
+				</div>
+			</Dialog.Body>
 			<Dialog.Footer>
 				<Dialog.Close>Cancelar</Dialog.Close>
 				<Button type="submit">Guardar</Button>

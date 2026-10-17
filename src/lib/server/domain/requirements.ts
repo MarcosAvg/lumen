@@ -75,7 +75,7 @@ export async function hasSubmissions(db: Database, targetId: string): Promise<bo
 
 /**
  * Los requisitos solo pueden modificarse mientras la evidencia sea editable y el
- * objetivo **nunca se haya enviado** (docs/01 §6).
+ * objetivo **nunca se haya enviado** (docs/producto/reglas.md).
  */
 export async function assertRequirementsEditable(db: Database, targetId: string): Promise<void> {
 	const target = await getTargetContext(db, targetId);

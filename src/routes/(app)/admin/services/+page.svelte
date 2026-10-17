@@ -25,6 +25,15 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let createOpen = $state(false);
+	let createContractId = $state('');
+	let createName = $state('');
+
+	function openCreate() {
+		createContractId = '';
+		createName = '';
+		createOpen = true;
+	}
+
 	$effect(() => {
 		if (action?.success) createOpen = false;
 	});
@@ -38,7 +47,7 @@
 	<PageIntro
 		description="Administra los servicios, sus participantes y su estructura de trabajos y elementos."
 	>
-		<Button onclick={() => (createOpen = true)}>Nuevo servicio</Button>
+		<Button onclick={openCreate}>Nuevo servicio</Button>
 	</PageIntro>
 
 	{#if action?.success}
@@ -52,55 +61,68 @@
 
 	<Dialog.Root bind:open={createOpen}>
 		<Dialog.Content>
-			<form method="POST" action="?/create" class="space-y-4">
+			<form method="POST" action="?/create" class="flex min-h-0 flex-1 flex-col">
 				<Dialog.Header>
 					<Dialog.Title>Nuevo servicio</Dialog.Title>
 					<Dialog.Description>
 						Podrás añadir trabajos, elementos y participantes después.
 					</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="contractId">Contrato</Label>
-					<NativeSelect
-						id="contractId"
-						name="contractId"
-						required
-						aria-invalid={action?.createErrors?.contractId ? true : undefined}
-						aria-describedby={action?.createErrors?.contractId ? 'contractId-error' : undefined}
-					>
-						{#each data.contracts as contract (contract.id)}
-							<option value={contract.id}>{contract.name}</option>
-						{/each}
-					</NativeSelect>
-					{#if action?.createErrors?.contractId}
-						<p id="contractId-error" class="text-sm text-destructive">
-							{action.createErrors.contractId}
-						</p>
-					{/if}
-					{#if data.contracts.length === 0}
-						<p class="text-xs text-muted-foreground">Crea primero un contrato en «Contratos».</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="name">Nombre</Label>
-					<Input
-						id="name"
-						name="name"
-						required
-						aria-invalid={action?.createErrors?.name ? true : undefined}
-						aria-describedby={action?.createErrors?.name ? 'name-error' : undefined}
-					/>
-					{#if action?.createErrors?.name}
-						<p id="name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
-					{/if}
-				</div>
-				<div class="space-y-2">
-					<Label for="description">Descripción (opcional)</Label>
-					<Input id="description" name="description" />
-				</div>
+				<Dialog.Body class="space-y-5">
+					<Dialog.Section title="Ubicación">
+						<div class="space-y-2">
+							<Label for="contractId">Contrato</Label>
+							<NativeSelect
+								id="contractId"
+								name="contractId"
+								bind:value={createContractId}
+								required
+								aria-invalid={action?.createErrors?.contractId ? true : undefined}
+								aria-describedby={action?.createErrors?.contractId ? 'contractId-error' : undefined}
+							>
+								<option value="" disabled>Selecciona un contrato</option>
+								{#each data.contracts as contract (contract.id)}
+									<option value={contract.id}>{contract.name}</option>
+								{/each}
+							</NativeSelect>
+							{#if action?.createErrors?.contractId}
+								<p id="contractId-error" class="text-sm text-destructive">
+									{action.createErrors.contractId}
+								</p>
+							{/if}
+							{#if data.contracts.length === 0}
+								<p class="text-xs text-muted-foreground">
+									Crea primero un contrato en «Contratos».
+								</p>
+							{/if}
+						</div>
+					</Dialog.Section>
+					<Dialog.Section title="Datos">
+						<div class="space-y-2">
+							<Label for="name">Nombre</Label>
+							<Input
+								id="name"
+								name="name"
+								bind:value={createName}
+								required
+								aria-invalid={action?.createErrors?.name ? true : undefined}
+								aria-describedby={action?.createErrors?.name ? 'name-error' : undefined}
+							/>
+							{#if action?.createErrors?.name}
+								<p id="name-error" class="text-sm text-destructive">{action.createErrors.name}</p>
+							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="description">Descripción (opcional)</Label>
+							<Input id="description" name="description" />
+						</div>
+					</Dialog.Section>
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
-					<Button type="submit">Crear servicio</Button>
+					<Button type="submit" disabled={!createContractId || !createName.trim()}
+						>Crear servicio</Button
+					>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>

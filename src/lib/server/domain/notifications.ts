@@ -14,7 +14,7 @@ import {
 } from './push-messages';
 
 /**
- * Notificaciones internas (docs/03 §8): se crean **dentro de la transacción**
+ * Notificaciones internas (docs/referencia/modelo-datos.md): se crean **dentro de la transacción**
  * de envío/revisión, con clave de evento idempotente por destinatario. El push
  * es posterior al commit y best-effort.
  */

@@ -14,13 +14,14 @@ Construir una **PWA autohospedada, simple, segura y mantenible**, siguiendo exac
 
 ## Jerarquía documental
 
-1. `docs/01-producto.md`: reglas de negocio, roles e invariantes.
-2. `docs/02-flujos.md`: comportamiento observable de cada operación.
-3. `docs/03-modelo-datos.md`: persistencia y consistencia.
-4. `docs/04-arquitectura.md`: decisiones técnicas, seguridad y operaciones.
-5. `docs/05-interfaz-pwa.md`: UX, pantallas y componentes.
-6. `docs/06-implementacion.md`: etapas y verificación.
-7. `README.md`: presentación y orientación.
+1. `docs/producto/reglas.md`: reglas de negocio, roles e invariantes.
+2. `docs/producto/flujos.md`: comportamiento observable de cada operación.
+3. `docs/referencia/modelo-datos.md`: persistencia y consistencia.
+4. `docs/referencia/arquitectura.md` y `docs/referencia/api.md`: decisiones técnicas, seguridad y API.
+5. `docs/producto/experiencia.md` y `docs/desarrollo/sistema-ui.md`: UX, pantallas y sistema de UI.
+6. `docs/referencia/pruebas.md`: matriz de pruebas y criterios de aceptación.
+7. `docs/README.md`: portal y mapa canónico de la documentación.
+8. `README.md`: presentación y orientación.
 
 Si hay una tensión entre documentos, **preservar los invariantes de negocio**, documentar la resolución y actualizar los archivos pertinentes en el mismo cambio. No inventar requisitos contradictorios.
 
@@ -72,7 +73,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 
 ## Política de decisiones no especificadas
 
-Usar la alternativa **más sencilla que respete el negocio**; registrar decisiones en documentación. No convertir opcionales en obligatorios. Para elecciones menores (íconos, microcopy, carpetas internas, umbrales configurables), seleccionar valores razonables y ajustables. Para cambios de alcance (p. ej. offline, firma, PDFs, roles adicionales, cuotas funcionales, multi-tenant), **no asumir aprobación**.
+Usar la alternativa **más sencilla que respete el negocio**; registrar decisiones en documentación. No convertir opcionales en obligatorios. Para elecciones menores (íconos, microcopy, carpetas internas, umbrales configurables), seleccionar valores razonables y ajustables. Para cambios de alcance (p. ej. offline, firma, informes PDF de negocio, roles adicionales, cuotas funcionales, multi-tenant), **no asumir aprobación**. El PDF de evidencia por trabajo ya forma parte de la v1.
 
 ## Entregables mínimos de código (cuando se implemente)
 
@@ -82,8 +83,8 @@ Usar la alternativa **más sencilla que respete el negocio**; registrar decision
 - CRUD y reglas de catálogos/servicios/trabajos/elementos/requisitos/asignaciones.
 - Carga, procesamiento, lectura y descarga autorizada de fotos; snapshots e historial.
 - Revisión atómica, notificaciones internas y Web Push configurable.
-- ZIP de entregas, servicios, trabajos y contratos (la exportación de datos XLSX queda para más adelante).
+- ZIP de entregas, servicios, trabajos y contratos, con registro XLSX y PDF de evidencia por trabajo.
 - Dockerfile multi-stage, Compose, `.env.example`, healthchecks, guía de respaldo/restauración.
 - Pruebas unitarias, integración de BD y flujos E2E críticos.
 
-**Definición de terminado:** no basta que una pantalla funcione; debe cumplir autorización, integridad, historial, concurrencia, UX de error y pruebas indicadas en `docs/06-implementacion.md`.
+**Definición de terminado:** no basta que una pantalla funcione; debe cumplir autorización, integridad, historial, concurrencia, UX de error y pruebas indicadas en `docs/referencia/pruebas.md`.

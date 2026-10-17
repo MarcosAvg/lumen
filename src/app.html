@@ -7,8 +7,26 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<meta name="apple-mobile-web-app-title" content="Lumen" />
-		<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
-		<meta name="theme-color" content="#15181d" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#f6f7f9" />
+		<script nonce="%sveltekit.nonce%">
+			(() => {
+				try {
+					const stored = localStorage.getItem('mode-watcher-mode');
+					const preference =
+						stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+					const dark =
+						preference === 'dark' ||
+						(preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					document.documentElement.classList.toggle('dark', dark);
+					document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+					document
+						.querySelector('meta[name="theme-color"]')
+						?.setAttribute('content', dark ? '#15181d' : '#f6f7f9');
+				} catch {
+					// Si localStorage no está disponible, se usa el modo del sistema.
+				}
+			})();
+		</script>
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
 		<link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />

@@ -4,7 +4,7 @@
 #
 # Genera `.env` (contraseña y claves Web Push), levanta Docker Compose y espera a
 # que la app responda. La app se publica en la red `proxy` como `lumen:3000`
-# (Cloudflare Tunnel; ver docs/deployment.md).
+# (Cloudflare Tunnel; ver docs/guias/instalacion.md).
 #
 # Uso:
 #   ./install.sh                     # instala con la imagen publicada
@@ -125,6 +125,6 @@ fi
 
 echo "  Red «proxy»: el túnel debe apuntar a http://lumen:3000"
 echo "  Sin puerto de host; para depurar: docker compose exec app …"
-echo "  Guía: docs/deployment.md"
+echo "  Guía: docs/guias/instalacion.md"
 echo
 echo "Primer arranque: abre el dominio y completa «Configurar Lumen» para crear el administrador."

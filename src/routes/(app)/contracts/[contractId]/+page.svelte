@@ -9,9 +9,10 @@
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
-	import { NativeSelect } from '#lib/components/ui/native-select';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
+	import PageHeader from '#lib/components/app/page-header.svelte';
+	import ParticipantManager from '#lib/components/app/participant-manager.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import type { PageProps } from './$types';
@@ -77,7 +78,7 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="space-y-3 border-b pb-4 lg:pb-5">
+	<PageHeader>
 		<AppBreadcrumbs
 			items={[
 				{ label: 'Inicio', href: resolve('/(app)/dashboard') },
@@ -85,35 +86,29 @@
 				{ label: data.contract.name }
 			]}
 		/>
-		<div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-			{#if data.contract.description}
-				<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
-					{data.contract.description}
-				</p>
-			{/if}
-			{#if data.canManage || data.isAdmin}
-				<div class="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
-					<ExportDialog href={`/api/contracts/${data.contract.id}/export.zip`} />
-					{#if data.isAdmin}
-						<Button variant="outline" size="sm" onclick={() => (editOpen = true)}
-							>Editar contrato</Button
-						>
-					{/if}
-				</div>
-			{/if}
-		</div>
-		<div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+		{#if data.contract.description}
+			<p class="line-clamp-2 max-w-prose text-sm text-muted-foreground">
+				{data.contract.description}
+			</p>
+		{/if}
+		<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
 			<span class="flex items-baseline gap-1.5">
-				<span class="text-muted-foreground">Servicios</span>
-				<span class="tnum font-medium text-foreground">{data.services.length}</span>
+				<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+					>Servicios</span
+				>
+				<span class="tnum font-semibold text-foreground">{data.services.length}</span>
 			</span>
 			<span class="flex items-baseline gap-1.5">
-				<span class="text-muted-foreground">Participantes</span>
-				<span class="tnum font-medium text-foreground">{data.assignments.length}</span>
+				<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+					>Participantes</span
+				>
+				<span class="tnum font-semibold text-foreground">{data.assignments.length}</span>
 			</span>
 			<span class="flex items-baseline gap-1.5">
-				<span class="text-muted-foreground">Tu acceso</span>
-				<span class="font-medium text-foreground">{accessLabel}</span>
+				<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase"
+					>Tu acceso</span
+				>
+				<span class="font-semibold text-foreground">{accessLabel}</span>
 			</span>
 			<StatusBadge
 				status={data.progress.completed ? 'approved' : 'in_progress'}
@@ -128,7 +123,23 @@
 				completed={data.progress.completed}
 			/>
 		</div>
-	</div>
+		{#snippet actions()}
+			{#if data.canManage || data.isAdmin}
+				<ExportDialog
+					href={`/api/contracts/${data.contract.id}/export.zip`}
+					class="w-full sm:w-auto"
+				/>
+				{#if data.isAdmin}
+					<Button
+						variant="outline"
+						size="sm"
+						class="w-full sm:w-auto"
+						onclick={() => (editOpen = true)}>Editar contrato</Button
+					>
+				{/if}
+			{/if}
+		{/snippet}
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert role="status"><AlertDescription>{action.success}</AlertDescription></Alert>
@@ -150,7 +161,12 @@
 						<ul class="space-y-3">
 							{#each data.services as service (service.id)}
 								<li class="relative">
-									<Card.Root class="transition-colors active:bg-muted/50">
+									<Card.Root
+										class="border-l-2 transition-colors active:bg-muted/50 {service.totalTargets >
+											0 && service.approvedTargets === service.totalTargets
+											? 'border-l-teal'
+											: 'border-l-primary/40'}"
+									>
 										<Card.Content class="space-y-2">
 											<div class="flex flex-wrap items-center justify-between gap-2">
 												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
@@ -160,7 +176,6 @@
 												>
 													{service.name}
 												</a>
-												<span class="text-sm font-medium text-primary">Abrir →</span>
 											</div>
 											{#if service.description}
 												<p class="line-clamp-1 text-sm text-muted-foreground">
@@ -202,12 +217,16 @@
 				<Card.Content>
 					{#if data.assignments.length === 0}
 						<p class="text-sm text-muted-foreground">
-							Sin participantes.{#if data.canManage}
+							{#if data.canManage}
+								Sin participantes.
 								<button
 									type="button"
-									class="underline underline-offset-4"
+									class="ml-1 underline underline-offset-4"
 									onclick={() => (membersOpen = true)}>Añadir participantes</button
-								>.{/if}
+								>.
+							{:else}
+								Sin participantes.
+							{/if}
 						</p>
 					{:else}
 						<ul class="divide-y">
@@ -289,7 +308,7 @@
 						<form
 							method="POST"
 							action="?/updateMargins"
-							class="space-y-3 border-t pt-4"
+							class="space-y-3"
 							use:enhance={submitMargins}
 						>
 							<input type="hidden" name="contractId" value={data.contract.id} />
@@ -372,27 +391,34 @@
 {#if data.isAdmin}
 	<Dialog.Root bind:open={editOpen}>
 		<Dialog.Content>
-			<form method="POST" action="?/updateContract" class="space-y-4" use:enhance={submitEdit}>
+			<form
+				method="POST"
+				action="?/updateContract"
+				class="flex min-h-0 flex-1 flex-col"
+				use:enhance={submitEdit}
+			>
 				<input type="hidden" name="contractId" value={data.contract.id} />
 				<Dialog.Header>
 					<Dialog.Title>Editar contrato</Dialog.Title>
 					<Dialog.Description>Nombre y descripción del contrato.</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="contract-name">Nombre</Label>
-					<Input id="contract-name" name="name" value={data.contract.name} required />
-				</div>
-				<div class="space-y-2">
-					<Label for="contract-description">Descripción</Label>
-					<Input
-						id="contract-description"
-						name="description"
-						value={data.contract.description ?? ''}
-					/>
-				</div>
-				{#if action?.message}
-					<p class="text-sm text-destructive">{action.message}</p>
-				{/if}
+				<Dialog.Body class="space-y-5">
+					<div class="space-y-2">
+						<Label for="contract-name">Nombre</Label>
+						<Input id="contract-name" name="name" value={data.contract.name} required />
+					</div>
+					<div class="space-y-2">
+						<Label for="contract-description">Descripción</Label>
+						<Input
+							id="contract-description"
+							name="description"
+							value={data.contract.description ?? ''}
+						/>
+					</div>
+					{#if action?.message}
+						<p class="text-sm text-destructive">{action.message}</p>
+					{/if}
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
 					<Button type="submit">Guardar cambios</Button>
@@ -404,7 +430,7 @@
 
 {#if data.canManage}
 	<Dialog.Root bind:open={membersOpen}>
-		<Dialog.Content class="max-h-[85vh] overflow-y-auto">
+		<Dialog.Content size="lg">
 			<Dialog.Header>
 				<Dialog.Title>Participantes</Dialog.Title>
 				<Dialog.Description>
@@ -412,79 +438,22 @@
 					los servicios del contrato.
 				</Dialog.Description>
 			</Dialog.Header>
-			<div class="space-y-4">
-				<div class="grid gap-3 sm:grid-cols-2">
-					<form method="POST" action="?/assignMember" class="space-y-2" use:enhance={submitAssign}>
-						<input type="hidden" name="contractId" value={data.contract.id} />
-						<input type="hidden" name="role" value="technician" />
-						<Label for="member-technician">Añadir técnico</Label>
-						<div class="flex gap-2">
-							<NativeSelect
-								id="member-technician"
-								name="userId"
-								required
-								disabled={technicians.length === 0}
-							>
-								{#each technicians as user (user.id)}
-									<option value={user.id}>{user.displayName}</option>
-								{:else}
-									<option value="">Sin técnicos</option>
-								{/each}
-							</NativeSelect>
-							<Button type="submit" size="sm" disabled={technicians.length === 0}>Añadir</Button>
-						</div>
-					</form>
-					<form method="POST" action="?/assignMember" class="space-y-2" use:enhance={submitAssign}>
-						<input type="hidden" name="contractId" value={data.contract.id} />
-						<input type="hidden" name="role" value="supervisor" />
-						<Label for="member-supervisor">Añadir supervisor</Label>
-						<div class="flex gap-2">
-							<NativeSelect
-								id="member-supervisor"
-								name="userId"
-								required
-								disabled={supervisors.length === 0}
-							>
-								{#each supervisors as user (user.id)}
-									<option value={user.id}>{user.displayName}</option>
-								{:else}
-									<option value="">Sin supervisores</option>
-								{/each}
-							</NativeSelect>
-							<Button type="submit" size="sm" disabled={supervisors.length === 0}>Añadir</Button>
-						</div>
-					</form>
-				</div>
-
-				<div class="space-y-2 border-t pt-3">
-					<p class="text-sm font-medium">Participantes</p>
-					{#if data.assignments.length === 0}
-						<p class="text-sm text-muted-foreground">Sin participantes.</p>
-					{:else}
-						<ul class="divide-y overflow-hidden rounded-lg border">
-							{#each data.assignments as assignment (assignment.id)}
-								<li class="flex items-center justify-between gap-3 p-3 text-sm">
-									<span class="flex items-center gap-2">
-										{assignment.displayName}
-										<Badge variant="secondary">{roleLabel[assignment.assignmentRole]}</Badge>
-									</span>
-									<Button
-										variant="destructive"
-										size="sm"
-										onclick={() =>
-											(revokeTarget = {
-												id: assignment.id,
-												displayName: assignment.displayName
-											})}
-									>
-										Revocar
-									</Button>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				</div>
-			</div>
+			<Dialog.Body class="space-y-6">
+				<ParticipantManager
+					assignAction="?/assignMember"
+					scopeField="contractId"
+					scopeId={data.contract.id}
+					{technicians}
+					{supervisors}
+					assignments={data.assignments}
+					enhanceAssign={submitAssign}
+					onRevoke={(assignment) =>
+						(revokeTarget = {
+							id: assignment.id,
+							displayName: assignment.displayName
+						})}
+				/>
+			</Dialog.Body>
 			<Dialog.Footer>
 				<Dialog.Close>Cerrar</Dialog.Close>
 			</Dialog.Footer>

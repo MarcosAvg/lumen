@@ -53,7 +53,7 @@
 	<form
 		method="GET"
 		action={resolve('/(app)/reviews')}
-		class="flex flex-col gap-3 border-y py-4 lg:flex-row lg:items-end"
+		class="flex flex-col gap-3 py-4 lg:flex-row lg:items-end"
 	>
 		<div class="flex-1 space-y-1">
 			<Label for="q" class="text-xs">Texto</Label>
@@ -96,7 +96,11 @@
 			{#each data.pending as item (item.submissionId)}
 				{@const stale = now - new Date(item.submittedAt).getTime() > STALE_MS}
 				<li class="relative">
-					<Card.Root class="transition-colors active:bg-muted/50">
+					<Card.Root
+						class="border-l-2 transition-colors active:bg-muted/50 {stale
+							? 'border-l-state-attention'
+							: 'border-l-state-pending/60'}"
+					>
 						<Card.Content class="space-y-2">
 							<div class="flex items-start justify-between gap-2">
 								<div class="min-w-0">

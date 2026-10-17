@@ -9,7 +9,6 @@
 	import CatalogItemMultiPicker from './catalog-item-multi-picker.svelte';
 	import CatalogItemPicker from './catalog-item-picker.svelte';
 	import type { CatalogGroup } from './types';
-	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	interface RelationRow {
 		fromItemId: string;
@@ -35,7 +34,7 @@
 		relations: RelationRow[];
 	} = $props();
 
-	let direction = $state<'outgoing' | 'incoming'>('outgoing');
+	let direction = $state<'outgoing' | 'incoming' | ''>('');
 	let currentItemIds = $state<string[]>([]);
 	let otherItemId = $state('');
 	let relationType = $state('');
@@ -44,7 +43,7 @@
 
 	$effect(() => {
 		if (!open) {
-			direction = 'outgoing';
+			direction = '';
 			currentItemIds = [];
 			otherItemId = '';
 			relationType = '';
@@ -59,7 +58,7 @@
 		)
 	);
 	const already = $derived(
-		otherItemId
+		direction && otherItemId
 			? currentItemIds.filter((id) =>
 					direction === 'outgoing'
 						? existingKeys.has(`${id}:${otherItemId}:${selectedType}`)
@@ -67,10 +66,10 @@
 				).length
 			: 0
 	);
-	const toCreate = $derived(currentItemIds.length - already);
+	const toCreate = $derived(direction ? currentItemIds.length - already : 0);
 
 	async function apply() {
-		if (!otherItemId || currentItemIds.length === 0) return;
+		if (!direction || !otherItemId || currentItemIds.length === 0) return;
 		busy = true;
 		error = null;
 		try {
@@ -101,7 +100,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+	<Dialog.Content size="lg">
 		<Dialog.Header>
 			<Dialog.Title>Relacionar en lote</Dialog.Title>
 			<Dialog.Description>
@@ -110,61 +109,96 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		{#if otherCatalogs.length === 0}
-			<Alert>
-				<AlertDescription>
-					No hay otros catálogos para relacionar. Crea otro catálogo primero.
-				</AlertDescription>
-			</Alert>
-		{:else}
-			{#if error}
-				<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
+		<Dialog.Body class="space-y-5">
+			{#if otherCatalogs.length === 0}
+				<Alert>
+					<AlertDescription>
+						No hay otros catálogos para relacionar. Crea otro catálogo primero.
+					</AlertDescription>
+				</Alert>
+			{:else}
+				{#if error}
+					<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
+				{/if}
+
+				<Dialog.Section
+					title="Configuración"
+					description="Elige el sentido, los ítems y el tipo de relación."
+				>
+					<div class="space-y-4">
+						<fieldset class="space-y-2">
+							<legend class="text-sm font-medium">Sentido</legend>
+							<div class="grid gap-2 sm:grid-cols-2">
+								<label
+									class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {direction ===
+									'outgoing'
+										? 'border-primary bg-primary/5'
+										: 'border-border hover:bg-muted/40'}"
+								>
+									<input type="radio" bind:group={direction} value="outgoing" class="sr-only" />
+									<span class="block text-sm font-semibold">Este catálogo → otro</span>
+									<span class="mt-1 block text-xs text-muted-foreground">
+										Los ítems elegidos apuntan al ítem destino.
+									</span>
+								</label>
+								<label
+									class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {direction ===
+									'incoming'
+										? 'border-primary bg-primary/5'
+										: 'border-border hover:bg-muted/40'}"
+								>
+									<input type="radio" bind:group={direction} value="incoming" class="sr-only" />
+									<span class="block text-sm font-semibold">Otro → este catálogo</span>
+									<span class="mt-1 block text-xs text-muted-foreground">
+										El ítem destino apunta a los ítems elegidos.
+									</span>
+								</label>
+							</div>
+						</fieldset>
+
+						<div class="space-y-2">
+							<Label>Ítems de este catálogo</Label>
+							<CatalogItemMultiPicker
+								catalogs={[currentCatalog]}
+								bind:value={currentItemIds}
+								itemPlaceholder="Elegir ítems…"
+								disabled={busy}
+							/>
+						</div>
+
+						<div class="space-y-2">
+							<Label>Ítem del otro catálogo</Label>
+							<CatalogItemPicker
+								catalogs={otherCatalogs}
+								bind:value={otherItemId}
+								disabled={busy}
+							/>
+						</div>
+
+						<div class="space-y-2">
+							<Label for="batch-type">Tipo (opcional)</Label>
+							<Input id="batch-type" bind:value={relationType} maxlength={80} disabled={busy} />
+						</div>
+
+						<div
+							class="rounded-xl border border-border bg-muted/20 p-3 text-sm text-muted-foreground"
+						>
+							{#if !direction || currentItemIds.length === 0 || !otherItemId}
+								Elige el sentido, al menos un ítem de este catálogo y un ítem del otro catálogo.
+							{:else}
+								Se crearán <strong>{toCreate}</strong> relación(es); {already} ya existirán y se omitirán.
+							{/if}
+						</div>
+					</div>
+				</Dialog.Section>
 			{/if}
-
-			<div class="space-y-4">
-				<div class="space-y-2">
-					<Label for="batch-direction">Sentido</Label>
-					<NativeSelect id="batch-direction" bind:value={direction}>
-						<option value="outgoing">Este catálogo → otro catálogo</option>
-						<option value="incoming">Otro catálogo → este catálogo</option>
-					</NativeSelect>
-				</div>
-
-				<div class="space-y-2">
-					<Label>Ítems de este catálogo</Label>
-					<CatalogItemMultiPicker
-						catalogs={[currentCatalog]}
-						bind:value={currentItemIds}
-						itemPlaceholder="Elegir ítems…"
-						disabled={busy}
-					/>
-				</div>
-
-				<div class="space-y-2">
-					<Label>Ítem del otro catálogo</Label>
-					<CatalogItemPicker catalogs={otherCatalogs} bind:value={otherItemId} disabled={busy} />
-				</div>
-
-				<div class="space-y-2">
-					<Label for="batch-type">Tipo (opcional)</Label>
-					<Input id="batch-type" bind:value={relationType} maxlength={80} disabled={busy} />
-				</div>
-
-				<p class="text-sm text-muted-foreground">
-					{#if currentItemIds.length === 0 || !otherItemId}
-						Elige al menos un ítem de este catálogo y un ítem del otro catálogo.
-					{:else}
-						Se crearán <strong>{toCreate}</strong> relación(es); {already} ya existirán y se omitirán.
-					{/if}
-				</p>
-			</div>
-		{/if}
+		</Dialog.Body>
 
 		<Dialog.Footer>
 			<Dialog.Close>Cancelar</Dialog.Close>
 			<Button
 				type="button"
-				disabled={busy || !otherItemId || currentItemIds.length === 0}
+				disabled={busy || !direction || !otherItemId || currentItemIds.length === 0}
 				onclick={apply}
 			>
 				{busy ? 'Aplicando…' : 'Relacionar'}

@@ -463,6 +463,7 @@ export interface ItemOption {
 export interface CatalogWithItems {
 	id: string;
 	name: string;
+	description: string | null;
 	purpose: CatalogPurpose | null;
 	items: { id: string; name: string }[];
 }
@@ -473,6 +474,7 @@ export async function listCatalogsWithItems(db: Database): Promise<CatalogWithIt
 		.select({
 			catalogId: catalogs.id,
 			catalogName: catalogs.name,
+			catalogDescription: catalogs.description,
 			purpose: catalogs.purpose,
 			itemId: catalogItems.id,
 			itemName: catalogItems.name,
@@ -491,7 +493,13 @@ export async function listCatalogsWithItems(db: Database): Promise<CatalogWithIt
 	for (const row of rows) {
 		let entry = map.get(row.catalogId);
 		if (!entry) {
-			entry = { id: row.catalogId, name: row.catalogName, purpose: row.purpose, items: [] };
+			entry = {
+				id: row.catalogId,
+				name: row.catalogName,
+				description: row.catalogDescription,
+				purpose: row.purpose,
+				items: []
+			};
 			map.set(row.catalogId, entry);
 		}
 		if (row.itemId && row.itemName) entry.items.push({ id: row.itemId, name: row.itemName });

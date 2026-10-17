@@ -6,7 +6,7 @@ import type { SessionUser } from '#lib/types';
 import { listAllowedServiceIds } from './services';
 
 /**
- * Búsqueda global por nombre visible actual (docs/02 §12, docs/06 §10).
+ * Búsqueda global por nombre visible actual (docs/producto/flujos.md y docs/referencia/pruebas.md).
  * El **ámbito se resuelve en servidor**: administrador (todos) o asignación
  * vigente. Nunca revela recursos ajenos, ni consultando la API sin UI.
  */

@@ -368,7 +368,7 @@ export async function getPhotoAccessContext(
 	const target = await getTargetContext(db, photo.targetId);
 
 	// Una foto retirada del borrador sigue siendo accesible si quedó congelada en
-	// una entrega: protege la evidencia histórica (docs/02, PHOTO-04).
+	// una entrega: protege la evidencia histórica (docs/referencia/pruebas.md).
 	const [link] = await db
 		.select({ id: submissionPhotos.id })
 		.from(submissionPhotos)

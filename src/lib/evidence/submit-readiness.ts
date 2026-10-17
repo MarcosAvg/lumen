@@ -1,5 +1,5 @@
 /**
- * Regla de envío de evidencia (docs/02 §8), compartida por el servidor y la UI
+ * Regla de envío de evidencia (docs/producto/flujos.md), compartida por el servidor y la UI
  * para que la comprobación sea **idéntica** en ambos lados: si hay requisitos
  * obligatorios, cada uno necesita al menos una foto vigente; si no hay ninguno,
  * hace falta al menos una foto (en requisitos o en Adicionales).

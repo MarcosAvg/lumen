@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
 	import type { CatalogGroup } from '#lib/components/catalog/types';
 	import type { PageProps } from './$types';
@@ -26,6 +27,8 @@
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
+				description: catalog.description,
+				purpose: catalog.purpose,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);
@@ -36,12 +39,12 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
+	<PageHeader>
 		<AppBreadcrumbs items={crumbs} />
 		{#if data.element.description}
-			<p class="mt-1 line-clamp-2 text-sm text-muted-foreground">{data.element.description}</p>
+			<p class="line-clamp-2 text-sm text-muted-foreground">{data.element.description}</p>
 		{/if}
-	</div>
+	</PageHeader>
 
 	<EvidenceCapture
 		targetId={data.evidence.target.id}

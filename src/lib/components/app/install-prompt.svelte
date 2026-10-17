@@ -55,7 +55,7 @@
 
 {#if visible}
 	<div
-		class="mb-4 flex items-start gap-3 rounded-lg border bg-muted/40 p-3 md:hidden"
+		class="mb-4 flex items-start gap-3 rounded-xl border border-border bg-card p-3 md:hidden"
 		role="status"
 	>
 		<div class="min-w-0 flex-1 space-y-1">

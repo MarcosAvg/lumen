@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CatalogItemCombobox from './catalog-item-combobox.svelte';
+	import CatalogPicker from './catalog-picker.svelte';
 	import type { CatalogGroup } from './types';
-	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	/**
 	 * Selección en dos pasos: primero el catálogo y después uno de sus ítems
@@ -23,7 +23,7 @@
 
 	let catalogId = $state('');
 
-	// Mantén el catálogo del valor actual; si no, el primero disponible.
+	// Mantén el catálogo del valor actual; si no hay valor, no se preselecciona nada.
 	$effect(() => {
 		if (catalogs.length === 0) return;
 		const owner = catalogs.find((catalog) => catalog.items.some((item) => item.id === value));
@@ -31,8 +31,8 @@
 			if (catalogId !== owner.id) catalogId = owner.id;
 			return;
 		}
-		if (!catalogs.some((catalog) => catalog.id === catalogId)) {
-			catalogId = catalogs[0].id;
+		if (catalogId && !catalogs.some((catalog) => catalog.id === catalogId)) {
+			catalogId = '';
 		}
 	});
 
@@ -40,7 +40,7 @@
 
 	// Si el valor no pertenece al catálogo elegido, se limpia.
 	$effect(() => {
-		if (value && !currentItems.some((item) => item.id === value)) {
+		if (catalogId && value && !currentItems.some((item) => item.id === value)) {
 			value = '';
 		}
 	});
@@ -50,10 +50,16 @@
 	<input type="hidden" {name} {value} />
 {/if}
 <div class="space-y-2">
-	<NativeSelect aria-label="Catálogo" bind:value={catalogId}>
-		{#each catalogs as catalog (catalog.id)}
-			<option value={catalog.id}>{catalog.name}</option>
-		{/each}
-	</NativeSelect>
-	<CatalogItemCombobox items={currentItems} bind:value {disabled} placeholder={itemPlaceholder} />
+	<div class="space-y-1">
+		<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+			Catálogo
+		</span>
+		<CatalogPicker {catalogs} bind:value={catalogId} disabled={disabled || catalogs.length === 0} />
+	</div>
+	<CatalogItemCombobox
+		items={currentItems}
+		bind:value
+		disabled={disabled || !catalogId}
+		placeholder={catalogId ? itemPlaceholder : 'Selecciona un catálogo primero'}
+	/>
 </div>

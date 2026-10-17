@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ensureAdmin } from './helpers';
+import { chooseCatalog, ensureAdmin } from './helpers';
 
 async function createCatalog(page: Page, name: string) {
 	await page.goto('/admin/catalogs');
@@ -56,16 +56,18 @@ test('catálogo: relacionar por lote y gestionar por ítem', async ({ page }, te
 	await page.getByRole('button', { name: 'Relacionar en lote' }).click();
 	const batch = page.getByRole('dialog');
 	await expect(batch.getByRole('heading', { name: 'Relacionar en lote' })).toBeVisible();
+	await batch.getByText('Este catálogo → otro', { exact: true }).click();
+	await chooseCatalog(page, batch, pisos, 0);
 
 	await batch.getByRole('button', { name: 'Elegir ítems…' }).click();
 	for (const name of [piso1, piso2, piso3]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();
 	}
-	// Cierra el popover de multiselección pulsando fuera.
-	await batch.getByRole('heading', { name: 'Relacionar en lote' }).click();
+	// Cierra el popover de multiselección.
+	await page.keyboard.press('Escape');
 
+	await chooseCatalog(page, batch, edificios, 1);
 	await batch.getByRole('button', { name: /^Elige ítem/ }).click();
-	await batch.getByLabel('Catálogo').nth(1).selectOption({ label: edificios });
 	await page.locator('[data-slot="command-item"]').filter({ hasText: edificio }).click();
 
 	await expect(batch.getByText(/Se crearán/)).toContainText('3');

@@ -4,7 +4,7 @@ import { dashboardSummary, listAttentionWorks } from '#lib/server/domain/dashboa
 import { listPendingReviews } from '#lib/server/domain/submissions';
 import type { PageServerLoad } from './$types';
 
-/** Tablero por rol (docs/05 §4). Todo acotado por el ámbito del usuario. */
+/** Tablero por rol (docs/producto/experiencia.md). Todo acotado por el ámbito del usuario. */
 export const load: PageServerLoad = async ({ locals }) => {
 	const user = requireUser(locals);
 	const db = getDatabase().db;

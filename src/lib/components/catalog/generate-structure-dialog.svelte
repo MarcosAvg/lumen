@@ -116,7 +116,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content class="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+	<Dialog.Content size="lg">
 		<Dialog.Header>
 			<Dialog.Title>Generar estructura en lote</Dialog.Title>
 			<Dialog.Description>
@@ -124,85 +124,94 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		{#if error}
-			<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
-		{/if}
+		<Dialog.Body class="space-y-5">
+			{#if error}
+				<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
+			{/if}
 
-		{#if step === 'select'}
-			<div class="space-y-4">
-				<div class="space-y-1">
-					<Label>Trabajos (ítems de catálogo)</Label>
-					<CatalogItemMultiPicker
-						{catalogs}
-						bind:value={workItemIds}
-						itemPlaceholder="Elegir trabajos…"
-						disabled={busy}
-					/>
-				</div>
-				<div class="space-y-1">
-					<Label>Elementos por trabajo (opcional)</Label>
-					<CatalogItemMultiPicker
-						{catalogs}
-						bind:value={elementItemIds}
-						itemPlaceholder="Elegir elementos…"
-						disabled={busy}
-					/>
-				</div>
-				{#if requirementCatalogs.length > 0}
-					<div class="space-y-2 rounded-lg border p-3">
-						<Label>Requisitos (opcional)</Label>
-						<p class="text-xs text-muted-foreground">
-							Se aplicarán a cada objetivo generado (trabajos directos y elementos).
-						</p>
-						<RequirementsEditor
-							catalogs={requirementCatalogs}
-							bind:value={requirements}
-							bind:required={requirementsRequired}
-							disabled={busy}
-						/>
-					</div>
-				{/if}
-			</div>
-		{:else if plan}
-			<div class="space-y-3">
-				{#if plan.warnings.length > 0}
-					<Alert>
-						<AlertDescription>
-							<ul class="list-disc pl-5">
-								{#each plan.warnings as warning, index (index)}
-									<li>{warning}</li>
-								{/each}
-							</ul>
-						</AlertDescription>
-					</Alert>
-				{/if}
-				<p class="text-sm text-muted-foreground">
-					{plan.totalWorks} trabajo(s), {plan.totalElements} elemento(s).
-				</p>
-				{#each plan.works as work, index (index)}
-					<div class="space-y-2 rounded-lg border p-3">
-						<div class="flex flex-wrap items-center gap-3">
-							<LabeledCheckbox bind:checked={work.include} label="Incluir trabajo" />
-							<Input bind:value={work.name} class="max-w-xs" aria-label="Nombre del trabajo" />
+			<Dialog.Section
+				title={step === 'select' ? 'Selección' : 'Vista previa'}
+				description={step === 'select'
+					? 'Elige los catálogos y los ítems que se convertirán en trabajos y elementos.'
+					: 'Revisa y ajusta los nombres antes de aplicar.'}
+			>
+				{#if step === 'select'}
+					<div class="space-y-4">
+						<div class="space-y-1">
+							<Label>Trabajos (ítems de catálogo)</Label>
+							<CatalogItemMultiPicker
+								{catalogs}
+								bind:value={workItemIds}
+								itemPlaceholder="Elegir trabajos…"
+								disabled={busy}
+							/>
 						</div>
-						{#if work.elements.length > 0}
-							<ul class="ml-4 space-y-2 border-l pl-4">
-								{#each work.elements as element, elementIndex (elementIndex)}
-									<li class="flex flex-wrap items-center gap-3">
-										<LabeledCheckbox bind:checked={element.include} label="Incluir" />
-										<Input
-											bind:value={element.name}
-											class="max-w-xs"
-											aria-label="Nombre del elemento"
-										/>
-									</li>
-								{/each}
-							</ul>
+						<div class="space-y-1">
+							<Label>Elementos por trabajo (opcional)</Label>
+							<CatalogItemMultiPicker
+								{catalogs}
+								bind:value={elementItemIds}
+								itemPlaceholder="Elegir elementos…"
+								disabled={busy}
+							/>
+						</div>
+						{#if requirementCatalogs.length > 0}
+							<div class="space-y-2 rounded-xl border border-border p-3">
+								<Label>Requisitos (opcional)</Label>
+								<p class="text-xs text-muted-foreground">
+									Se aplicarán a cada objetivo generado (trabajos directos y elementos).
+								</p>
+								<RequirementsEditor
+									catalogs={requirementCatalogs}
+									bind:value={requirements}
+									bind:required={requirementsRequired}
+									disabled={busy}
+								/>
+							</div>
 						{/if}
 					</div>
-				{/each}
-			</div>
-		{/if}
+				{:else if plan}
+					<div class="space-y-3">
+						{#if plan.warnings.length > 0}
+							<Alert>
+								<AlertDescription>
+									<ul class="list-disc pl-5">
+										{#each plan.warnings as warning, index (index)}
+											<li>{warning}</li>
+										{/each}
+									</ul>
+								</AlertDescription>
+							</Alert>
+						{/if}
+						<p class="text-sm text-muted-foreground">
+							{plan.totalWorks} trabajo(s), {plan.totalElements} elemento(s).
+						</p>
+						{#each plan.works as work, index (index)}
+							<div class="space-y-2 rounded-xl border border-border p-3">
+								<div class="flex flex-wrap items-center gap-3">
+									<LabeledCheckbox bind:checked={work.include} label="Incluir trabajo" />
+									<Input bind:value={work.name} class="max-w-xs" aria-label="Nombre del trabajo" />
+								</div>
+								{#if work.elements.length > 0}
+									<ul class="ml-4 space-y-2 pl-4">
+										{#each work.elements as element, elementIndex (elementIndex)}
+											<li class="flex flex-wrap items-center gap-3">
+												<LabeledCheckbox bind:checked={element.include} label="Incluir" />
+												<Input
+													bind:value={element.name}
+													class="max-w-xs"
+													aria-label="Nombre del elemento"
+												/>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</Dialog.Section>
+		</Dialog.Body>
 
 		<Dialog.Footer>
 			{#if step === 'plan'}

@@ -2,8 +2,8 @@
 	import X from '@lucide/svelte/icons/x';
 	import { Badge } from '#lib/components/ui/badge';
 	import CatalogItemMultiCombobox from './catalog-item-multi-combobox.svelte';
+	import CatalogPicker from './catalog-picker.svelte';
 	import type { CatalogGroup } from './types';
-	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	/**
 	 * Selección múltiple en dos pasos (catálogo → ítems). Los ítems elegidos se
@@ -26,9 +26,8 @@
 	let catalogId = $state('');
 
 	$effect(() => {
-		if (catalogs.length === 0) return;
-		if (!catalogs.some((catalog) => catalog.id === catalogId)) {
-			catalogId = catalogs[0].id;
+		if (catalogId && !catalogs.some((catalog) => catalog.id === catalogId)) {
+			catalogId = '';
 		}
 	});
 
@@ -69,15 +68,16 @@
 			{/each}
 		</div>
 	{/if}
-	<NativeSelect aria-label="Catálogo" bind:value={catalogId}>
-		{#each catalogs as catalog (catalog.id)}
-			<option value={catalog.id}>{catalog.name}</option>
-		{/each}
-	</NativeSelect>
+	<div class="space-y-1">
+		<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+			Catálogo
+		</span>
+		<CatalogPicker {catalogs} bind:value={catalogId} disabled={disabled || catalogs.length === 0} />
+	</div>
 	<CatalogItemMultiCombobox
 		items={currentItems}
 		bind:values={value}
-		{disabled}
-		placeholder={itemPlaceholder}
+		disabled={disabled || !catalogId}
+		placeholder={catalogId ? itemPlaceholder : 'Selecciona un catálogo primero'}
 	/>
 </div>

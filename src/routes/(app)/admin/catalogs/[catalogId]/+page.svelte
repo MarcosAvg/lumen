@@ -47,12 +47,16 @@
 	const currentCatalog = $derived<CatalogGroup>({
 		id: data.catalog.id,
 		name: data.catalog.name,
+		description: data.catalog.description,
+		purpose: data.catalog.purpose,
 		items: data.fromItems.map((item) => ({ id: item.id, name: item.name }))
 	});
 	const otherCatalogs = $derived<CatalogGroup[]>(
 		data.otherCatalogs.map((catalog) => ({
 			id: catalog.id,
 			name: catalog.name,
+			description: catalog.description,
+			purpose: catalog.purpose,
 			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 		}))
 	);
@@ -205,31 +209,38 @@
 
 	<Dialog.Root bind:open={editOpen}>
 		<Dialog.Content>
-			<form method="POST" action="?/updateCatalog" class="space-y-4" use:enhance={submitCatalog}>
+			<form
+				method="POST"
+				action="?/updateCatalog"
+				class="flex min-h-0 flex-1 flex-col"
+				use:enhance={submitCatalog}
+			>
 				<input type="hidden" name="catalogId" value={data.catalog.id} />
 				<Dialog.Header>
 					<Dialog.Title>Editar catálogo</Dialog.Title>
 					<Dialog.Description>Nombre, descripción y propósito de la lista.</Dialog.Description>
 				</Dialog.Header>
-				<div class="space-y-2">
-					<Label for="cat-name">Nombre</Label>
-					<Input id="cat-name" name="name" value={data.catalog.name} required />
-				</div>
-				<div class="space-y-2">
-					<Label for="cat-desc">Descripción</Label>
-					<Input id="cat-desc" name="description" value={data.catalog.description ?? ''} />
-				</div>
-				<div class="space-y-2">
-					<Label for="cat-purpose">Propósito</Label>
-					<NativeSelect id="cat-purpose" name="purpose" value={data.catalog.purpose ?? ''}>
-						<option value="">General</option>
-						<option value="buildings">Edificios</option>
-						<option value="requirements">Requisitos</option>
-					</NativeSelect>
-				</div>
-				{#if action?.message}
-					<p class="text-sm text-destructive">{action.message}</p>
-				{/if}
+				<Dialog.Body class="space-y-5">
+					<div class="space-y-2">
+						<Label for="cat-name">Nombre</Label>
+						<Input id="cat-name" name="name" value={data.catalog.name} required />
+					</div>
+					<div class="space-y-2">
+						<Label for="cat-desc">Descripción</Label>
+						<Input id="cat-desc" name="description" value={data.catalog.description ?? ''} />
+					</div>
+					<div class="space-y-2">
+						<Label for="cat-purpose">Propósito</Label>
+						<NativeSelect id="cat-purpose" name="purpose" value={data.catalog.purpose ?? ''}>
+							<option value="">General</option>
+							<option value="buildings">Edificios</option>
+							<option value="requirements">Requisitos</option>
+						</NativeSelect>
+					</div>
+					{#if action?.message}
+						<p class="text-sm text-destructive">{action.message}</p>
+					{/if}
+				</Dialog.Body>
 				<Dialog.Footer>
 					<Dialog.Close>Cancelar</Dialog.Close>
 					<Button type="submit">Guardar cambios</Button>
@@ -243,7 +254,14 @@
 			<Card.Title class="text-base">Ítems ({data.total})</Card.Title>
 			<div class="flex flex-wrap items-center gap-2">
 				<form method="GET" class="flex gap-2">
-					<Input name="q" value={data.q} placeholder="Buscar ítem…" class="h-8 w-48" />
+					<Label for="item-search" class="sr-only">Buscar ítem</Label>
+					<Input
+						id="item-search"
+						name="q"
+						value={data.q}
+						placeholder="Buscar ítem…"
+						class="h-8 w-48"
+					/>
 					<Button type="submit" variant="outline" size="sm">Buscar</Button>
 				</form>
 				<Button size="sm" onclick={() => (itemOpen = true)}>Nuevo ítem</Button>
@@ -252,27 +270,34 @@
 		<Card.Content class="space-y-4">
 			<Dialog.Root bind:open={itemOpen}>
 				<Dialog.Content>
-					<form method="POST" action="?/createItem" class="space-y-4" use:enhance={submitItem}>
+					<form
+						method="POST"
+						action="?/createItem"
+						class="flex min-h-0 flex-1 flex-col"
+						use:enhance={submitItem}
+					>
 						<input type="hidden" name="catalogId" value={data.catalog.id} />
 						<Dialog.Header>
 							<Dialog.Title>Nuevo ítem</Dialog.Title>
 							<Dialog.Description>Se añade al final de la lista.</Dialog.Description>
 						</Dialog.Header>
-						<div class="space-y-2">
-							<Label for="item-name">Nombre</Label>
-							<Input
-								id="item-name"
-								name="name"
-								required
-								aria-invalid={action?.createErrors?.name ? true : undefined}
-								aria-describedby={action?.createErrors?.name ? 'item-name-error' : undefined}
-							/>
-							{#if action?.createErrors?.name}
-								<p id="item-name-error" class="text-sm text-destructive">
-									{action.createErrors.name}
-								</p>
-							{/if}
-						</div>
+						<Dialog.Body class="space-y-5">
+							<div class="space-y-2">
+								<Label for="item-name">Nombre</Label>
+								<Input
+									id="item-name"
+									name="name"
+									required
+									aria-invalid={action?.createErrors?.name ? true : undefined}
+									aria-describedby={action?.createErrors?.name ? 'item-name-error' : undefined}
+								/>
+								{#if action?.createErrors?.name}
+									<p id="item-name-error" class="text-sm text-destructive">
+										{action.createErrors.name}
+									</p>
+								{/if}
+							</div>
+						</Dialog.Body>
 						<Dialog.Footer>
 							<Dialog.Close>Cancelar</Dialog.Close>
 							<Button type="submit">Añadir</Button>

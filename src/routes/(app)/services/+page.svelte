@@ -35,7 +35,12 @@
 		<ul class="space-y-3 md:hidden">
 			{#each data.services as service (service.id)}
 				<li class="relative">
-					<Card.Root class="transition-colors active:bg-muted/50">
+					<Card.Root
+						class="border-l-2 transition-colors active:bg-muted/50 {service.totalTargets > 0 &&
+						service.approvedTargets === service.totalTargets
+							? 'border-l-teal'
+							: 'border-l-primary/40'}"
+					>
 						<Card.Content class="space-y-2">
 							<div class="flex flex-wrap items-center justify-between gap-2">
 								<a
@@ -44,7 +49,6 @@
 								>
 									{service.name}
 								</a>
-								<span class="text-sm font-medium text-primary">Abrir →</span>
 							</div>
 							{#if service.buildingName}
 								<p class="text-xs text-muted-foreground">Edificio: {service.buildingName}</p>

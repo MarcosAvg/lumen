@@ -6,6 +6,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import { Textarea } from '#lib/components/ui/textarea';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
+	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import type { PageProps } from './$types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
@@ -53,16 +54,16 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<AppBreadcrumbs
-		items={[
-			{
-				label: data.detail.context.serviceName,
-				href: `/services/${data.detail.context.serviceId}`
-			},
-			{ label: `Entrega #${data.detail.submission.sequenceNo}` }
-		]}
-	/>
-	<div class="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
+	<PageHeader>
+		<AppBreadcrumbs
+			items={[
+				{
+					label: data.detail.context.serviceName,
+					href: `/services/${data.detail.context.serviceId}`
+				},
+				{ label: `Entrega #${data.detail.submission.sequenceNo}` }
+			]}
+		/>
 		<div class="space-y-1">
 			<p class="text-sm text-muted-foreground">
 				{data.detail.context.serviceName} · {data.detail.submission.workNameSnapshot ?? ''}
@@ -75,7 +76,7 @@
 				{formatDate(data.detail.submission.submittedAt)}
 			</p>
 		</div>
-		<div class="flex flex-wrap items-center gap-2 lg:justify-end">
+		{#snippet actions()}
 			{#if data.detail.review}
 				{#if data.detail.review.decision === 'approved'}
 					<StatusBadge status="approved" label="Aprobada" />
@@ -89,11 +90,12 @@
 				<Button
 					href={`/api/submissions/${data.detail.submission.id}/export.zip`}
 					variant="outline"
-					size="sm">Descargar ZIP</Button
+					size="sm"
+					class="w-full sm:w-auto">Descargar ZIP</Button
 				>
 			{/if}
-		</div>
-	</div>
+		{/snippet}
+	</PageHeader>
 
 	{#if action?.success}
 		<Alert role="status">

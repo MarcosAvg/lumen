@@ -18,6 +18,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	// Servicio: editar desde la ficha.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(service);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -38,7 +39,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	// Trabajo: crear y editar desde la ficha.
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
-	await page.locator('#work-mode').selectOption('direct');
+	await page.getByRole('dialog').getByText('Directo', { exact: true }).click();
 	await page.locator('#work-name').fill(work);
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -102,6 +103,7 @@ test('desactivar usuario pide confirmación en modal', async ({ page }, testInfo
 	await dialog.locator('#new-displayName').fill(displayName);
 	await dialog.locator('#new-username').fill(username);
 	await dialog.locator('#new-password').fill('contrasena-segura');
+	await dialog.locator('#new-role').selectOption('technician');
 	await dialog.getByRole('button', { name: 'Crear usuario' }).click();
 	await expect(page.getByText('Usuario creado.')).toBeVisible();
 

@@ -1,5 +1,5 @@
 /**
- * Saneado de nombres para rutas de ZIP/CSV (docs/04 §7): evita traversal,
+ * Saneado de nombres para rutas de ZIP/CSV (docs/referencia/exportaciones.md): evita traversal,
  * caracteres de control, colisiones y problemas con sistemas de archivos.
  */
 

@@ -8,17 +8,16 @@
 	import House from '@lucide/svelte/icons/house';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import UserRound from '@lucide/svelte/icons/user-round';
-	import { useSidebar } from '#lib/components/ui/sidebar';
-	import type { Role } from '#lib/types';
+	import MobileMoreSheet from '#lib/components/app/mobile-more-sheet.svelte';
+	import type { Role, SessionUser } from '#lib/types';
 
 	/** Barra de navegación inferior (solo móvil), pensada para el pulgar. */
 	let {
+		user,
 		role,
 		unreadCount = 0,
 		reviewsCount = 0
-	}: { role: Role; unreadCount?: number; reviewsCount?: number } = $props();
-
-	const sidebar = useSidebar();
+	}: { user: SessionUser; role: Role; unreadCount?: number; reviewsCount?: number } = $props();
 
 	type Item = {
 		key: string;
@@ -100,14 +99,7 @@
 		{#each items as item (item.key)}
 			<li>
 				{#if item.more}
-					<button
-						type="button"
-						class="flex w-full flex-col items-center gap-0.5 py-2 text-[11px] text-muted-foreground active:text-foreground"
-						onclick={() => sidebar.setOpenMobile(true)}
-					>
-						<item.icon class="size-6" aria-hidden="true" />
-						<span>{item.label}</span>
-					</button>
+					<MobileMoreSheet {user} />
 				{:else}
 					{@const current = isCurrent(item.href as string)}
 					<!-- eslint-disable svelte/no-navigation-without-resolve -->

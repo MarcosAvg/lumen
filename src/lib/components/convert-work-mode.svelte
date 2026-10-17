@@ -6,6 +6,7 @@
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
+	import { NativeSelect } from '#lib/components/ui/native-select';
 
 	/**
 	 * Asistente `direct ↔ divided`. Solo se ofrece antes de cualquier entrega y
@@ -168,8 +169,9 @@
 						{#each direct.requirements as requirement (requirement.id)}
 							<div class="flex items-center gap-2 text-sm">
 								<span class="flex-1 truncate">{requirement.name}</span>
-								<select
-									class="h-8 w-auto rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+								<NativeSelect
+									class="h-8 w-auto"
+									aria-label={`Reasignar ${requirement.name}`}
 									value={String(requirementTarget[requirement.id] ?? 0)}
 									onchange={(event) =>
 										(requirementTarget = {
@@ -180,7 +182,7 @@
 									{#each elementIndexes as index (index)}
 										<option value={String(index)}>Elemento {index + 1}</option>
 									{/each}
-								</select>
+								</NativeSelect>
 							</div>
 						{/each}
 					</div>
@@ -192,8 +194,9 @@
 						{#each direct.additionalPhotos as photo, index (photo.id)}
 							<div class="flex items-center gap-2 text-sm">
 								<span class="flex-1 truncate">Foto adicional {index + 1}</span>
-								<select
-									class="h-8 w-auto rounded-lg border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+								<NativeSelect
+									class="h-8 w-auto"
+									aria-label={`Reasignar foto adicional ${index + 1}`}
 									value={String(photoTarget[photo.id] ?? 0)}
 									onchange={(event) =>
 										(photoTarget = {
@@ -204,7 +207,7 @@
 									{#each elementIndexes as elementIndex (elementIndex)}
 										<option value={String(elementIndex)}>Elemento {elementIndex + 1}</option>
 									{/each}
-								</select>
+								</NativeSelect>
 							</div>
 						{/each}
 					</div>

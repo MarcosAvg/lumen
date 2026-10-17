@@ -18,7 +18,7 @@ import { DomainError } from './errors';
 import { countNotificationsForTargets } from './notifications';
 
 /**
- * Cambios estructurales posteriores (docs/06 §8): borrado explícito con impacto
+ * Cambios estructurales posteriores (docs/producto/reglas.md): borrado explícito con impacto
  * y conversión `direct ↔ divided` sin entregas previas.
  */
 
@@ -508,7 +508,7 @@ function assertSetEqual(actual: string[], expected: string[], message: string): 
 /**
  * Convierte el modo de un trabajo **solo si no existe ninguna entrega** en sus
  * objetivos. Requiere reasignar explícitamente todos los requisitos y fotos, o
- * cancela sin cambios (docs/06 §8, WORK-03/WORK-04).
+ * cancela sin cambios (docs/producto/reglas.md, WORK-03/WORK-04).
  */
 export async function convertWorkMode(
 	db: Database,

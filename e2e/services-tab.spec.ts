@@ -6,6 +6,7 @@ const TECH_PASSWORD = 'contrasena-segura';
 async function createService(page: Page, name: string): Promise<string> {
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(name);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
 	await expect(page.getByText('Servicio creado.')).toBeVisible();
@@ -54,15 +55,17 @@ test('el técnico ve solo sus servicios asignados y puede seleccionarlos', async
 		.click();
 	await page.getByRole('button', { name: 'Gestionar participantes' }).click();
 	const membersDialog = page.getByRole('dialog');
-	await membersDialog.locator('#member-technician').selectOption({ label: techName });
+	await membersDialog.getByRole('button', { name: 'Técnico', exact: true }).click();
+	await membersDialog.locator('#participant-user').selectOption({ label: techName });
 	await membersDialog.getByRole('button', { name: 'Añadir' }).first().click();
 	await expect(page.getByText('Participante añadido.')).toBeVisible();
 
 	await page.goto(`/services/${assignedId}`);
 	await page.getByRole('button', { name: 'Gestionar asignaciones' }).click();
 	const assignDialog = page.getByRole('dialog');
-	await assignDialog.locator('#technician').selectOption({ label: techName });
-	await assignDialog.getByRole('button', { name: 'Asignar' }).first().click();
+	await assignDialog.getByRole('button', { name: 'Técnico', exact: true }).click();
+	await assignDialog.locator('#participant-user').selectOption({ label: techName });
+	await assignDialog.getByRole('button', { name: 'Añadir' }).first().click();
 	await expect(page.getByText('Asignación guardada.')).toBeVisible();
 
 	// Entrar como técnico.

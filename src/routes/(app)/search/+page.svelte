@@ -49,9 +49,11 @@
 		description="Solo se muestran servicios, trabajos y elementos dentro de tu ámbito autorizado."
 	/>
 
-	<form method="GET" action={resolve('/(app)/search')} class="space-y-3 border-y py-4">
+	<form method="GET" action={resolve('/(app)/search')} class="space-y-3 py-4">
 		<div class="flex items-center gap-2">
+			<Label for="search-q" class="sr-only">Buscar servicios, trabajos y elementos</Label>
 			<Input
+				id="search-q"
 				name="q"
 				value={data.q}
 				placeholder="Nombre de servicio, trabajo o elemento"

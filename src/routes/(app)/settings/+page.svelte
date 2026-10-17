@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import Monitor from '@lucide/svelte/icons/monitor';
+	import Moon from '@lucide/svelte/icons/moon';
+	import Sun from '@lucide/svelte/icons/sun';
+	import { mode, resetMode, setMode, userPrefersMode } from 'mode-watcher';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -138,6 +142,47 @@
 			<form method="POST" action="/logout">
 				<Button type="submit" variant="outline">Cerrar sesión</Button>
 			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title class="text-base">Apariencia</Card.Title>
+		</Card.Header>
+		<Card.Content class="space-y-3">
+			<p class="text-sm text-muted-foreground">
+				Elige cómo se muestra Lumen en este dispositivo. «Sistema» sigue la preferencia del
+				dispositivo.
+			</p>
+			<div class="flex flex-wrap gap-2" role="group" aria-label="Tema de la interfaz">
+				<Button
+					variant={userPrefersMode.current === 'light' ? 'default' : 'outline'}
+					aria-pressed={userPrefersMode.current === 'light'}
+					onclick={() => setMode('light')}
+				>
+					<Sun aria-hidden="true" />
+					Claro
+				</Button>
+				<Button
+					variant={userPrefersMode.current === 'dark' ? 'default' : 'outline'}
+					aria-pressed={userPrefersMode.current === 'dark'}
+					onclick={() => setMode('dark')}
+				>
+					<Moon aria-hidden="true" />
+					Oscuro
+				</Button>
+				<Button
+					variant={userPrefersMode.current === 'system' ? 'default' : 'outline'}
+					aria-pressed={userPrefersMode.current === 'system'}
+					onclick={resetMode}
+				>
+					<Monitor aria-hidden="true" />
+					Sistema
+				</Button>
+			</div>
+			<p class="text-xs text-muted-foreground">
+				Modo actual: {mode.current === 'dark' ? 'oscuro' : 'claro'}.
+			</p>
 		</Card.Content>
 	</Card.Root>
 
