@@ -1,5 +1,12 @@
 # Lumen
 
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)](https://github.com/MarcosAvg/lumen/actions/workflows/ci.yml)
+[![Licencia](https://img.shields.io/badge/licencia-MIT-green?style=flat-square)](LICENSE)
+[![Versión](https://img.shields.io/badge/versi%C3%B3n-0.2.2-blue?style=flat-square)](https://github.com/MarcosAvg/lumen/tags)
+[![SvelteKit 3](https://img.shields.io/badge/SvelteKit_3-FF3E00?style=flat-square&logo=svelte&logoColor=white)](https://svelte.dev/docs/kit)
+[![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL_17-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](compose.yaml)
+
 PWA autohospedada para equipos de servicios en campo. Los técnicos capturan
 **evidencia fotográfica compartida**, los supervisores asignados la **aprueban o
 rechazan por entrega** y la administración organiza contratos, servicios,
