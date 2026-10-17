@@ -59,6 +59,46 @@ Detener sin perder datos: `docker compose down` (`down -v` borra los volúmenes)
 docker compose -f compose.yaml -f compose.dev.yaml up -d db
 ```
 
+### Almacenamiento: volúmenes o bind mounts
+
+Por defecto el compose usa **volúmenes nombrados** (`postgres_data`,
+`lumen_photos`): Docker los gestiona e inicializa con el propietario de la imagen.
+
+Para guardar los datos en una ruta del host (por ejemplo, `/opt/appdata/lumen`),
+se sustituyen por **bind mounts**:
+
+```yaml
+services:
+  db:
+    volumes:
+      - /opt/appdata/lumen/db:/var/lib/postgresql/data
+  app:
+    volumes:
+      - /opt/appdata/lumen/data:/data/photos
+
+# y eliminar el bloque `volumes: postgres_data/lumen_photos`
+```
+
+Antes de arrancar, crear los directorios y asignar el propietario correcto:
+
+```bash
+sudo mkdir -p /opt/appdata/lumen/db /opt/appdata/lumen/data
+sudo chown -R 70:70 /opt/appdata/lumen/db       # PostgreSQL alpine
+sudo chown -R 1000:1000 /opt/appdata/lumen/data # usuario `node` de la app
+```
+
+- La app corre como **`node` (uid 1000)**; PostgreSQL alpine como **uid 70**.
+- Docker **no** ajusta el propietario de un bind mount. Si el directorio no
+  existe, lo crea como `root`, y la app no podrá escribir.
+- Para migrar desde los volúmenes nombrados, copiar el contenido de
+  `/var/lib/docker/volumes/lumen_postgres_data/_data` y
+  `lumen_lumen_photos/_data` a las nuevas rutas y repetir el `chown`.
+- Los scripts de `deploy/` siguen funcionando (usan `docker compose exec`).
+
+> `network_mode: host` no sustituye a esto ni resuelve permisos: la app seguiría
+> dependiendo del dueño del bind mount. Para publicar el dominio se mantiene la
+> red `proxy` y el túnel a `lumen:3000`.
+
 ## 4. Publicación con Cloudflare Tunnel
 
 `cloudflared` abre una conexión **saliente** a Cloudflare; no hay IP de origen
@@ -244,6 +284,7 @@ docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r =>
 | ------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `docker compose up` falla al traer la imagen | No hay imagen publicada: usar `docker compose pull` o `up --build`.                       |
 | La app no responde                          | `docker compose logs app`; ¿`db` sana y `migrate` terminó?                                |
+| `EACCES` al subir fotos o fondos            | El volumen/bind mount no es escribible por `node`. `docker compose exec -u root app chown -R node:node /data/photos`; si es bind mount, `sudo chown -R 1000:1000 /opt/appdata/lumen/data`. |
 | `502` con el túnel                          | `cloudflared` no alcanza el origen: comprobar que está en la red `proxy` y que el túnel apunta a `http://lumen:3000`. |
 | El dominio no abre                          | Revisar que el túnel apunta a `http://lumen:3000` y que `cloudflared` está activo.        |
 | No se abre `http://127.0.0.1:8090`          | La app no publica puertos: usar el túnel o añadir `ports` en un `compose.override.yaml` local. |
