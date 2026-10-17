@@ -899,7 +899,7 @@
 
 	<!-- Hoja inferior (móvil) con las acciones de foto. -->
 	<Sheet.Root bind:open={addSheetOpen}>
-		<Sheet.Content side="bottom">
+		<Sheet.Content side="bottom" class="rounded-t-2xl">
 			<Sheet.Header>
 				<Sheet.Title>Añadir fotos</Sheet.Title>
 				<Sheet.Description>
@@ -908,47 +908,49 @@
 						: 'Se añadirán al grupo de adicionales.'}
 				</Sheet.Description>
 			</Sheet.Header>
-			<div class="grid gap-2">
-				<label
-					class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
-				>
-					<input
-						type="file"
-						accept="image/*"
-						capture="environment"
-						disabled={!online}
-						class="hidden"
-						onchange={(event) => {
-							handleFiles(addSheetRequirement, event.currentTarget.files);
-							event.currentTarget.value = '';
-							addSheetOpen = false;
-						}}
-					/>
-					<Camera class="size-5" aria-hidden="true" />
-					Tomar foto
-				</label>
-				<label
-					class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
-				>
-					<input
-						type="file"
-						accept="image/*"
-						multiple
-						disabled={!online}
-						class="hidden"
-						onchange={(event) => {
-							handleFiles(addSheetRequirement, event.currentTarget.files);
-							event.currentTarget.value = '';
-							addSheetOpen = false;
-						}}
-					/>
-					<ImageIcon class="size-5" aria-hidden="true" />
-					Elegir fotos
-				</label>
+			<div class="space-y-2 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+				<div class="grid gap-2">
+					<label
+						class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
+					>
+						<input
+							type="file"
+							accept="image/*"
+							capture="environment"
+							disabled={!online}
+							class="hidden"
+							onchange={(event) => {
+								handleFiles(addSheetRequirement, event.currentTarget.files);
+								event.currentTarget.value = '';
+								addSheetOpen = false;
+							}}
+						/>
+						<Camera class="size-5" aria-hidden="true" />
+						Tomar foto
+					</label>
+					<label
+						class="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 text-base hover:bg-muted"
+					>
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							disabled={!online}
+							class="hidden"
+							onchange={(event) => {
+								handleFiles(addSheetRequirement, event.currentTarget.files);
+								event.currentTarget.value = '';
+								addSheetOpen = false;
+							}}
+						/>
+						<ImageIcon class="size-5" aria-hidden="true" />
+						Elegir fotos
+					</label>
+				</div>
+				<p class="text-xs text-muted-foreground">
+					Consejo: mantén pulsada una foto y arrastra para reordenarla; también puedes usar ↑/↓.
+				</p>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				Consejo: mantén pulsada una foto y arrastra para reordenarla; también puedes usar ↑/↓.
-			</p>
 		</Sheet.Content>
 	</Sheet.Root>
 </div>
