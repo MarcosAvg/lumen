@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, invalidate, invalidateAll } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import Bell from '@lucide/svelte/icons/bell';
 	import Building2 from '@lucide/svelte/icons/building-2';
@@ -20,17 +20,50 @@
 	import BottomNav from '#lib/components/app/bottom-nav.svelte';
 	import InstallPrompt from '#lib/components/app/install-prompt.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
+	import { isEvidencePage, LIVE_REFRESH_MS } from '#lib/live-refresh';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
 
 	let logoutForm = $state<HTMLFormElement | null>(null);
 
+	// Refresco periódico de la vista y los contadores (polling, sin WebSockets).
+	// En las fichas de evidencia solo se refrescan los badges para no interferir
+	// con subidas u ordenaciones en curso.
+	let lastRefresh = 0;
+
+	function canRefresh(): boolean {
+		return document.visibilityState === 'visible' && navigator.onLine;
+	}
+
+	function refresh() {
+		if (!canRefresh()) return;
+		const now = Date.now();
+		if (now - lastRefresh < 1_000) return; // focus + visibilitychange a la vez
+		lastRefresh = now;
+
+		if (isEvidencePage(page.url.pathname)) {
+			void invalidate('app:counts');
+		} else {
+			void invalidateAll();
+		}
+	}
+
 	onMount(() => {
 		// El service worker es necesario para Web Push (notificaciones).
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/sw.js').catch(() => {});
 		}
+
+		const interval = setInterval(refresh, LIVE_REFRESH_MS);
+		document.addEventListener('visibilitychange', refresh);
+		window.addEventListener('focus', refresh);
+
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', refresh);
+			window.removeEventListener('focus', refresh);
+		};
 	});
 
 	// Tras navegar, lleva el foco al contenido para que los lectores de pantalla

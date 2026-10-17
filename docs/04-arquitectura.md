@@ -283,6 +283,6 @@ bandeja interna sigue operando aunque el navegador no admita push.
 
 - Equipo pequeño: la carga principal son archivos, no gran número de conexiones. Optimizar miniaturas, paginación y streaming antes de introducir infraestructura.
 - Notificaciones internas son persistentes y críticas; push es **best effort**. Un pequeño registro SQL de eventos de push por enviar permite reintentos si se necesita, sin Redis.
-- No usar WebSockets para colaboración v1. Revalidar versión al mutar y ofrecer actualización manual/refresco periódico liviano opcional.
+- No usar WebSockets para colaboración v1. La UI refresca los contadores cada 30 s y al volver a la pestaña, y recarga la vista al enfocar (excepto en las fichas de trabajo/elemento, donde solo se actualizan los contadores). Revalidar versión al mutar.
 - Tareas de limpieza de staging/huérfanos pueden ejecutarse con comando del contenedor/cron simple. No ejecutar cleanup concurrente que borre archivos aún en uso.
 - Incluir medidas de seguridad de despliegue razonables: actualización de dependencias, comprobación de imágenes, mínimos privilegios y acceso privado a la base de datos.

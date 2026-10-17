@@ -56,7 +56,8 @@
   entrega, **PDF de evidencia por trabajo** (márgenes y fondo por contrato) y **registro XLSX**
   (simple/extendida) con hipervínculos relativos.
 - **UX/PWA**: tablas unificadas (`DataTable`) y tarjetas en móvil, sidebar y barra inferior por rol,
-  modales, estados de error/carga propios, CSP y service worker **sin caché** (online-only).
+  modales, estados de error/carga propios, CSP, service worker **sin caché** (online-only) y
+  refresco automático de contadores (30 s + foco, sin WebSockets).
 - **Operación**: `compose.yaml` único (imagen GHCR multi-arquitectura o `--build`), `install.sh`,
   `deploy/backup.sh`/`restore.sh` (solo Docker), limpieza por cron, CI
   (check/lint/unit/integración/build/E2E) y publicación de la imagen en GHCR por tag.

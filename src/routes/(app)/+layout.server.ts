@@ -4,7 +4,9 @@ import { countPendingReviews } from '#lib/server/domain/dashboard';
 import { unreadNotificationCount } from '#lib/server/domain/notifications';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
+export const load: LayoutServerLoad = async ({ locals, depends }) => {
+	// Permite refrescar solo los contadores (badges) con `invalidate('app:counts')`.
+	depends('app:counts');
 	if (!locals.user) throw redirect(303, '/login');
 	const db = getDatabase().db;
 	const [unreadCount, reviewsCount] = await Promise.all([
