@@ -71,6 +71,8 @@ Web Push quedan generadas. Después se publica el dominio con Cloudflare Tunnel
 crear la cuenta administradora.
 
 `install.sh` es opcional: `docker compose up -d` funciona con un `.env` propio.
+Requiere que exista la red Docker `proxy` (o la indicada en `PROXY_NETWORK`); si
+no existe, `install.sh` muestra cómo crearla.
 
 | Comando                                       | Efecto                                           |
 | --------------------------------------------- | ------------------------------------------------ |
@@ -118,20 +120,16 @@ Notas de operación:
 Un proxy inverso propio (Nginx Proxy Manager, Traefik…) sigue siendo válido para
 otros servicios, pero Lumen no lo necesita.
 
-**Si `cloudflared` corre en Docker**, no puede alcanzar `127.0.0.1`: hay que
-compartir su red con la app. Indica el nombre real de esa red en `.env`:
+**Si `cloudflared` corre en Docker**, no puede alcanzar `127.0.0.1`: la app se
+conecta a su red. Por defecto se llama `proxy`; si usas otra, defínela en `.env`:
 
 ```dotenv
-PROXY_NETWORK=npm_default   # el nombre que devuelve `docker network ls`
+PROXY_NETWORK=npm_default   # opcional; por defecto `proxy`
 ```
 
-```bash
-docker compose -f compose.yaml -f compose.proxy.yaml up -d
-```
-
-y el _Service_ del túnel pasa a ser **`http://lumen:3000`** (puerto del
-contenedor, no el publicado en el host). `install.sh` detecta `PROXY_NETWORK` y
-aplica el override automáticamente.
+Si la red no existe, créala (`docker network create proxy`, o el nombre elegido).
+El _Service_ del túnel pasa a ser **`http://lumen:3000`** (puerto del contenedor,
+no el publicado en el host). `install.sh` comprueba que la red existe.
 
 ## Uso
 

@@ -60,13 +60,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validar sintaxis de los scripts
         run: bash -n install.sh deploy/backup.sh deploy/restore.sh
-      - name: Validar compose (base, dev y proxy)
+      - name: Validar compose (base y dev)
         env:
           POSTGRES_PASSWORD: ci
           PROXY_NETWORK: proxy
         run: |
           docker compose -f compose.yaml config -q
           docker compose -f compose.yaml -f compose.dev.yaml config -q
-          docker compose -f compose.yaml -f compose.proxy.yaml config -q
       - name: Construir la imagen (runtime)
         run: docker build --target runtime -t lumen-ci .

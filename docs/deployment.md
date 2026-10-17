@@ -23,8 +23,8 @@ cd lumen
 
 - La aplicación queda en **`http://127.0.0.1:${APP_PORT:-8090}`**, sin puertos
   públicos.
-- Si `cloudflared` corre en Docker, define `PROXY_NETWORK` en `.env`; `install.sh`
-  aplica `compose.proxy.yaml` y la app queda accesible como `lumen:3000` en esa red.
+- La app se une a la red externa `proxy` (configurable con `PROXY_NETWORK`);
+  debe existir. `install.sh` lo comprueba y explica cómo crearla.
 - `install.sh` genera la contraseña de PostgreSQL y las claves VAPID, levanta
   Compose y espera a que `/health` responda.
 - Primer arranque: se publica el dominio con el túnel (§4) y se completa
@@ -45,7 +45,7 @@ Detener sin perder datos: `docker compose down` (`down -v` borra los volúmenes)
 | --------- | ---------------------------------------------------------------- |
 | `db`      | PostgreSQL 17 con volumen `postgres_data`. No se publica.        |
 | `migrate` | Aplica las migraciones Drizzle una sola vez y termina.           |
-| `app`     | Lumen. Escucha en `127.0.0.1:${APP_PORT}`; con `compose.proxy.yaml`, también en la red de `cloudflared` como `lumen:3000`. |
+| `app`     | Lumen. Escucha en `127.0.0.1:${APP_PORT}` y en la red de `cloudflared` como `lumen:3000`. |
 
 - Orden garantizado: `db` sana → `migrate` termina → `app` arranca.
 - Rotación de logs activa (10 MB × 3 por servicio).
@@ -86,16 +86,18 @@ En **Zero Trust → Tunnels → Public Hostname**:
 
 ### Si `cloudflared` corre en Docker
 
-`127.0.0.1` dentro del contenedor es su propio loopback, no el host. Comparte la
-red de `cloudflared` con la app:
+`127.0.0.1` dentro del contenedor es su propio loopback, no el host. La app se
+une a la red de `cloudflared`; por defecto se llama `proxy`:
 
 ```dotenv
 # .env
-PROXY_NETWORK=npm_default   # nombre real (docker network ls)
+PROXY_NETWORK=npm_default   # opcional; por defecto `proxy`
 ```
 
+Si la red no existe, créala (`docker network create proxy`). Después:
+
 ```bash
-docker compose -f compose.yaml -f compose.proxy.yaml up -d
+docker compose up -d
 ```
 
 En el túnel:
@@ -105,7 +107,7 @@ En el túnel:
 | Servicio | `http://lumen:3000`  |
 
 - El puerto es el **interno del contenedor** (3000), no el publicado en el host.
-- `install.sh` detecta `PROXY_NETWORK` y aplica el override automáticamente.
+- `install.sh` comprueba que la red existe antes de arrancar.
 - Si el puerto 8090 no está libre, ajusta `APP_PORT` (solo afecta al acceso desde
   el host; el túnel usa la red).
 

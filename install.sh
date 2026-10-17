@@ -79,9 +79,15 @@ fi
 
 COMPOSE=(docker compose -f compose.yaml)
 
-# Si `cloudflared` (o NPM) corre en una red Docker, se añade el override.
+# Red externa compartida con cloudflared/NPM. Debe existir.
 PROXY_NETWORK="${PROXY_NETWORK:-$(lumen_env_value PROXY_NETWORK)}"
-[ -n "$PROXY_NETWORK" ] && COMPOSE+=(-f compose.proxy.yaml)
+PROXY_NETWORK="${PROXY_NETWORK:-proxy}"
+if ! docker network inspect "$PROXY_NETWORK" >/dev/null 2>&1; then
+	echo "La red «${PROXY_NETWORK}» no existe." >&2
+	echo "Créala con: docker network create ${PROXY_NETWORK}" >&2
+	echo "o ajusta PROXY_NETWORK en .env si cloudflared usa otra red." >&2
+	exit 1
+fi
 
 APP_PORT="${APP_PORT:-$(lumen_env_value APP_PORT)}"
 APP_PORT="${APP_PORT:-8090}"
@@ -125,10 +131,8 @@ fi
 
 if [ -n "$PROXY_NETWORK" ]; then
 	echo "  Red «${PROXY_NETWORK}»: el túnel debe apuntar a http://lumen:3000"
-else
-	echo "  App escuchando en http://127.0.0.1:${APP_PORT}"
-	echo "  Publica el dominio con Cloudflare Tunnel → http://127.0.0.1:${APP_PORT}"
 fi
+echo "  Acceso local opcional: http://127.0.0.1:${APP_PORT}"
 echo "  Guía: docs/deployment.md"
 echo
 echo "Primer arranque: abre el dominio y completa «Configurar Lumen» para crear el administrador."

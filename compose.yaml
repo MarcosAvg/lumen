@@ -77,6 +77,11 @@ services:
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - lumen_photos:/data/photos # fotos normalizadas y miniaturas
+    networks:
+      default:
+      proxy:
+        aliases:
+          - lumen
     ports:
       - '127.0.0.1:${APP_PORT:-8090}:3000'
     depends_on:
@@ -102,3 +107,10 @@ services:
 volumes:
   postgres_data: # base de datos SQL
   lumen_photos: # fotografías y miniaturas
+
+networks:
+  default:
+  # Red compartida con cloudflared/NPM (Docker). La app se alcanza como `lumen:3000`.
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}
