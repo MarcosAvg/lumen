@@ -118,6 +118,21 @@ Notas de operación:
 Un proxy inverso propio (Nginx Proxy Manager, Traefik…) sigue siendo válido para
 otros servicios, pero Lumen no lo necesita.
 
+**Si `cloudflared` corre en Docker**, no puede alcanzar `127.0.0.1`: hay que
+compartir su red con la app. Indica el nombre real de esa red en `.env`:
+
+```dotenv
+PROXY_NETWORK=npm_default   # el nombre que devuelve `docker network ls`
+```
+
+```bash
+docker compose -f compose.yaml -f compose.proxy.yaml up -d
+```
+
+y el _Service_ del túnel pasa a ser **`http://lumen:3000`** (puerto del
+contenedor, no el publicado en el host). `install.sh` detecta `PROXY_NETWORK` y
+aplica el override automáticamente.
+
 ## Uso
 
 1. El **primer arranque** configura una cuenta de administrador local.
@@ -142,6 +157,8 @@ La configuración se define en `.env` (plantilla en [`.env.example`](.env.exampl
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Sí          | Web Push; el sujeto debe ser `mailto:…`          |
 | `TZ`                                                       | No          | Zona horaria de presentación (por defecto `UTC`) |
 | `LUMEN_TAG`                                                | No          | Versión de la imagen (por defecto `latest`)      |
+| `APP_PORT`                                                 | No          | Puerto local de depuración (por defecto `8090`)  |
+| `PROXY_NETWORK`                                            | No          | Red Docker de `cloudflared` (si corre en Docker) |
 
 `install.sh` genera la contraseña y las claves VAPID. Referencia completa:
 [`docs/deployment.md` §5](docs/deployment.md#5-variables-de-entorno).

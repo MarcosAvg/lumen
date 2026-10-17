@@ -78,7 +78,7 @@ services:
     volumes:
       - lumen_photos:/data/photos # fotos normalizadas y miniaturas
     ports:
-      - '127.0.0.1:8090:3000'
+      - '127.0.0.1:${APP_PORT:-8090}:3000'
     depends_on:
       db:
         condition: service_healthy

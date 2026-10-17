@@ -1,0 +1,21 @@
+# Conecta la app a la red de un `cloudflared` (o de Nginx Proxy Manager) que
+# corre en Docker. El túnel debe apuntar a `http://lumen:3000`.
+#
+# Uso:
+#   docker compose -f compose.yaml -f compose.proxy.yaml up -d
+#
+# Requiere el nombre real de la red en `.env`:
+#   PROXY_NETWORK=npm_default
+
+services:
+  app:
+    networks:
+      default:
+      proxy:
+        aliases:
+          - lumen
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}

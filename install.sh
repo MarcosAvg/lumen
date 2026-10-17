@@ -79,6 +79,13 @@ fi
 
 COMPOSE=(docker compose -f compose.yaml)
 
+# Si `cloudflared` (o NPM) corre en una red Docker, se añade el override.
+PROXY_NETWORK="${PROXY_NETWORK:-$(lumen_env_value PROXY_NETWORK)}"
+[ -n "$PROXY_NETWORK" ] && COMPOSE+=(-f compose.proxy.yaml)
+
+APP_PORT="${APP_PORT:-$(lumen_env_value APP_PORT)}"
+APP_PORT="${APP_PORT:-8090}"
+
 # --- 2. Claves Web Push (push es parte del núcleo) ----------------------------
 if ! grep -q '^VAPID_PRIVATE_KEY=..' .env 2>/dev/null; then
 	echo "→ Generando claves Web Push (VAPID)…"
@@ -116,8 +123,12 @@ else
 	echo "⚠ La app aún no responde. Revisa: docker compose logs -f app"
 fi
 
-echo "  App escuchando en http://127.0.0.1:8090"
-echo "  Publica el dominio con Cloudflare Tunnel → http://127.0.0.1:8090"
+if [ -n "$PROXY_NETWORK" ]; then
+	echo "  Red «${PROXY_NETWORK}»: el túnel debe apuntar a http://lumen:3000"
+else
+	echo "  App escuchando en http://127.0.0.1:${APP_PORT}"
+	echo "  Publica el dominio con Cloudflare Tunnel → http://127.0.0.1:${APP_PORT}"
+fi
 echo "  Guía: docs/deployment.md"
 echo
 echo "Primer arranque: abre el dominio y completa «Configurar Lumen» para crear el administrador."

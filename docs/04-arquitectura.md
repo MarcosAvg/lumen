@@ -57,6 +57,7 @@ lumen/
 ├── static/                         # iconos y recursos públicos, NUNCA fotos
 ├── Dockerfile
 ├── compose.yaml
+├── compose.proxy.yaml
 ├── .env.example
 └── ...
 ```
@@ -233,9 +234,10 @@ volumes:
   lumen_photos: persistente
 ```
 
-- **Publicación con Cloudflare Tunnel**: `cloudflared` (servicio del host) reenvía el dominio público a
-  `127.0.0.1:8090`; no se abren puertos entrantes. Cloudflare termina TLS y entrega
-  `X-Forwarded-Proto` y `CF-Connecting-IP`, que la app usa (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
+- **Publicación con Cloudflare Tunnel**: `cloudflared` reenvía el dominio público a la app sin abrir
+  puertos entrantes. Si corre en el host, apunta a `127.0.0.1:${APP_PORT}`; si corre en Docker, se usa
+  `compose.proxy.yaml` para compartir su red y el túnel apunta a `lumen:3000`. Cloudflare termina TLS y
+  entrega `X-Forwarded-Proto` y `CF-Connecting-IP`, que la app usa (`PROTOCOL_HEADER`/`ADDRESS_HEADER`).
   **PostgreSQL nunca** sale a Internet; `compose.dev.yaml` publica `db` solo en `127.0.0.1`.
 - El **origen público se deriva de la petición** (no se hornea), así que la misma imagen sirve para
   cualquier dominio sin reconstruir.
