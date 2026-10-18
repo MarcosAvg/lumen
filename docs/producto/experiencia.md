@@ -348,9 +348,10 @@ UMA 03                              [Rechazado]
   bloqueado.
 - Los vacíos usan un icono tintado, fondo inset y borde discontinuo; no son
   cajas blancas con texto centrado.
-- El resultado de una acción de página se confirma con un aviso persistente
-  `Alert role="status"`.
-- Las acciones rápidas de cliente usan toast.
+- Los resultados correctos de acciones de página y de cliente se confirman con
+  **toast** efímero; no se duplican con un `Alert` inline.
+- Los errores de acción siguen inline con `Alert role="alert"` para no perder
+  contexto.
 - Los errores de validación van junto al campo, con `aria-invalid` y
   `aria-describedby`.
 - Los errores de acción usan `Alert role="alert"`.

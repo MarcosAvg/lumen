@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { resolve } from '$app/paths';
+	import { toast } from 'svelte-sonner';
 	import Camera from '@lucide/svelte/icons/camera';
 	import ImageIcon from '@lucide/svelte/icons/image';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
@@ -39,9 +41,7 @@
 	}
 	interface Upload {
 		key: string;
-		name: string;
-		progress: number;
-		state: 'uploading' | 'error' | 'done';
+		state: 'uploading' | 'error';
 		message?: string;
 	}
 	interface HistoryEntry {
@@ -94,6 +94,8 @@
 	let photos = $state(untrack(() => initialPhotos));
 	let conflict = $state(false);
 	let uploads = $state<Upload[]>([]);
+	const uploadingCount = $derived(uploads.filter((upload) => upload.state === 'uploading').length);
+	const failedUploads = $derived(uploads.filter((upload) => upload.state === 'error'));
 	let pendingRemove = $state<Photo | null>(null);
 	let pendingRequirement = $state<Req | null>(null);
 	let renameTarget = $state<Req | null>(null);
@@ -242,27 +244,25 @@
 
 	async function handleFiles(requirementId: string | null, fileList: FileList | null) {
 		if (!fileList || fileList.length === 0) return;
+		// Un reintento limpia los errores anteriores; conserva subidas activas.
+		uploads = uploads.filter((upload) => upload.state === 'uploading');
+		let uploaded = 0;
 		for (const file of Array.from(fileList)) {
-			await uploadOne(requirementId, file);
+			if (await uploadOne(requirementId, file)) uploaded += 1;
 		}
+		if (uploaded === 1) toast.success('Fotografía subida.');
+		else if (uploaded > 1) toast.success(`${uploaded} fotografías subidas.`);
 	}
 
-	function uploadOne(requirementId: string | null, file: File): Promise<void> {
+	function uploadOne(requirementId: string | null, file: File): Promise<boolean> {
 		const key = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-		uploads = [...uploads, { key, name: file.name, progress: 0, state: 'uploading' }];
+		uploads = [...uploads, { key, state: 'uploading' }];
 
 		return new Promise((resolveUpload) => {
 			const xhr = new XMLHttpRequest();
 			xhr.open('POST', `/api/targets/${targetId}/photos`);
-			xhr.upload.onprogress = (event) => {
-				if (event.lengthComputable) {
-					const percent = Math.round((event.loaded / event.total) * 100);
-					uploads = uploads.map((item) =>
-						item.key === key ? { ...item, progress: percent } : item
-					);
-				}
-			};
 			xhr.onload = () => {
+				let success = false;
 				try {
 					const body = JSON.parse(xhr.responseText) as {
 						version?: number;
@@ -272,9 +272,8 @@
 					if (xhr.status >= 200 && xhr.status < 300 && result?.ok && result.photo) {
 						photos = [...photos, result.photo];
 						if (typeof body.version === 'number') version = body.version;
-						uploads = uploads.map((item) =>
-							item.key === key ? { ...item, state: 'done', progress: 100 } : item
-						);
+						uploads = uploads.filter((item) => item.key !== key);
+						success = true;
 					} else {
 						uploads = uploads.map((item) =>
 							item.key === key
@@ -287,13 +286,13 @@
 						item.key === key ? { ...item, state: 'error', message: 'Respuesta inválida' } : item
 					);
 				}
-				resolveUpload();
+				resolveUpload(success);
 			};
 			xhr.onerror = () => {
 				uploads = uploads.map((item) =>
 					item.key === key ? { ...item, state: 'error', message: 'Error de red' } : item
 				);
-				resolveUpload();
+				resolveUpload(false);
 			};
 
 			const form = new FormData();
@@ -314,6 +313,7 @@
 			photos = photos.filter((item) => item.id !== photo.id);
 			version = body.version;
 			pendingRemove = null;
+			toast.success('Fotografía retirada.');
 		} else if (response.status === 409) {
 			markConflict();
 		}
@@ -368,6 +368,7 @@
 			];
 			newRequirement = '';
 			requirementOpen = false;
+			toast.success('Requisito añadido.');
 		} else {
 			adminError =
 				((await response.json().catch(() => ({}))) as { message?: string }).message ??
@@ -397,6 +398,7 @@
 			requirements = [...requirements, ...body.requirements];
 			catalogRequirementIds = [];
 			requirementOpen = false;
+			if (body.created > 0) toast.success(`${body.created} requisito(s) añadido(s).`);
 			if (body.skipped > 0) {
 				adminError = `Se añadieron ${body.created} y se omitieron ${body.skipped} por duplicado.`;
 			}
@@ -420,6 +422,7 @@
 			requirements = requirements.map((item) =>
 				item.id === requirement.id ? { ...item, name: trimmed, catalogItemId: null } : item
 			);
+			toast.success('Requisito renombrado.');
 		} else {
 			adminError = 'No se pudo renombrar.';
 		}
@@ -436,6 +439,7 @@
 			requirements = requirements.map((item) =>
 				item.id === requirement.id ? { ...item, isRequired: !item.isRequired } : item
 			);
+			toast.success('Requisito actualizado.');
 		} else {
 			adminError = 'No se pudo actualizar el requisito.';
 		}
@@ -451,6 +455,7 @@
 			photos = photos.map((photo) =>
 				photo.requirementId === requirement.id ? { ...photo, requirementId: null } : photo
 			);
+			toast.success('Requisito eliminado.');
 		} else {
 			adminError = 'No se pudo eliminar el requisito.';
 		}
@@ -511,16 +516,19 @@
 		{#if uploads.length > 0}
 			<Card.Root>
 				<Card.Content class="space-y-2">
-					{#each uploads as upload (upload.key)}
-						<div class="text-sm">
-							<div class="flex justify-between gap-2">
-								<span class="truncate">{upload.name}</span>
-								<span>{upload.state === 'error' ? 'Error' : `${upload.progress}%`}</span>
-							</div>
-							{#if upload.state === 'error' && upload.message}
-								<p role="alert" class="text-xs text-destructive">{upload.message}</p>
-							{/if}
+					{#if uploadingCount > 0}
+						<div class="flex items-center gap-2 text-sm text-muted-foreground">
+							<LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
+							<span>
+								Subiendo {uploadingCount}
+								{uploadingCount === 1 ? 'fotografía' : 'fotografías'}…
+							</span>
 						</div>
+					{/if}
+					{#each failedUploads as upload (upload.key)}
+						<p role="alert" class="text-xs text-destructive">
+							No se pudo subir una fotografía: {upload.message ?? 'error desconocido'}.
+						</p>
 					{/each}
 				</Card.Content>
 			</Card.Root>

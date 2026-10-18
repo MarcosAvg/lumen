@@ -168,6 +168,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 - `EmptyState` usa icono tintado, fondo inset y borde discontinuo; no es una caja
   blanca vacía.
 - El estado no se comunica solo por color.
+- Los éxitos de acciones usan `toast` de Sonner, con posición inferior derecha
+  y, en móvil, por encima de la barra de navegación. Los errores permanecen
+  inline para conservar el contexto del formulario.
 
 ## 10. Accesibilidad
 

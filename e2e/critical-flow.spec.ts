@@ -41,7 +41,8 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.first();
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
-	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
+	await page.locator('input[type="file"]').last().setInputFiles([photoFile(), photoFile()]);
+	await expect(page.getByText('2 fotografías subidas.')).toBeVisible();
 	await expect(page.locator('img[alt^="Foto 1 de"]').first()).toBeVisible();
 	// El visor abre con contador y se cierra con Escape.
 	await page
@@ -49,11 +50,11 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.first()
 		.click();
 	const viewer = page.getByRole('dialog', { name: 'Fotografía de evidencia' });
-	await expect(viewer.getByText('1 / 1')).toBeVisible();
+	await expect(viewer.getByText('1 / 2')).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(viewer).toBeHidden();
 	// Retirar la foto confirmada en modal; se cancela para continuar el flujo.
-	await page.getByRole('button', { name: 'Retirar fotografía' }).click();
+	await page.getByRole('button', { name: 'Retirar fotografía' }).first().click();
 	const removeDialog = page.getByRole('alertdialog');
 	await expect(removeDialog).toBeVisible();
 	await removeDialog.getByRole('button', { name: 'Cancelar' }).click();

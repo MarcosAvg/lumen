@@ -130,12 +130,6 @@
 		<Button onclick={openCreate}>Nuevo usuario</Button>
 	</PageIntro>
 
-	{#if action?.success}
-		<Alert role="status">
-			<AlertDescription>{action.success}</AlertDescription>
-		</Alert>
-	{/if}
-
 	{#if action?.message && activeForm === null}
 		<Alert variant="destructive">
 			<AlertDescription>{action.message}</AlertDescription>

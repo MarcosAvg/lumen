@@ -77,11 +77,6 @@
 		<Button onclick={openCreate}>Nuevo servicio</Button>
 	</PageIntro>
 
-	{#if action?.success}
-		<Alert role="status">
-			<AlertDescription>{action.success}</AlertDescription>
-		</Alert>
-	{/if}
 	{#if action?.message}
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
