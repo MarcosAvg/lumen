@@ -87,6 +87,9 @@ Una función está terminada cuando:
 | LIFE-03 | Archivar servicio completado y luego el contrato | Permitido; aprobaciones y fotos intactas; ambos terminales |
 | LIFE-04 | Pausar contrato con servicios activos/en espera | Bloqueado con explicación |
 | LIFE-05 | Tablero y listados con servicios inactivos/archivados | Agregados solo de activos; filtros permiten consultar el resto |
+| HEALTH-01 | Base migrada | `/health` responde `200` y `migrations: applied` |
+| HEALTH-02 | App nueva con la última migración pendiente | `/health` responde `503` y `migrations: pending` |
+| DEPLOY-01 | Actualización sin runner nuevo | `deploy/update.sh` fuerza migración desde la imagen de `app` antes de recrear |
 
 ## 4. Pruebas E2E mínimas
 

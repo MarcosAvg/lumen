@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import type { Sql } from 'postgres';
 import { getDatabase } from './index';
 
@@ -14,17 +15,63 @@ interface PgError {
 	code?: string;
 }
 
+interface MigrationJournal {
+	entries?: { when?: unknown }[];
+}
+
 function isUndefinedTable(error: unknown): boolean {
 	return (error as PgError | null)?.code === '42P01';
 }
 
-async function migrationsApplied(sql: Sql): Promise<boolean> {
-	const rows = await sql<{ count: number }[]>`
-		select count(*)::int as count
-		from information_schema.tables
-		where table_schema = 'drizzle' and table_name = '__drizzle_migrations'
-	`;
-	return (rows[0]?.count ?? 0) > 0;
+function isUndefinedSchema(error: unknown): boolean {
+	return (error as PgError | null)?.code === '3F000';
+}
+
+/**
+ * Marca temporal de la última migración del paquete. Se lee del journal de
+ * Drizzle, que se copia a la imagen junto con `drizzle/`.
+ *
+ * `null` significa que no se pudo determinar (journal ausente o ilegible); en
+ * ese caso la salud queda degradada en lugar de asumir que todo está aplicado.
+ */
+let latestMigrationWhenCache: number | null | undefined;
+
+export async function latestMigrationWhen(): Promise<number | null> {
+	if (latestMigrationWhenCache !== undefined) return latestMigrationWhenCache;
+
+	try {
+		const raw = await readFile('./drizzle/meta/_journal.json', 'utf8');
+		const journal = JSON.parse(raw) as MigrationJournal;
+		const entries = Array.isArray(journal.entries) ? journal.entries : [];
+		const last = entries.length > 0 ? entries[entries.length - 1]?.when : null;
+		latestMigrationWhenCache = typeof last === 'number' && Number.isFinite(last) ? last : null;
+	} catch {
+		latestMigrationWhenCache = null;
+	}
+
+	return latestMigrationWhenCache;
+}
+
+async function migrationStatus(
+	sql: Sql,
+	expectedWhen: number | null
+): Promise<HealthReport['migrations']> {
+	if (expectedWhen === null) return 'unknown';
+
+	try {
+		const [row] = await sql<{ applied: boolean }[]>`
+			select exists(
+				select 1
+				from drizzle.__drizzle_migrations
+				where created_at = ${expectedWhen}
+			) as applied
+		`;
+		return row?.applied ? 'applied' : 'pending';
+	} catch (error) {
+		// Sin esquema/tabla de migraciones todavía no hay nada aplicado.
+		if (isUndefinedTable(error) || isUndefinedSchema(error)) return 'pending';
+		return 'unknown';
+	}
 }
 
 async function setupRequired(sql: Sql): Promise<boolean> {
@@ -43,29 +90,27 @@ async function setupRequired(sql: Sql): Promise<boolean> {
 }
 
 /**
- * Comprueba la conectividad con PostgreSQL y el estado de las migraciones.
+ * Comprueba la conectividad con PostgreSQL y que la **última** migración del
+ * paquete esté aplicada. No basta con que exista la tabla de migraciones: una
+ * actualización de la app con migraciones pendientes debe reportar `503`.
+ *
  * No expone datos sensibles ni recuentos.
  */
-export async function checkHealth(): Promise<HealthReport> {
-	let sql: Sql;
+export async function checkHealth(sql?: Sql): Promise<HealthReport> {
+	const connection = sql ?? getDatabase().client;
+
 	try {
-		sql = getDatabase().client;
-		await sql`select 1`;
+		await connection`select 1`;
 	} catch {
 		return { status: 'degraded', database: 'down', migrations: 'unknown', setupRequired: true };
 	}
 
-	let migrations: HealthReport['migrations'];
-	try {
-		migrations = (await migrationsApplied(sql)) ? 'applied' : 'pending';
-	} catch {
-		migrations = 'unknown';
-	}
+	const migrations = await migrationStatus(connection, await latestMigrationWhen());
 
 	return {
 		status: migrations === 'applied' ? 'ok' : 'degraded',
 		database: 'up',
 		migrations,
-		setupRequired: await setupRequired(sql)
+		setupRequired: await setupRequired(connection)
 	};
 }

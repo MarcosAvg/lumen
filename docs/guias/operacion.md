@@ -11,11 +11,33 @@ están en [`../referencia/variables-entorno.md`](../referencia/variables-entorno
 ## 1. Actualización
 
 ```bash
-./deploy/backup.sh              # 1. respaldar
-docker compose pull             # 2. traer la imagen nueva
-docker compose run --rm migrate # 3. migrar (idempotente)
-docker compose up -d            # 4. recrear contenedores
+./deploy/update.sh
 ```
+
+El script ejecuta, en orden: respaldo, `docker compose pull`, migración explícita
+desde la imagen nueva de `app`, recreación forzada de la app y espera a que
+`/health` confirme base y migraciones. Si algo falla, muestra los últimos logs y
+sale con error.
+
+Para omitir el respaldo (no recomendado):
+
+```bash
+./deploy/update.sh --no-backup
+```
+
+Equivalente manual:
+
+```bash
+./deploy/backup.sh
+docker compose pull
+docker compose run --rm --no-deps --entrypoint node app scripts/migrate.mjs
+docker compose up -d --force-recreate app
+```
+
+No se debe confiar en `docker compose up -d` a secas: puede reutilizar un
+contenedor `migrate` antiguo ya terminado. La migración se ejecuta desde la
+imagen de `app` para garantizar que el runner y los SQL son los de la versión
+desplegada.
 
 El runner de migraciones usa un bloqueo de asesoría: dos despliegues solapados no
 aplican dos veces la misma migración.
@@ -27,6 +49,9 @@ docker compose ps
 docker compose logs --tail=100 app
 curl -fsS https://tu-dominio/health
 ```
+
+`/health` devuelve `200` solo si la base responde y la **última** migración del
+paquete está aplicada. Si queda alguna pendiente, devuelve `503`.
 
 ## 2. Web Push
 
@@ -104,8 +129,8 @@ docker compose logs -f app
 docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r => console.log(r.status))"
 ```
 
-- `/health` responde `200` solo si la base responde y las migraciones están
-  aplicadas; `503` en caso contrario.
+- `/health` responde `200` solo si la base responde y la **última** migración
+  del paquete está aplicada; `503` en caso contrario, con `migrations: pending`.
 - Se registran fallos de conversión, limpieza, base de datos, tiempos de ZIP y
   errores push.
 - Revisar consumo de disco antes de que se llene el volumen de fotos.
@@ -132,6 +157,8 @@ docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r =>
 |---|---|
 | `docker compose up` falla al traer la imagen | No hay imagen publicada: usar `docker compose pull` o `up --build` |
 | La app no responde | `docker compose logs app`; comprobar que `db` está sana y `migrate` terminó |
+| `500` con `column ... does not exist` | La app es nueva pero falta una migración. Ejecutar `./deploy/update.sh`; `/health` debe devolver `200` y `migrations: applied` |
+| `/health` devuelve `503` con `migrations: pending` | Hay migraciones sin aplicar; ejecutar `./deploy/update.sh` (migra desde la imagen de `app`) y revisar los logs del comando |
 | `EACCES` al subir fotos o fondos | El volumen o bind mount no es escribible por `node`; revisar propietario y permisos |
 | `502` con el túnel | `cloudflared` no alcanza el origen; comprobar red `proxy` y destino `http://lumen:3000` |
 | El dominio no abre | Revisar que el túnel apunta a `lumen:3000` y que `cloudflared` está activo |

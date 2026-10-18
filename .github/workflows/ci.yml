@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validar sintaxis de los scripts
-        run: bash -n install.sh deploy/backup.sh deploy/restore.sh
+        run: bash -n install.sh deploy/backup.sh deploy/restore.sh deploy/update.sh
       - name: Validar compose (base y dev)
         env:
           POSTGRES_PASSWORD: ci
