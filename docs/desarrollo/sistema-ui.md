@@ -22,6 +22,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   a mano en las vistas.
 - **Tema:** claro, oscuro y sistema. La preferencia se guarda en el dispositivo
   y «Sistema» sigue `prefers-color-scheme`.
+- **Barra del sistema (PWA):** `theme-color` usa el azul de marca `#1e4b8d` en
+  claro y el navy `#0f172a` en oscuro, tanto en el manifiesto como en el meta
+  dinámico. No se usa el color de fondo de la página.
 
 ## 2. Forma, espacio y controles
 
