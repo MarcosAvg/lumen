@@ -33,6 +33,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	// Admin: ve el botón, el acceso a asignaciones y el endpoint no responde 403.
 	await page.goto(serviceHref ?? '/admin/services');
 	await expect(page.getByRole('button', { name: 'Exportar ZIP' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'PDF del servicio' })).toBeVisible();
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).not.toBe(403);
 
 	// El botón abre el modal de configuración de exportación.
@@ -41,6 +42,9 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await expect(exportDialog.getByRole('heading', { name: 'Exportar evidencias' })).toBeVisible();
 	await expect(exportDialog.getByRole('button', { name: 'Simple' })).toBeVisible();
 	await expect(exportDialog.getByRole('button', { name: 'Extendida' })).toBeVisible();
+	await expect(
+		exportDialog.getByLabel('Incluir PDF recopilado por servicio', { exact: true })
+	).toBeVisible();
 	await exportDialog.getByRole('button', { name: 'Cancelar' }).click();
 
 	// Crear un trabajo directo para probar el ZIP de trabajo.
@@ -90,6 +94,13 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.getAttribute('href');
 	const contractId = (contractHref ?? '').split('/').pop() ?? '';
 
+	await page.goto(contractHref ?? '/contracts');
+	await page.getByRole('button', { name: 'Exportar ZIP' }).click();
+	await expect(
+		page.getByRole('dialog').getByLabel('Incluir PDF recopilado por servicio', { exact: true })
+	).toBeVisible();
+	await page.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+
 	// El admin puede exportar contrato, servicio y trabajo; el ZIP de contrato
 	// incluye el registro XLSX en la raíz del contrato.
 	const contractZip = await page.request.get(`/api/contracts/${contractId}/export.zip`);
@@ -97,8 +108,26 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	expect(contractZip.headers()['content-type']).toContain('zip');
 	const contractBody = await contractZip.body();
 	expect(contractBody.includes(Buffer.from('General/General.xlsx'))).toBe(true);
+	const contractCompiled = await page.request.get(
+		`/api/contracts/${contractId}/export.zip?pdf=0&compiledPdf=1`
+	);
+	expect(
+		(await contractCompiled.body()).includes(
+			Buffer.from(`${serviceName}/${serviceName} - Evidencia.pdf`)
+		)
+	).toBe(true);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(200);
 	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(200);
+
+	const servicePdf = await page.request.get(`/api/services/${serviceId}/export.pdf`);
+	expect(servicePdf.status()).toBe(200);
+	expect(servicePdf.headers()['content-type']).toContain('application/pdf');
+	expect((await servicePdf.body()).subarray(0, 5).toString()).toBe('%PDF-');
+	const compiledZip = await page.request.get(
+		`/api/services/${serviceId}/export.zip?pdf=0&compiledPdf=1`
+	);
+	const compiledBody = await compiledZip.body();
+	expect(compiledBody.includes(Buffer.from(`${serviceName} - Evidencia.pdf`))).toBe(true);
 
 	// Opciones del modal en servidor: sin fotografías / sin XLSX / variante simple.
 	const withPhotos = await page.request.get(`/api/services/${serviceId}/export.zip`);
@@ -187,8 +216,10 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	await page.goto(serviceHref ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: serviceName })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Exportar ZIP' })).toHaveCount(0);
+	await expect(page.getByRole('link', { name: 'PDF del servicio' })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Gestionar asignaciones' })).toHaveCount(0);
 	expect((await page.request.get(`/api/services/${serviceId}/export.zip`)).status()).toBe(403);
+	expect((await page.request.get(`/api/services/${serviceId}/export.pdf`)).status()).toBe(403);
 	expect((await page.request.get(`/api/works/${workId}/export.zip`)).status()).toBe(403);
 	expect((await page.request.get(`/api/contracts/${contractId}/export.zip`)).status()).toBe(403);
 	expect((await page.request.get(`/api/submissions/${DUMMY_UUID}/export.zip`)).status()).toBe(403);

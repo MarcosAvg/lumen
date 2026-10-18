@@ -260,9 +260,20 @@
 				>
 			{/if}
 			{#if data.access !== 'technician'}
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					href={`/api/services/${data.service.id}/export.pdf`}
+					disabled={data.progress.approvedTargets === 0}
+					title={data.progress.approvedTargets === 0
+						? 'El servicio aún no tiene evidencia aprobada.'
+						: undefined}>PDF del servicio</Button
+				>
 				<ExportDialog
 					href={`/api/services/${data.service.id}/export.zip`}
 					class="w-full sm:w-auto"
+					allowCompiledPdf
 				/>
 			{/if}
 		{/snippet}

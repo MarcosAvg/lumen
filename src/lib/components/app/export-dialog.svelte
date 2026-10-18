@@ -12,8 +12,15 @@
 	let {
 		href,
 		label = 'Exportar ZIP',
-		class: className = ''
-	}: { href: string; label?: string; class?: string } = $props();
+		class: className = '',
+		allowCompiledPdf = false
+	}: {
+		href: string;
+		label?: string;
+		class?: string;
+		/** Servicio y contrato permiten añadir PDFs recopilados por servicio. */
+		allowCompiledPdf?: boolean;
+	} = $props();
 
 	type Variant = 'simple' | 'extended';
 
@@ -24,6 +31,7 @@
 	let includeXlsx = $state(true);
 	let includePhotos = $state(true);
 	let includePdf = $state(true);
+	let includeCompiledPdf = $state(false);
 
 	onMount(() => {
 		try {
@@ -34,17 +42,21 @@
 				xlsx: boolean;
 				photos: boolean;
 				pdf: boolean;
+				compiledPdf: boolean;
 			}>;
 			if (saved.variant === 'simple' || saved.variant === 'extended') variant = saved.variant;
 			if (typeof saved.xlsx === 'boolean') includeXlsx = saved.xlsx;
 			if (typeof saved.photos === 'boolean') includePhotos = saved.photos;
 			if (typeof saved.pdf === 'boolean') includePdf = saved.pdf;
+			if (typeof saved.compiledPdf === 'boolean') includeCompiledPdf = saved.compiledPdf;
 		} catch {
 			// Preferencias no críticas: se ignora cualquier fallo.
 		}
 	});
 
-	const canDownload = $derived(includeXlsx || includePhotos || includePdf);
+	const canDownload = $derived(
+		includeXlsx || includePhotos || includePdf || (allowCompiledPdf && includeCompiledPdf)
+	);
 
 	const variants: { value: Variant; label: string }[] = [
 		{ value: 'simple', label: 'Simple' },
@@ -57,10 +69,17 @@
 		url.searchParams.set('xlsx', includeXlsx ? '1' : '0');
 		url.searchParams.set('photos', includePhotos ? '1' : '0');
 		url.searchParams.set('pdf', includePdf ? '1' : '0');
+		url.searchParams.set('compiledPdf', allowCompiledPdf && includeCompiledPdf ? '1' : '0');
 		try {
 			localStorage.setItem(
 				STORAGE_KEY,
-				JSON.stringify({ variant, xlsx: includeXlsx, photos: includePhotos, pdf: includePdf })
+				JSON.stringify({
+					variant,
+					xlsx: includeXlsx,
+					photos: includePhotos,
+					pdf: includePdf,
+					compiledPdf: allowCompiledPdf && includeCompiledPdf
+				})
 			);
 		} catch {
 			// Ignorado: la exportación no depende de guardar la preferencia.
@@ -109,6 +128,16 @@
 				<LabeledCheckbox bind:checked={includeXlsx} label="Incluir registro XLSX" />
 				<LabeledCheckbox bind:checked={includePhotos} label="Incluir fotografías" />
 				<LabeledCheckbox bind:checked={includePdf} label="Incluir PDF de evidencia por trabajo" />
+				{#if allowCompiledPdf}
+					<LabeledCheckbox
+						bind:checked={includeCompiledPdf}
+						label="Incluir PDF recopilado por servicio"
+					/>
+					<p class="text-xs text-muted-foreground">
+						El recopilado incluye solo trabajos con evidencia aprobada. Es un archivo adicional y no
+						modifica el registro XLSX.
+					</p>
+				{/if}
 				<p class="text-xs text-muted-foreground">
 					Sin fotografías, los PDF caen directamente en la carpeta del servicio.
 				</p>

@@ -36,6 +36,7 @@ miniaturas, búsqueda, push y streaming.
 | GET | `/api/photos/:id/thumbnail` | Ámbito de servicio | Misma autorización que la foto |
 | GET | `/api/submissions/:id/export.zip` | Admin o supervisor asignado | ZIP del snapshot; técnicos `403` |
 | GET | `/api/services/:id/export.zip` | Admin o supervisor asignado | Última entrega aprobada + extras opcionales |
+| GET | `/api/services/:id/export.pdf` | Admin o supervisor asignado | PDF recopilado; `409` si no hay evidencia aprobada |
 | GET | `/api/works/:id/export.zip` | Admin o supervisor asignado | Última entrega aprobada + extras opcionales |
 | GET | `/api/contracts/:id/export.zip` | Admin o supervisor del contrato | Última entrega aprobada + extras opcionales |
 | GET | `/api/contracts/:id/pdf-background` | Miembros del contrato | Fondo PNG del contrato |
@@ -49,7 +50,7 @@ miniaturas, búsqueda, push y streaming.
 Los ZIP de ámbito aceptan:
 
 ```text
-?variant=simple|extended&xlsx=0|1&photos=0|1&pdf=0|1
+?variant=simple|extended&xlsx=0|1&photos=0|1&pdf=0|1&compiledPdf=0|1
 ```
 
 Debe incluirse al menos un contenido. Los detalles de jerarquía, XLSX y PDF

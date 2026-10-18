@@ -18,6 +18,12 @@ import {
 } from '#lib/server/domain/exports';
 import { buildWorkbook } from '#lib/server/exports/workbook';
 import { buildWorkPdf } from '#lib/server/exports/pdf';
+import {
+	buildExportExtras,
+	buildServicePdfForPlan,
+	compiledServicePath,
+	servicePdfPath
+} from '#lib/server/exports/bundle';
 import ExcelJS from 'exceljs';
 import { PDFDocument } from 'pdf-lib';
 import {
@@ -678,6 +684,114 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 			storage
 		);
 		expect((await PDFDocument.load(customMargins)).getPageCount()).toBe(2);
+	});
+
+	it('EXP-08: el PDF recopilado incluye solo trabajos con evidencia aprobada', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const contractId = await seedContract(db, admin);
+		const service = await createService(db, {
+			contractId,
+			name: 'UMAs Torre',
+			actorId: admin
+		});
+		const approved = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Piso 1',
+			actorId: admin
+		});
+		await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Piso 2 sin evidencia',
+			actorId: admin
+		});
+		const photo = await upload(storage, approved.targetId as string, admin, null);
+		const submission = await submitEvidence(db, {
+			targetId: approved.targetId as string,
+			expectedVersion: photo.version,
+			userId: admin
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin
+		});
+
+		const plan = await buildExportPlan(
+			db,
+			{ kind: 'service', serviceId: service.id },
+			{ aggregates: false, photos: true }
+		);
+		expect(plan.rows).toHaveLength(2);
+
+		const result = await buildServicePdfForPlan(db, storage, plan);
+		expect(result.fileName).toBe('UMAs Torre - Evidencia.pdf');
+		const doc = await PDFDocument.load(result.content);
+		// Portada + una única sección: el trabajo sin evidencia no añade página.
+		expect(doc.getPageCount()).toBe(2);
+		expect(doc.getTitle()).toBe('UMAs Torre');
+
+		const options = {
+			variant: 'extended' as const,
+			xlsx: false,
+			photos: false,
+			pdf: false,
+			compiledPdf: false
+		};
+		const compiled = await buildExportExtras(db, storage, plan, {
+			...options,
+			compiledPdf: true
+		});
+		expect(compiled).toHaveLength(1);
+		expect(compiled[0].name).toBe(servicePdfPath(plan));
+
+		const both = await buildExportExtras(db, storage, plan, {
+			...options,
+			pdf: true,
+			compiledPdf: true
+		});
+		expect(both).toHaveLength(2);
+		expect(both.map((entry) => entry.name)).toContain(plan.rows[0].pdfPath);
+
+		// En contrato se genera un recopilado por servicio, dentro de su carpeta.
+		const contractPlan = await buildExportPlan(
+			db,
+			{ kind: 'contract', contractId },
+			{ aggregates: false, photos: true }
+		);
+		const contractCompiled = await buildExportExtras(db, storage, contractPlan, {
+			...options,
+			compiledPdf: true
+		});
+		expect(contractCompiled).toHaveLength(1);
+		expect(contractCompiled[0].name).toBe(
+			compiledServicePath(contractPlan, service.id, 'UMAs Torre')
+		);
+		expect(contractCompiled[0].name).toContain('/UMAs Torre - Evidencia.pdf');
+
+		// El XLSX no cambia: sigue enlazando al PDF por trabajo.
+		const workbook = new ExcelJS.Workbook();
+		await workbook.xlsx.load(await buildWorkbook(plan, 'simple'));
+		const evidence = workbook.getWorksheet('UMAs Torre')?.getRow(5).getCell(4).value as {
+			hyperlink: string;
+		};
+		expect(evidence.hyperlink).toBe('Piso 1/Piso 1.pdf');
+
+		const emptyService = await createService(db, {
+			contractId: await seedContract(db, admin),
+			name: 'Servicio vacío',
+			actorId: admin
+		});
+		const emptyPlan = await buildExportPlan(
+			db,
+			{ kind: 'service', serviceId: emptyService.id },
+			{ aggregates: false, photos: true }
+		);
+		await expect(buildServicePdfForPlan(db, storage, emptyPlan)).rejects.toBeInstanceOf(
+			DomainError
+		);
 	});
 
 	it('sanea nombres de ZIP y desambigua duplicados', () => {

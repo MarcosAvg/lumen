@@ -171,6 +171,10 @@ Las acciones rápidas permiten ir a Servicios, Usuarios, Catálogos y Contratos
   una tarjeta clicable; en escritorio, una fila compacta.
 - La exportación ZIP está disponible también si el servicio no está completo;
   el texto indica que solo se incluyen objetivos aprobados.
+- La ficha ofrece **PDF del servicio** para descargar un único documento con
+  portada y todos los trabajos que tengan evidencia aprobada. El modal del ZIP
+  tiene dos casillas independientes: PDF por trabajo y PDF recopilado por
+  servicio; el registro XLSX no cambia.
 
 ## 6. Trabajo directo y dividido
 

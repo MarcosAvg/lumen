@@ -9,12 +9,15 @@ export interface ExportRequestOptions {
 	photos: boolean;
 	/** Incluir un PDF de evidencia por trabajo. */
 	pdf: boolean;
+	/** Incluir un PDF recopilado por servicio (independiente del XLSX). */
+	compiledPdf: boolean;
 }
 
 /**
  * Lee las opciones de la URL:
- * `?variant=simple|extended&xlsx=0|1&photos=0|1&pdf=0|1`. Por defecto: variante
- * extendida, con XLSX, con fotografías y con PDF.
+ * `?variant=simple|extended&xlsx=0|1&photos=0|1&pdf=0|1&compiledPdf=0|1`.
+ *
+ * El PDF recopilado es un archivo adicional del ZIP y no modifica el XLSX.
  */
 export function parseExportRequest(url: URL): ExportRequestOptions {
 	const rawVariant = url.searchParams.get('variant');
@@ -22,6 +25,7 @@ export function parseExportRequest(url: URL): ExportRequestOptions {
 		variant: rawVariant === 'simple' ? 'simple' : 'extended',
 		xlsx: url.searchParams.get('xlsx') !== '0',
 		photos: url.searchParams.get('photos') !== '0',
-		pdf: url.searchParams.get('pdf') !== '0'
+		pdf: url.searchParams.get('pdf') !== '0',
+		compiledPdf: url.searchParams.get('compiledPdf') === '1'
 	};
 }

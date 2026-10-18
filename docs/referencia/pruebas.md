@@ -72,6 +72,10 @@ Una función está terminada cuando:
 | EXP-02 | ZIP de servicio parcialmente aprobado | Solo aprobados; XLSX con todo el estado |
 | EXP-03 | Técnico solicita ZIP de contrato, servicio o trabajo | `403` |
 | EXP-04 | ZIP de entrega solicitado por técnico | `403` |
+| EXP-05 | PDF recopilado de un servicio | Portada + una sección por trabajo; excluye trabajos sin evidencia aprobada |
+| EXP-06 | ZIP con PDF por trabajo y/o recopilado | Ambas casillas son independientes; el XLSX no cambia |
+| EXP-07 | Descargar PDF de servicio sin evidencia aprobada | `409` con mensaje claro; no genera un PDF vacío |
+| EXP-08 | ZIP de contrato con recopilados | Un PDF por servicio con evidencia, dentro de su carpeta |
 | SEARCH-01 | Buscar un recurso no asignado | No aparece |
 | DEL-01 | Borrar un servicio con historial | Confirmación, cascada acotada y limpieza posterior |
 | CAT-04 | Migrar un catálogo con propósito requirements | Selector y vínculos correctos |

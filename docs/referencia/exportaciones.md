@@ -13,6 +13,7 @@
 | ZIP de una entrega | Sí | Sí | No |
 | ZIP de trabajo | Sí | Sí | No |
 | ZIP de servicio | Sí | Sí | No |
+| PDF recopilado de servicio | Sí | Sí | No |
 | ZIP de contrato | Sí | Sí, supervisor del contrato | No |
 
 Un técnico descarga fotos individuales, pero no ZIP. El servidor responde `403`
@@ -36,6 +37,9 @@ antes de tocar el recurso si el rol no puede exportar. Después se revalida el
   - Trabajo: `Trabajo ▸ (Elemento) ▸ Requisito`.
   - Servicio: `Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
   - Contrato: `Contrato ▸ Edificio ▸ Servicio ▸ Trabajo ▸ (Elemento) ▸ Requisito`.
+- El PDF recopilado del servicio se guarda como
+  `<Servicio>/<Servicio> - Evidencia.pdf`, en la raíz de su carpeta. En contrato,
+  dentro de `<Contrato>/<Edificio>/<Servicio>/`.
 - Los servicios sin edificio se agrupan en «Sin edificio».
 - En trabajos directos, las carpetas de requisito viven en la carpeta del
   trabajo; no se inventa un elemento hijo.
@@ -66,6 +70,8 @@ Cada ZIP de ámbito puede incluir opcionalmente un libro
 
 ## 5. PDF de evidencia
 
+### PDF por trabajo
+
 - Se genera un PDF por trabajo con las fotos de su última entrega aprobada.
 - No tiene portada. La cabecera corrida muestra contrato, edificio, servicio y
   trabajo.
@@ -78,6 +84,28 @@ Cada ZIP de ámbito puede incluir opcionalmente un libro
 - Con fotografías, el PDF vive en la carpeta del trabajo; sin fotografías, cae
   directamente en la carpeta del servicio como `<Servicio>/<Trabajo>.pdf`.
 - Los enlaces del XLSX apuntan a esa misma ruta.
+
+### PDF recopilado del servicio
+
+- Se genera un único PDF con **todos los trabajos del servicio que tengan
+  evidencia aprobada**. Los trabajos sin fotos aprobadas no se incluyen.
+- Se puede descargar directamente con **PDF del servicio** o incluir en el ZIP
+  mediante la casilla **Incluir PDF recopilado por servicio**. Es independiente
+  de la casilla de PDF por trabajo; si ambas están activas, se incluyen las dos.
+- Estructura: portada, y una sección por trabajo. No tiene índice.
+- La portada muestra contrato, servicio, edificio, fecha y resumen de trabajos y
+  fotos incluidas.
+- Cada trabajo empieza en una página nueva con su título; las páginas siguientes
+  conservan la cabecera corrida.
+- Se reutilizan los márgenes, el fondo del contrato, la rejilla de 4 fotos y las
+  leyendas del PDF por trabajo.
+- La numeración es global para todo el PDF; la portada no se numera.
+- Si no hay ningún trabajo con evidencia aprobada, la descarga directa responde
+  `409` y el ZIP no genera un PDF vacío.
+- En el ZIP de contrato se genera un recopilado **por cada servicio** con
+  evidencia aprobada, dentro de su carpeta de edificio/servicio.
+- El registro XLSX **no cambia**: sigue mostrando una fila por trabajo y sus
+  enlaces a los PDF por trabajo. El recopilado es solo un archivo adicional.
 
 ### Fondo del contrato
 
@@ -92,12 +120,16 @@ El modal de exportación permite:
 - elegir variante `Simple` o `Extendida`;
 - incluir o no el registro XLSX;
 - incluir o no las carpetas de fotografías;
-- incluir o no los PDF de evidencia;
+- incluir o no los PDF por trabajo;
+- en servicio y contrato, incluir o no el PDF recopilado por servicio;
 - exigir al menos un contenido;
 - recordar la última elección en el dispositivo.
 
-Sin fotografías, los PDF se colocan en la carpeta del servicio. Si no se incluye
-ningún PDF ni XLSX, el ZIP solo contiene fotos.
+Las dos casillas de PDF son independientes. Si ambas están activas, el ZIP
+contiene los PDF por trabajo y los recopilados; no existe una opción «Ambos».
+
+Sin fotografías, los PDF por trabajo se colocan en la carpeta del servicio. Si no
+se incluye ningún PDF ni XLSX, el ZIP solo contiene fotos.
 
 ## 7. Generación y seguridad
 

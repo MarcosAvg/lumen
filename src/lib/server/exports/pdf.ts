@@ -2,12 +2,16 @@ import { readFile } from 'node:fs/promises';
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage } from 'pdf-lib';
 import type { Storage } from '#lib/server/storage/storage';
 import type { PdfBlock } from '#lib/server/domain/exports';
+import { DomainError } from '#lib/server/domain/errors';
 
 /**
- * PDF de evidencia de un trabajo: **sin portada**, cabecera corrida y hasta
- * **4 fotografías por página** (2×2). Cada foto lleva su **leyenda pegada debajo**
+ * PDF de evidencia: **sin portada** por trabajo, cabecera corrida y hasta
+ * **4 fotografías por página** (2×2). Cada foto lleva su leyenda pegada debajo
  * (`Trabajo · Elemento · Requisito`, sin fecha ni autor). El fondo del contrato
- * se dibuja **opaco** en todas las páginas, con márgenes amplios (5 cm).
+ * se dibuja opaco en todas las páginas, con los márgenes configurados.
+ *
+ * El PDF recopilado de un servicio reutiliza el mismo layout por trabajo, añade
+ * una portada y numera las páginas de forma global.
  */
 
 export interface WorkPdfHeader {
@@ -37,6 +41,24 @@ export interface WorkPdfInput {
 	margins: PdfMargins;
 }
 
+export interface WorkPdfOptions {
+	/** El PDF recopilado desactiva la numeración por trabajo y la pinta al final. */
+	pageNumbers?: boolean;
+	/** Añade el título del trabajo al inicio de su primera página. */
+	sectionTitle?: boolean;
+}
+
+export interface ServicePdfInput {
+	contractName: string;
+	buildingName: string | null;
+	serviceName: string;
+	generatedAt?: Date;
+	/** Solo trabajos con evidencia aprobada. */
+	works: { header: WorkPdfHeader; blocks: PdfBlock[] }[];
+	backgroundAbsolutePath: string | null;
+	margins: PdfMargins;
+}
+
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const GAP = 12;
@@ -50,7 +72,10 @@ const MIN_ROW_AREA = 130;
 const LEGEND_SIZE = 8;
 const LEGEND_OFFSET = 2; // pegada a la imagen
 
+const BRAND_COLOR = rgb(30 / 255, 75 / 255, 141 / 255);
+const COVER_BACKGROUND = rgb(237 / 255, 242 / 255, 246 / 255);
 const HEADER_COLOR = rgb(0.13, 0.15, 0.2);
+const MUTED_COLOR = rgb(0.38, 0.42, 0.48);
 const LEGEND_COLOR = rgb(0.25, 0.25, 0.3);
 const LINE_COLOR = rgb(0.82, 0.82, 0.87);
 
@@ -80,7 +105,126 @@ function fit(text: string, font: PDFFont, size: number, maxWidth: number): strin
 	return `${cut}…`;
 }
 
-export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promise<Buffer> {
+function pageLabelBaseline(margins: PdfMargins): number {
+	return Math.max(margins.bottom * MM - 16, 12);
+}
+
+/** Numera todas las páginas de `doc` salvo las que se indiquen al inicio. */
+function drawPageNumbers(
+	doc: PDFDocument,
+	font: PDFFont,
+	margins: PdfMargins,
+	startIndex = 0,
+	startNumber = 1
+): void {
+	const pages = doc.getPages();
+	const baseline = pageLabelBaseline(margins);
+	for (let index = startIndex; index < pages.length; index += 1) {
+		pages[index].drawText(String(startNumber + index - startIndex), {
+			x: PAGE_WIDTH / 2 - 4,
+			y: baseline,
+			size: 8,
+			font,
+			color: LEGEND_COLOR
+		});
+	}
+}
+
+function drawCover(doc: PDFDocument, input: ServicePdfInput, font: PDFFont, bold: PDFFont): void {
+	const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+	const left = 56;
+	const right = 56;
+	const contentWidth = PAGE_WIDTH - left - right;
+	const generatedAt = input.generatedAt ?? new Date();
+	const photoCount = input.works.reduce(
+		(total, work) => total + work.blocks.reduce((sum, block) => sum + block.photos.length, 0),
+		0
+	);
+
+	page.drawRectangle({
+		x: 0,
+		y: 0,
+		width: PAGE_WIDTH,
+		height: PAGE_HEIGHT,
+		color: COVER_BACKGROUND
+	});
+	page.drawRectangle({
+		x: 0,
+		y: PAGE_HEIGHT - 12,
+		width: PAGE_WIDTH,
+		height: 12,
+		color: BRAND_COLOR
+	});
+
+	page.drawText('LUMEN', {
+		x: left,
+		y: PAGE_HEIGHT - 64,
+		size: 10,
+		font: bold,
+		color: BRAND_COLOR
+	});
+	page.drawText('EVIDENCIA FOTOGRÁFICA', {
+		x: left,
+		y: PAGE_HEIGHT - 82,
+		size: 8,
+		font,
+		color: MUTED_COLOR
+	});
+
+	page.drawText(fit(input.serviceName, bold, 26, contentWidth), {
+		x: left,
+		y: 560,
+		size: 26,
+		font: bold,
+		color: HEADER_COLOR
+	});
+
+	const location = [
+		input.contractName,
+		input.buildingName ? `Edificio: ${input.buildingName}` : null
+	].filter((part): part is string => Boolean(part && part.trim()));
+	if (location.length > 0) {
+		page.drawText(fit(location.join('  ·  '), font, 10, contentWidth), {
+			x: left,
+			y: 534,
+			size: 10,
+			font,
+			color: MUTED_COLOR
+		});
+	}
+
+	page.drawLine({
+		start: { x: left, y: 500 },
+		end: { x: PAGE_WIDTH - right, y: 500 },
+		thickness: 0.6,
+		color: LINE_COLOR
+	});
+
+	const summary = [
+		['Trabajos incluidos', String(input.works.length)],
+		['Fotografías incluidas', String(photoCount)],
+		['Generado', generatedAt.toISOString().slice(0, 10)]
+	];
+	summary.forEach(([label, value], index) => {
+		const y = 450 - index * 32;
+		page.drawText(label, { x: left, y, size: 9, font, color: MUTED_COLOR });
+		page.drawText(value, { x: left + 180, y, size: 11, font: bold, color: HEADER_COLOR });
+	});
+
+	page.drawText('Documento generado desde Lumen', {
+		x: left,
+		y: 56,
+		size: 8,
+		font,
+		color: MUTED_COLOR
+	});
+}
+
+export async function buildWorkPdf(
+	input: WorkPdfInput,
+	storage: Storage,
+	options: WorkPdfOptions = {}
+): Promise<Buffer> {
 	const doc = await PDFDocument.create();
 	doc.setCreator('Lumen');
 	doc.setTitle(input.header.workName);
@@ -127,53 +271,78 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 	const rowArea = available / rowsPerPage;
 	const imageArea = Math.max(60, rowArea - (LEGEND_SIZE + LEGEND_OFFSET + 6));
 	const headerBaseline = contentTop + 16;
-	const pageLabelBaseline = Math.max(contentBottom - 16, 12);
+	const sectionTitleBaseline = contentTop + 32;
+	const sectionMetaBaseline = contentTop + 18;
+	const sectionLineBaseline = contentTop + 10;
+	const hasRoomForSectionTitle = marginTop >= 22 * MM;
 
 	let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 	let rowsOnPage = 0;
 
-	const drawChrome = () => {
+	const drawChrome = (firstPageOfSection: boolean) => {
 		// Fondo opaco, sin velo: se dibuja tal cual a página completa.
 		if (background) {
 			page.drawImage(background, { x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
 		}
-		const parts = [
-			input.header.contractName,
-			input.header.buildingName,
-			input.header.serviceName,
-			input.header.workName
-		].filter((part): part is string => Boolean(part && part.trim()));
-		page.drawText(fit(parts.join('  ·  '), bold, 9, contentWidth), {
-			x: marginLeft,
-			y: headerBaseline,
-			size: 9,
-			font: bold,
-			color: HEADER_COLOR
-		});
-		page.drawLine({
-			start: { x: marginLeft, y: headerBaseline - 10 },
-			end: { x: PAGE_WIDTH - marginRight, y: headerBaseline - 10 },
-			thickness: 0.5,
-			color: LINE_COLOR
-		});
+
+		if (options.sectionTitle && firstPageOfSection && hasRoomForSectionTitle) {
+			const meta = [
+				input.header.contractName,
+				input.header.buildingName,
+				input.header.serviceName
+			].filter((part): part is string => Boolean(part && part.trim()));
+			page.drawText(fit(input.header.workName, bold, 12, contentWidth), {
+				x: marginLeft,
+				y: sectionTitleBaseline,
+				size: 12,
+				font: bold,
+				color: HEADER_COLOR
+			});
+			if (meta.length > 0) {
+				page.drawText(fit(meta.join('  ·  '), font, 8, contentWidth), {
+					x: marginLeft,
+					y: sectionMetaBaseline,
+					size: 8,
+					font,
+					color: MUTED_COLOR
+				});
+			}
+			page.drawLine({
+				start: { x: marginLeft, y: sectionLineBaseline },
+				end: { x: PAGE_WIDTH - marginRight, y: sectionLineBaseline },
+				thickness: 0.7,
+				color: BRAND_COLOR
+			});
+		} else {
+			const parts = [
+				input.header.contractName,
+				input.header.buildingName,
+				input.header.serviceName,
+				input.header.workName
+			].filter((part): part is string => Boolean(part && part.trim()));
+			page.drawText(fit(parts.join('  ·  '), bold, 9, contentWidth), {
+				x: marginLeft,
+				y: headerBaseline,
+				size: 9,
+				font: bold,
+				color: HEADER_COLOR
+			});
+			page.drawLine({
+				start: { x: marginLeft, y: headerBaseline - 10 },
+				end: { x: PAGE_WIDTH - marginRight, y: headerBaseline - 10 },
+				thickness: 0.5,
+				color: LINE_COLOR
+			});
+		}
 		rowsOnPage = 0;
 	};
 
 	const addPage = () => {
-		if (doc.getPageCount() > 0) {
-			page.drawText(String(doc.getPageCount()), {
-				x: PAGE_WIDTH / 2 - 4,
-				y: pageLabelBaseline,
-				size: 8,
-				font,
-				color: LEGEND_COLOR
-			});
-		}
 		page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-		drawChrome();
+		drawChrome(false);
 	};
 
-	drawChrome();
+	drawChrome(true);
 
 	// Lista plana de fotos con su leyenda.
 	const entries = input.blocks.flatMap((block) =>
@@ -211,14 +380,55 @@ export async function buildWorkPdf(input: WorkPdfInput, storage: Storage): Promi
 		rowsOnPage += 1;
 	}
 
-	// Número de página en la última página (las anteriores lo reciben al pasar).
-	page.drawText(String(doc.getPageCount()), {
-		x: PAGE_WIDTH / 2 - 4,
-		y: pageLabelBaseline,
-		size: 8,
-		font,
-		color: LEGEND_COLOR
-	});
+	if (options.pageNumbers !== false) {
+		drawPageNumbers(doc, font, input.margins);
+	}
+
+	const bytes = await doc.save();
+	return Buffer.from(bytes);
+}
+
+/**
+ * PDF recopilado de un servicio: portada y una sección por trabajo. Solo debe
+ * recibir trabajos con evidencia aprobada; si no hay ninguno, es un error de
+ * negocio.
+ */
+export async function buildServicePdf(input: ServicePdfInput, storage: Storage): Promise<Buffer> {
+	if (input.works.length === 0) {
+		throw new DomainError(409, 'El servicio no tiene evidencia aprobada para generar el PDF.');
+	}
+
+	const doc = await PDFDocument.create();
+	doc.setCreator('Lumen');
+	doc.setTitle(input.serviceName);
+	doc.setProducer('Lumen');
+
+	const font = await doc.embedFont(StandardFonts.Helvetica);
+	const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+	drawCover(doc, input, font, bold);
+
+	for (const work of input.works) {
+		if (!work.blocks.some((block) => block.photos.length > 0)) continue;
+		const workBuffer = await buildWorkPdf(
+			{
+				header: work.header,
+				blocks: work.blocks,
+				backgroundAbsolutePath: input.backgroundAbsolutePath,
+				margins: input.margins
+			},
+			storage,
+			{ pageNumbers: false, sectionTitle: true }
+		);
+		const workDoc = await PDFDocument.load(workBuffer);
+		const pages = await doc.copyPages(workDoc, workDoc.getPageIndices());
+		for (const page of pages) doc.addPage(page);
+	}
+
+	if (doc.getPageCount() === 1) {
+		throw new DomainError(409, 'El servicio no tiene evidencia aprobada para generar el PDF.');
+	}
+
+	drawPageNumbers(doc, font, input.margins, 1, 1);
 
 	const bytes = await doc.save();
 	return Buffer.from(bytes);
