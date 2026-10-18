@@ -8,7 +8,12 @@ import { assignUser } from '#lib/server/domain/assignments';
 import {
 	countPendingReviews,
 	dashboardSummary,
-	listAttentionWorks
+	listAttentionWorks,
+	listContractPulse,
+	listRecentDecisions,
+	listRecentEvidencePhotos,
+	listServicePulse,
+	reviewTrend
 } from '#lib/server/domain/dashboard';
 import { appendPhoto } from '#lib/server/domain/photos';
 import { searchByName } from '#lib/server/domain/search';
@@ -154,6 +159,128 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 
 		const adminAttention = await listAttentionWorks(db, admin);
 		expect(adminAttention.map((work) => work.workName).sort()).toEqual(['W-A', 'W-B']);
+	});
+
+	it('DASH-06: la evidencia reciente respeta el ámbito y conserva el contexto', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const technician = await seedUser(admin.id, 'technician');
+
+		const serviceA = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Alfa',
+			actorId: admin.id
+		});
+		const serviceB = await createService(db, {
+			contractId: await seedContract(db, admin.id),
+			name: 'Beta',
+			actorId: admin.id
+		});
+		await assignUser(db, {
+			serviceId: serviceA.id,
+			userId: technician.id,
+			role: 'technician',
+			actorId: admin.id
+		});
+
+		const workA = await createWork(db, {
+			serviceId: serviceA.id,
+			mode: 'direct',
+			name: 'W-A',
+			actorId: admin.id
+		});
+		const workB = await createWork(db, {
+			serviceId: serviceB.id,
+			mode: 'direct',
+			name: 'W-B',
+			actorId: admin.id
+		});
+		await upload(storage, workA.targetId as string, admin.id);
+		await upload(storage, workB.targetId as string, admin.id);
+
+		const technicianPhotos = await listRecentEvidencePhotos(db, technician, 10);
+		expect(technicianPhotos).toHaveLength(1);
+		expect(technicianPhotos[0]).toMatchObject({
+			workId: workA.id,
+			workName: 'W-A',
+			serviceName: 'Alfa',
+			status: 'in_progress'
+		});
+
+		const adminPhotos = await listRecentEvidencePhotos(db, admin, 10);
+		expect(adminPhotos.map((photo) => photo.workName).sort()).toEqual(['W-A', 'W-B']);
+		expect(await listRecentEvidencePhotos(db, admin, 1)).toHaveLength(1);
+	});
+
+	it('DASH-07: el panel ampliado agrega estado, alcance y actividad', async () => {
+		const admin = await seedAdmin();
+		const storage = await makeStorage();
+		const supervisor = await seedUser(admin.id, 'supervisor');
+		const contractId = await seedContract(db, admin.id);
+		const service = await createService(db, {
+			contractId,
+			name: 'Servicio panel',
+			actorId: admin.id
+		});
+		await assignUser(db, {
+			serviceId: service.id,
+			userId: supervisor.id,
+			role: 'supervisor',
+			actorId: admin.id
+		});
+		const work = await createWork(db, {
+			serviceId: service.id,
+			mode: 'direct',
+			name: 'Trabajo panel',
+			actorId: admin.id
+		});
+		const photo = await upload(storage, work.targetId as string, admin.id);
+		const submission = await submitEvidence(db, {
+			targetId: work.targetId as string,
+			expectedVersion: photo.version,
+			userId: admin.id
+		});
+		await reviewSubmission(db, {
+			submissionId: submission.submissionId,
+			decision: 'approved',
+			reviewerId: admin.id
+		});
+
+		const summary = await dashboardSummary(db, admin);
+		expect(summary.statusCounts.approved).toBe(1);
+		expect(summary.statusCounts.total).toBe(1);
+		expect(summary.approvedLast7).toBe(1);
+		expect(summary.contractCount).toBeGreaterThan(0);
+		expect(summary.activeUsers).toBeGreaterThan(0);
+
+		const contracts = await listContractPulse(db, 20);
+		expect(contracts.find((row) => row.contractId === contractId)).toMatchObject({
+			serviceCount: 1,
+			totalTargets: 1,
+			approvedTargets: 1,
+			pendingReviews: 0,
+			rejectedTargets: 0
+		});
+
+		const services = await listServicePulse(db, supervisor, 20);
+		expect(services.find((row) => row.serviceId === service.id)).toMatchObject({
+			totalTargets: 1,
+			approvedTargets: 1,
+			pendingReviews: 0,
+			rejectedTargets: 0
+		});
+
+		const decisions = await listRecentDecisions(db, supervisor, 10);
+		expect(decisions.find((row) => row.submissionId === submission.submissionId)).toMatchObject({
+			decision: 'approved',
+			serviceName: 'Servicio panel',
+			workName: 'Trabajo panel'
+		});
+
+		const trend = await reviewTrend(db, supervisor, 30);
+		expect(trend).toHaveLength(30);
+		expect(trend.reduce((sum, point) => sum + point.submitted, 0)).toBe(1);
+		expect(trend.reduce((sum, point) => sum + point.approved, 0)).toBe(1);
 	});
 
 	it('DASH-02: los elementos se agrupan con su trabajo padre', async () => {

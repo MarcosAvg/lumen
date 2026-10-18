@@ -7,7 +7,7 @@
 	import Building2 from '@lucide/svelte/icons/building-2';
 	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import Flame from '@lucide/svelte/icons/flame';
+	import Sun from '@lucide/svelte/icons/sun';
 	import House from '@lucide/svelte/icons/house';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Search from '@lucide/svelte/icons/search';
@@ -198,7 +198,7 @@
 								<div
 									class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"
 								>
-									<Flame class="size-4" aria-hidden="true" />
+									<Sun class="size-4" aria-hidden="true" />
 								</div>
 								<div class="grid flex-1 text-left text-sm leading-tight">
 									<span class="truncate font-medium">Lumen</span>

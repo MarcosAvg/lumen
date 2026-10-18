@@ -17,6 +17,7 @@
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import TableActions from '#lib/components/app/table-actions.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
+	import LifecycleBadge from '#lib/components/app/lifecycle-badge.svelte';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import ParticipantManager from '#lib/components/app/participant-manager.svelte';
 	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
@@ -143,11 +144,19 @@
 
 	// Edición del servicio en modal: cierra solo al confirmarse el éxito.
 	let editServiceOpen = $state(false);
+	let archiveServiceOpen = $state(false);
+	const isArchived = $derived(data.service.lifecycle === 'archived');
 	const submitService: NonNullable<Parameters<typeof enhance>[1]> =
 		() =>
 		async ({ result, update }) => {
 			await update({ reset: false });
 			if (result.type === 'success') editServiceOpen = false;
+		};
+	const submitLifecycle: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
+			archiveServiceOpen = false;
 		};
 </script>
 
@@ -186,6 +195,7 @@
 				>
 				<span class="font-semibold text-foreground">{accessLabel[data.access]}</span>
 			</span>
+			<LifecycleBadge lifecycle={data.service.lifecycle} />
 			<StatusBadge
 				status={data.progress.completed ? 'approved' : 'in_progress'}
 				label={data.progress.completed ? 'Completado' : 'Incompleto'}
@@ -200,7 +210,42 @@
 			/>
 		</div>
 		{#snippet actions()}
-			{#if data.isAdmin}
+			{#if data.isAdmin && !isArchived}
+				{#if data.service.lifecycle === 'planned'}
+					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="lifecycle" value="active" />
+						<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto"
+							>Activar servicio</Button
+						>
+					</form>
+				{:else if data.service.lifecycle === 'active'}
+					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="lifecycle" value="inactive" />
+						<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto"
+							>Pausar servicio</Button
+						>
+					</form>
+				{:else if data.service.lifecycle === 'inactive'}
+					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="lifecycle" value="active" />
+						<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto"
+							>Reactivar servicio</Button
+						>
+					</form>
+				{/if}
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					disabled={!data.progress.completed}
+					title={!data.progress.completed
+						? 'Solo puedes archivar un servicio cuando todos sus trabajos están aprobados.'
+						: undefined}
+					onclick={() => (archiveServiceOpen = true)}>Archivar servicio</Button
+				>
 				<Button
 					variant="outline"
 					size="sm"
@@ -231,13 +276,27 @@
 	{#if action?.message}
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
+	{#if data.service.lifecycle !== 'active'}
+		<Alert>
+			<AlertDescription>
+				{#if data.service.lifecycle === 'planned'}
+					Este servicio está en espera: puedes preparar su estructura, pero la evidencia no se puede
+					capturar hasta activarlo.
+				{:else if data.service.lifecycle === 'inactive'}
+					Este servicio está inactivo: la evidencia y las revisiones son de solo lectura.
+				{:else}
+					Este servicio está archivado: todo su contenido es de solo lectura.
+				{/if}
+			</AlertDescription>
+		</Alert>
+	{/if}
 
 	<div class="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8">
 		<div class="space-y-6">
 			<Card.Root>
 				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 					<Card.Title class="text-base">Trabajos</Card.Title>
-					{#if data.isAdmin}
+					{#if data.isAdmin && !isArchived}
 						<div class="flex flex-wrap gap-2">
 							<Button size="sm" onclick={() => (workOpen = true)}>Nuevo trabajo</Button>
 							<Button
@@ -284,7 +343,7 @@
 											{#if work.mode === 'divided'}
 												<MiniMeter value={work.approvedElements} total={work.elementCount} />
 											{/if}
-											{#if data.isAdmin}
+											{#if data.isAdmin && !isArchived}
 												<div class="relative z-10">
 													<DestructiveDelete
 														label="Eliminar"
@@ -308,7 +367,7 @@
 										<Table.Head class="hidden lg:table-cell">Tipo</Table.Head>
 										<Table.Head class="hidden lg:table-cell">Progreso</Table.Head>
 										<Table.Head>Estado</Table.Head>
-										{#if data.isAdmin}
+										{#if data.isAdmin && !isArchived}
 											<Table.Head class="w-px text-right">Acciones</Table.Head>
 										{/if}
 									</Table.Row>
@@ -347,7 +406,7 @@
 													<span class="text-muted-foreground">—</span>
 												{/if}
 											</Table.Cell>
-											{#if data.isAdmin}
+											{#if data.isAdmin && !isArchived}
 												<Table.Cell class="relative z-10 text-right">
 													<TableActions>
 														<DestructiveDelete
@@ -373,7 +432,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 					<Card.Title class="text-base">Participantes</Card.Title>
-					{#if data.isAdmin}
+					{#if data.isAdmin && !isArchived}
 						<Button variant="outline" size="sm" onclick={() => (assignmentsOpen = true)}
 							>Asignar</Button
 						>
@@ -382,7 +441,7 @@
 				<Card.Content>
 					{#if data.participants.length === 0}
 						<p class="text-sm text-muted-foreground">
-							Sin participantes asignados.{#if data.isAdmin}
+							Sin participantes asignados.{#if data.isAdmin && !isArchived}
 								<button
 									type="button"
 									class="underline underline-offset-4"
@@ -402,7 +461,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			{#if data.isAdmin}
+			{#if data.isAdmin && !isArchived}
 				<Card.Root>
 					<Card.Header><Card.Title class="text-base">Zona de peligro</Card.Title></Card.Header>
 					<Card.Content class="space-y-2">
@@ -424,7 +483,29 @@
 		</div>
 	</div>
 
-	{#if data.canManageAssignments}
+	{#if data.isAdmin && !isArchived}
+		<AlertDialog.Root bind:open={archiveServiceOpen}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>¿Archivar el servicio «{data.service.name}»?</AlertDialog.Title>
+					<AlertDialog.Description>
+						Quedará en solo lectura y no podrá reactivarse. Sus trabajos aprobados, entregas y fotos
+						se conservan.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="lifecycle" value="archived" />
+						<Button type="submit" variant="destructive">Archivar servicio</Button>
+					</form>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+	{/if}
+
+	{#if data.canManageAssignments && !isArchived}
 		<Dialog.Root bind:open={assignmentsOpen}>
 			<Dialog.Content size="lg">
 				<Dialog.Header>
@@ -522,7 +603,7 @@
 								value={data.service.contractId}
 								required
 							>
-								{#each data.contracts as contract (contract.id)}
+								{#each data.contracts.filter((contract) => contract.lifecycle === 'active' || contract.id === data.service.contractId) as contract (contract.id)}
 									<option value={contract.id}>{contract.name}</option>
 								{/each}
 							</NativeSelect>

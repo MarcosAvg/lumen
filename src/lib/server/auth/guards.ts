@@ -78,6 +78,9 @@ export async function requireCapture(locals: App.Locals, targetId: string): Prom
 	const user = requireUser(locals);
 	const target = await orHttp(getTargetContext(getDatabase().db, targetId));
 
+	if (target.serviceLifecycle !== 'active') {
+		throw error(409, 'El servicio no está activo; la evidencia es de solo lectura.');
+	}
 	if (user.role !== 'admin') {
 		const { access } = await orHttp(getServiceForUser(getDatabase().db, user, target.serviceId));
 		if (access !== 'technician') {
@@ -110,12 +113,15 @@ export async function requireReview(
 ): Promise<SubmissionContext> {
 	const user = requireUser(locals);
 	const context = await orHttp(getSubmissionContext(getDatabase().db, submissionId));
+	const { service, access } = await orHttp(
+		getServiceForUser(getDatabase().db, user, context.serviceId)
+	);
 
-	if (user.role !== 'admin') {
-		const { access } = await orHttp(getServiceForUser(getDatabase().db, user, context.serviceId));
-		if (access !== 'supervisor') {
-			throw error(403, 'Solo los supervisores asignados pueden revisar esta entrega.');
-		}
+	if (service.lifecycle !== 'active') {
+		throw error(409, 'El servicio no está activo; la revisión es de solo lectura.');
+	}
+	if (user.role !== 'admin' && access !== 'supervisor') {
+		throw error(403, 'Solo los supervisores asignados pueden revisar esta entrega.');
 	}
 
 	return context;

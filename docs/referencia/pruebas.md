@@ -78,6 +78,15 @@ Una función está terminada cuando:
 | UI-01 | Alta sin selección inicial | Ningún desplegable obligatorio preselecciona el primer registro |
 | UI-02 | Catálogos en un contexto mixto | Agrupados por Generales, Edificios y Requisitos |
 | UI-03 | Asignación sin rol ni persona | Añadir deshabilitado hasta completar |
+| PANEL-01 | Panel de administrador | Agregados globales, contratos, tendencia y cola sin datos ajenos |
+| PANEL-02 | Panel de supervisor | Solo servicios y contratos asignados; cola y decisiones acotadas |
+| PANEL-03 | Cola de revisión | Orden por antigüedad y aviso visual a partir de 24 h |
+| PANEL-04 | Panel del técnico | Primero trabajos rechazados/pendientes; límites 3/5/6 y enlace a Servicios |
+| LIFE-01 | Servicio `planned` o `inactive` | Estructura consultable; captura, envío y revisión bloqueados con `409` |
+| LIFE-02 | Archivar servicio incompleto | Bloqueado; el servicio sigue operativo |
+| LIFE-03 | Archivar servicio completado y luego el contrato | Permitido; aprobaciones y fotos intactas; ambos terminales |
+| LIFE-04 | Pausar contrato con servicios activos/en espera | Bloqueado con explicación |
+| LIFE-05 | Tablero y listados con servicios inactivos/archivados | Agregados solo de activos; filtros permiten consultar el resto |
 
 ## 4. Pruebas E2E mínimas
 
@@ -88,6 +97,8 @@ Una función está terminada cuando:
 - Búsqueda filtrada por ámbito.
 - Asignaciones y revocaciones.
 - Catálogos agrupados y ausencia de valores preseleccionados.
+- Ciclo de vida: crear en espera, activar, pausar, archivar completo y filtrar
+  archivados en solo lectura.
 - Exportaciones ZIP, XLSX y PDF.
 - Estados vacíos, error, conflicto y sin permiso.
 - Móvil y escritorio.

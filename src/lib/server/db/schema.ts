@@ -31,6 +31,15 @@ export const userRole = pgEnum('user_role', ['admin', 'supervisor', 'technician'
 
 export const assignmentRole = pgEnum('assignment_role', ['technician', 'supervisor']);
 
+export const contractLifecycle = pgEnum('contract_lifecycle', ['active', 'inactive', 'archived']);
+
+export const serviceLifecycle = pgEnum('service_lifecycle', [
+	'planned',
+	'active',
+	'inactive',
+	'archived'
+]);
+
 export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings', 'requirements']);
 
 export const workMode = pgEnum('work_mode', ['direct', 'divided']);
@@ -155,6 +164,7 @@ export const contracts = pgTable(
 		id: uuid('id').primaryKey().defaultRandom(),
 		name: text('name').notNull(),
 		description: text('description'),
+		lifecycle: contractLifecycle('lifecycle').notNull().default('active'),
 		/** Fondo compartido de los PDF de evidencia del contrato (ruta interna). */
 		pdfBackgroundPath: text('pdf_background_path'),
 		/** Márgenes del PDF del contrato, en milímetros. */
@@ -166,7 +176,10 @@ export const contracts = pgTable(
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},
-	(table) => [uniqueIndex('contracts_name_unique').on(table.name)]
+	(table) => [
+		uniqueIndex('contracts_name_unique').on(table.name),
+		index('contracts_lifecycle_idx').on(table.lifecycle)
+	]
 );
 
 /**
@@ -206,6 +219,7 @@ export const services = pgTable(
 			.references(() => contracts.id, { onDelete: 'restrict' }),
 		name: text('name').notNull(),
 		description: text('description'),
+		lifecycle: serviceLifecycle('lifecycle').notNull().default('active'),
 		buildingCatalogItemId: uuid('building_catalog_item_id').references(() => catalogItems.id, {
 			onDelete: 'set null'
 		}),
@@ -216,7 +230,8 @@ export const services = pgTable(
 	},
 	(table) => [
 		index('services_building_item_idx').on(table.buildingCatalogItemId),
-		index('services_contract_idx').on(table.contractId)
+		index('services_contract_idx').on(table.contractId),
+		index('services_lifecycle_idx').on(table.lifecycle)
 	]
 );
 

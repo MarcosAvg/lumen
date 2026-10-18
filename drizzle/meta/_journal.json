@@ -85,6 +85,13 @@
       "when": 1792118488284,
       "tag": "0011_far_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792284047570,
+      "tag": "0012_hot_power_man",
+      "breakpoints": true
     }
   ]
 }

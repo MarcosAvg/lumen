@@ -12,8 +12,10 @@ test('el tablero se adapta al rol del usuario', async ({ page }, testInfo) => {
 	// Administrador: resumen global y cola de revisión.
 	await page.goto('/dashboard');
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
-	await expect(page.getByText('Objetivos aprobados')).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Entregas por revisar' })).toBeVisible();
+	const summary = page.getByRole('region', { name: 'Resumen operativo' });
+	await expect(summary.getByText('Contratos activos', { exact: true })).toBeVisible();
+	await expect(summary.getByText('Revisiones pendientes', { exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Cola de revisión' })).toBeVisible();
 	await expect(page.getByRole('link', { name: 'Revisiones' })).toBeVisible();
 
 	// Técnico: sin cola de revisión y con su propio mensaje.
@@ -35,11 +37,11 @@ test('el tablero se adapta al rol del usuario', async ({ page }, testInfo) => {
 	await expect(page.getByRole('heading', { name: /Hola,/ })).toBeVisible();
 	const metrics = page.getByRole('region', { name: 'Tu resumen' });
 	await expect(metrics).toBeVisible();
-	await expect(metrics.getByText('Servicios')).toBeVisible();
+	await expect(metrics.getByText('Servicios activos')).toBeVisible();
 	await expect(metrics.getByText('Aprobados')).toBeVisible();
 	await expect(metrics.getByText('Por corregir')).toBeVisible();
 	await expect(metrics.getByText('En curso')).toBeVisible();
-	await expect(page.getByText('No tienes evidencia pendiente. Buen trabajo.')).toBeVisible();
+	await expect(page.getByText('Sin servicios asignados', { exact: true })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Entregas por revisar' })).toHaveCount(0);
 	await expect(page.getByRole('link', { name: 'Revisiones' })).toHaveCount(0);
 });

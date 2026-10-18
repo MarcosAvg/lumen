@@ -26,6 +26,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
 		.getByRole('link', { name: serviceName })
+		.first()
 		.getAttribute('href');
 	const serviceId = (serviceHref ?? '').split('/').pop() ?? '';
 

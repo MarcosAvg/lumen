@@ -18,8 +18,10 @@ miniaturas, búsqueda, push y streaming.
 | POST | `/setup` | Primer arranque | Aún no existe administrador; transacción serializada |
 | POST | `/logout` | Sesión activa | Cierra la sesión |
 | Acción server | Crear/editar/borrar contrato | Admin | Datos válidos; sin servicios para borrar |
+| Acción server | Cambiar ciclo de vida del contrato | Admin | `inactive` sin servicios activos/en espera; `archived` con todos archivados; terminal |
 | Acción server | Gestionar participantes de contrato | Admin o supervisor del contrato | Miembros activos; no dejar contrato sin participantes válidos |
-| Acción server | Crear/editar/borrar servicio | Admin | Contrato existente; datos válidos |
+| Acción server | Crear/editar/borrar servicio | Admin | Contrato activo para crear/mover; datos válidos |
+| Acción server | Cambiar ciclo de vida del servicio | Admin | `planned` solo al crear; `active` con contrato activo; `archived` solo si completado; terminal |
 | Acción server | Asignar/revocar servicio | Admin o supervisor del contrato | El usuario debe ser miembro del contrato; el admin puede incorporarlo |
 | Acción server | Crear/editar trabajo, elementos y requisitos | Admin | Estructura y estado editables |
 | POST | `/api/works/:id/convert` | Admin | Sin entregas históricas; mapa completo; versión |
@@ -79,6 +81,10 @@ accionables; nunca muestra trazas ni secretos.
   cacheados en la cookie.
 - Los técnicos no revisan ni exportan ZIP.
 - Los supervisores no capturan ni modifican evidencia.
+- Un servicio `planned` o `inactive` bloquea captura, envío, revisión y cambios
+  de requisitos con `409`; un servicio `archived` es de solo lectura.
+- Las lecturas y exportaciones de recursos archivados conservan el ámbito y
+  siguen auditadas.
 - Los administradores no necesitan asignación, pero sus acciones quedan
   auditadas.
 - Los enlaces profundos de notificaciones revalidan permisos al abrirse.

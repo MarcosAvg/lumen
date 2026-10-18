@@ -83,13 +83,17 @@ actual; no se confía en permisos cacheados en la cookie.
 
 ### `contracts`
 
-`id`, `name` único, `description`, `pdf_background_path`,
-`pdf_margin_top`, `pdf_margin_bottom`, `pdf_margin_left`, `pdf_margin_right`,
-`created_by`, `created_at` y `updated_at`.
+`id`, `name` único, `description`, `lifecycle` (`active`/`inactive`/`archived`),
+`pdf_background_path`, `pdf_margin_top`, `pdf_margin_bottom`,
+`pdf_margin_left`, `pdf_margin_right`, `created_by`, `created_at` y
+`updated_at`.
 
 - Es el nivel superior y agrupa servicios.
+- `lifecycle` es un enum con default `active`; índice por estado.
 - Un servicio pertenece siempre a un contrato (`services.contract_id NOT NULL`).
 - No se elimina un contrato con servicios: la FK usa `RESTRICT`.
+- `inactive` exige que no existan servicios `planned` o `active`; `archived`
+  exige que todos los servicios estén archivados y es terminal.
 - Los márgenes se guardan en milímetros y el fondo es una ruta interna.
 
 ### `contract_assignments`
@@ -108,9 +112,13 @@ actual; no se confía en permisos cacheados en la cookie.
 ### `services`
 
 `id`, `contract_id` (FK `RESTRICT`), `name`, `description`,
+`lifecycle` (`planned`/`active`/`inactive`/`archived`),
 `building_catalog_item_id` nullable, `building_name_snapshot`,
 `created_by`, `created_at` y `updated_at`.
 
+- `lifecycle` es un enum con default `active`; índice por estado.
+- `planned` permite estructura sin captura; `inactive` bloquea captura y
+  revisión; `archived` es terminal y exige `completed(service)`.
 - Cambiar de contrato revoca las asignaciones de servicio incompatibles.
 - El administrador que asigna un servicio incorpora al usuario al contrato si
   falta; el supervisor del contrato solo puede asignar a miembros existentes.
@@ -413,6 +421,11 @@ indicando por separado los trabajos divididos vacíos para no reportar un 100 %
 falso. El porcentaje es informativo; el criterio de completado es el predicado
 anterior.
 
+El ciclo de vida es independiente: `archived` no sustituye a `completed` ni
+modifica aprobaciones. Las transiciones se validan en transacción con bloqueo de
+la fila y registro en `audit_events` (`*.lifecycle_changed`). Un recurso
+archivado no vuelve a `active`.
+
 ## 11. Índices y constraints recomendados
 
 - `users`: unique sobre `lower(username)`.
@@ -422,6 +435,8 @@ anterior.
 - `works(service_id, sort_order)` y `elements(work_id, sort_order)`.
 - `works(catalog_item_id)`, `elements(catalog_item_id)`,
   `services(building_catalog_item_id)`.
+- `contracts(lifecycle)` y `services(lifecycle)` para filtros de listado y
+  tablero.
 - `catalog_items(catalog_id, lower(name))`.
 - `catalog_item_relations(from_item_id, to_item_id, relation_type)` y parcial
   para tipo nulo.

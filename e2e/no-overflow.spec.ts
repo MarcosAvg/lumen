@@ -92,6 +92,7 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 			.filter({ visible: true })
 			.filter({ hasText: workName })
 			.getByRole('link', { name: workName })
+			.first()
 			.getAttribute('href')) ?? '/dashboard',
 		'http://x/'
 	).pathname;
@@ -160,6 +161,7 @@ test('las acciones del catálogo son alcanzables en móvil', async ({ page }, te
 		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
+		.first()
 		.getAttribute('href');
 	await page.goto(catalogHref ?? '/admin/catalogs');
 

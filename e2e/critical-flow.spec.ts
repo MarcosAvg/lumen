@@ -23,7 +23,8 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
@@ -36,7 +37,8 @@ async function createPendingSubmission(page: Page, unique: string) {
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: workName })
-		.getByRole('link', { name: workName });
+		.getByRole('link', { name: workName })
+		.first();
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 	await page.locator('input[type="file"]').last().setInputFiles(photoFile());
@@ -94,7 +96,8 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 			.locator('tr, li')
 			.filter({ visible: true })
 			.filter({ hasText: workName })
-			.getByRole('link', { name: workName });
+			.getByRole('link', { name: workName })
+			.first();
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
 		await page.getByRole('button', { name: 'Aprobar entrega' }).click();
@@ -127,7 +130,8 @@ test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testIn
 			.locator('tr, li')
 			.filter({ visible: true })
 			.filter({ hasText: workName })
-			.getByRole('link', { name: workName });
+			.getByRole('link', { name: workName })
+			.first();
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
 

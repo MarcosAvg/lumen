@@ -27,6 +27,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 		.filter({ visible: true })
 		.filter({ hasText: service })
 		.getByRole('link', { name: service })
+		.first()
 		.getAttribute('href');
 	await page.goto(serviceHref ?? '/admin/services');
 

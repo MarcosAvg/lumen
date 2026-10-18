@@ -31,6 +31,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
+		.first()
 		.click();
 	for (const name of [antes, despues]) {
 		await page.getByRole('button', { name: 'Nuevo ítem' }).click();
@@ -53,7 +54,8 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
@@ -66,7 +68,8 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: workName })
-		.getByRole('link', { name: workName });
+		.getByRole('link', { name: workName })
+		.first();
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 
 	// Alta desde el catálogo de requisitos (varios a la vez), en el modal.

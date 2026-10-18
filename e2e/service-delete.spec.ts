@@ -19,7 +19,8 @@ test('el administrador elimina un servicio desde su página', async ({ page }, t
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await expect(page.getByRole('heading', { name: serviceName })).toBeVisible();
 

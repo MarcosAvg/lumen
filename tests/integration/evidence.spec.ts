@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, expect, it } from 'vitest';
+import { afterAll, beforeEach, expect, it, vi } from 'vitest';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -107,6 +107,33 @@ await describeWithDatabase('Evidencia · fotos y requisitos', ({ db, client }) =
 			new Set([admin, tech])
 		);
 		expect(first.version).not.toBe(second.version);
+	});
+
+	it('PHOTO-05: un fallo de almacenamiento devuelve 503 y no crea la foto', async () => {
+		const { admin, targetId } = await seed();
+		const storage = await makeStorage();
+		const failingStorage: Storage = {
+			...storage,
+			save: async () => {
+				throw new Error('EACCES: almacenamiento no escribible');
+			}
+		};
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		await expect(
+			appendPhoto(db, failingStorage, {
+				targetId,
+				requirementId: null,
+				buffer: await png(),
+				userId: admin,
+				maxDimension: 2560,
+				thumbDimension: 400
+			})
+		).rejects.toMatchObject({ status: 503 });
+
+		expect((await loadEvidence(db, targetId)).photos).toHaveLength(0);
+		expect(errorSpy).toHaveBeenCalled();
+		errorSpy.mockRestore();
 	});
 
 	it('el retiro exige la versión vigente y conserva el archivo (soft removal)', async () => {

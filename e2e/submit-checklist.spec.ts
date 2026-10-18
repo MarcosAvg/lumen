@@ -22,7 +22,8 @@ test('el checklist de envío avisa antes de enviar evidencia obligatoria', async
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	await page.getByRole('tab', { name: 'Nombre propio' }).click();
@@ -35,7 +36,8 @@ test('el checklist de envío avisa antes de enviar evidencia obligatoria', async
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: workName })
-		.getByRole('link', { name: workName });
+		.getByRole('link', { name: workName })
+		.first();
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 	await expect(page.getByRole('heading', { name: workName }).first()).toBeVisible();
 

@@ -90,28 +90,83 @@ No se muestra a un supervisor un contador global que incluya servicios no
 asignados. Los contadores se refrescan por polling cada 30 s y al volver a la
 pestaña; no hay WebSockets.
 
+Las métricas usan iconos tintados y una regla superior de color. Los paneles de
+administrador y supervisor incluyen una franja de **evidencia reciente** con
+miniaturas reales, estado, trabajo, servicio y autor. La franja se limita a
+**6 fotos** en todos los paneles; si no hay fotos, aparece un vacío con icono de
+cámara. Los estados también se refuerzan con el rail lateral de las filas y
+tarjetas, no solo con el chip.
+
+### Panel del técnico
+
+El técnico ve primero el trabajo que requiere acción:
+
+1. Métricas de servicios, trabajos aprobados, por corregir y en curso.
+2. **Requiere tu atención**: hasta 3 trabajos rechazados.
+3. **Pendientes**: hasta 5 trabajos en curso o pendientes.
+4. **Evidencia reciente**: hasta 6 fotos, al final.
+
+Los grupos de trabajo muestran el total real en las métricas y un enlace a
+Servicios para consultar el resto. El panel no se expande dentro de la página y
+mantiene una altura acotada aunque se acumulen entregas.
+
+### Panel de administrador
+
+El administrador ve un centro de mando global:
+
+- KPIs de contratos activos, servicios activos, usuarios activos, revisiones
+  pendientes, aprobaciones de los últimos 7 días y objetivos rechazados.
+- **Estado de los objetivos** con un espectro segmentado por estado.
+- **Actividad de revisión** de los últimos 30 días.
+- **Contratos** con volumen, avance, cola de revisión y rechazos.
+- **Cola de revisión** ordenada por antigüedad, con aviso si supera 24 horas.
+- **Decisiones recientes** y evidencia reciente.
+
+### Panel de supervisor
+
+El supervisor ve su ámbito como una cola operativa:
+
+- KPIs de servicios asignados, revisiones pendientes, objetivos por corregir,
+  aprobaciones de los últimos 7 días y antigüedad máxima de la cola.
+- El mismo espectro de estados y actividad de revisión, acotados a su ámbito.
+- **Servicios a tu cargo** con progreso, cola, rechazos y última actividad.
+- **Cola de revisión** priorizada y **decisiones recientes**.
+- Evidencia reciente de sus servicios.
+
+Las acciones rápidas permiten ir a Servicios, Usuarios, Catálogos y Contratos
+(admin) o a la cola de revisión y Servicios (supervisor).
+
 ## 5. Contratos y servicios
 
 ### Contratos
 
-- `/contracts` lista los contratos del usuario.
-- La ficha del contrato replica la ficha de servicio: cabecera con metadatos y
-  medidor de avance; cuerpo en dos columnas con servicios, participantes, PDF de
-  evidencia y zona de peligro.
+- `/contracts` lista los contratos del usuario, con filtros **Activos**,
+  **Inactivos** y **Archivados**. El filtro inicial es Activos.
+- La ficha del contrato replica la ficha de servicio: cabecera con metadatos,
+  chip de ciclo de vida y medidor de avance; cuerpo en dos columnas con
+  servicios, participantes, PDF de evidencia y zona de peligro.
 - Los participantes se gestionan en modal. Administradores y supervisores del
   contrato pueden añadir o revocar.
-- La edición y el borrado del contrato exigen confirmación.
+- El administrador pausa, reactiva o archiva el contrato desde la cabecera. Las
+  acciones se deshabilitan con explicación si hay servicios activos/en espera o
+  sin archivar. Archivar pide confirmación y el contrato archivado no muestra
+  acciones de edición.
 
 ### Servicios
 
-- `/services` muestra los servicios asignados al técnico o supervisor.
-- `/admin/services` es el listado de administración, con creación, edición y
-  borrado.
-- La ficha muestra nombre, descripción, edificio, estado, participantes y
-  trabajos.
+- `/services` muestra los servicios asignados al técnico o supervisor;
+  `/admin/services` es el listado de administración.
+- Ambos listados filtran por ciclo de vida (**Activos**, **En espera**,
+  **Inactivos**, **Archivados**) y empiezan en Activos. La creación permite
+  marcar «Crear en espera».
+- La ficha muestra nombre, descripción, edificio, chip de ciclo de vida,
+  participantes y trabajos.
 - El administrador edita los datos en modal y gestiona participantes en otro
   modal. Un supervisor del contrato puede gestionar las asignaciones de servicio
   de su contrato.
+- El administrador activa, pausa, reactiva o archiva el servicio desde la
+  cabecera. Archivar exige que esté completado y pide confirmación. Un servicio
+  no activo muestra un aviso y la evidencia queda en solo lectura.
 - La lista de trabajos muestra modo, estado y avance. En móvil cada trabajo es
   una tarjeta clicable; en escritorio, una fila compacta.
 - La exportación ZIP está disponible también si el servicio no está completo;
@@ -287,6 +342,8 @@ UMA 03                              [Rechazado]
 
 - Se distinguen carga, vacío, error, sin permiso, conflicto, sin conexión y
   bloqueado.
+- Los vacíos usan un icono tintado, fondo inset y borde discontinuo; no son
+  cajas blancas con texto centrado.
 - El resultado de una acción de página se confirma con un aviso persistente
   `Alert role="status"`.
 - Las acciones rápidas de cliente usan toast.

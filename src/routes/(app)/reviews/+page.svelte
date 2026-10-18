@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
 	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
@@ -88,6 +89,8 @@
 
 	{#if data.pending.length === 0}
 		<EmptyState
+			Icon={ClipboardCheck}
+			tone="approved"
 			title="No hay entregas pendientes"
 			description="No hay entregas en revisión con estos filtros."
 		/>

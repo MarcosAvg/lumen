@@ -28,8 +28,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const work = await orHttp(getWorkDetail(db, workId));
 	// Verifica el ámbito del servicio al que pertenece el trabajo.
-	const { access } = await requireServiceAccess(locals, work.serviceId);
+	const { access, service } = await requireServiceAccess(locals, work.serviceId);
 	const canExport = access !== 'technician';
+	const serviceActive = service.lifecycle === 'active';
 
 	if (work.mode === 'direct') {
 		const target = await orHttp(getTargetForWork(db, workId));
@@ -51,7 +52,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			rejection,
 			conversion,
 			catalogs,
-			editable: isEditableStatus(target.status),
+			serviceLifecycle: service.lifecycle,
+			editable: serviceActive && isEditableStatus(target.status),
 			isAdmin: user.role === 'admin',
 			canExport
 		};
@@ -72,6 +74,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		rejection: null,
 		conversion,
 		catalogs,
+		serviceLifecycle: service.lifecycle,
 		editable: false,
 		isAdmin: user.role === 'admin',
 		canExport

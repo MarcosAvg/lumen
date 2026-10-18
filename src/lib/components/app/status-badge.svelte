@@ -23,4 +23,7 @@
 	let { status, label }: { status: StatusTone; label?: string } = $props();
 </script>
 
-<Chip tone={tones[status]}>{label ?? labels[status]}</Chip>
+<Chip tone={tones[status]}>
+	<span class="size-1.5 rounded-full bg-current opacity-75" aria-hidden="true"></span>
+	{label ?? labels[status]}
+</Chip>

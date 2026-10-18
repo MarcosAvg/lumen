@@ -20,7 +20,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	create: async (event) => {
 		const admin = requireAdmin(event.locals);
-		const parsed = parseForm(createServiceSchema, await event.request.formData());
+		const formData = await event.request.formData();
+		const parsed = parseForm(createServiceSchema, formData);
 		if (!parsed.ok) return fail(400, { createErrors: parsed.errors });
 
 		try {
@@ -28,6 +29,10 @@ export const actions: Actions = {
 				contractId: parsed.data.contractId,
 				name: parsed.data.name,
 				description: parsed.data.description,
+				lifecycle:
+					formData.get('planned') === 'on' || formData.get('planned') === 'true'
+						? 'planned'
+						: 'active',
 				actorId: admin.id
 			});
 		} catch (error) {

@@ -48,6 +48,7 @@ test('eliminar un catálogo redirige a la lista (sin 500)', async ({ page }, tes
 		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
+		.first()
 		.click();
 	await page.getByRole('button', { name: 'Eliminar catálogo' }).click();
 	const dialog = page.getByRole('alertdialog');

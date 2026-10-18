@@ -27,7 +27,11 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 
 - **Radios:** controles `rounded-lg` (6 px); superficies `rounded-xl` (10 px);
   diálogos `rounded-2xl` (12 px); badges tipo pill.
-- **Bordes:** 1 px. Sin sombras en tarjetas; los overlays usan sombra y ring.
+- **Superficies:** canvas (`--background`), tarjeta (`--card`) e inset
+  (`--surface-inset`). Las tarjetas usan `--shadow-card`; el hover de elementos
+  destacados usa `--shadow-lift`. No se usan sombras grandes ni difusas.
+- **Bordes:** 1 px. El canvas y el sidebar tienen valores distintos para separar
+  capas sin depender solo del borde.
 - **Espaciado:** página `space-y-6`; interior `space-y-3/4`; gaps `gap-2/3`.
 - **Altura de controles:**
   - `Input` y `NativeSelect`: `h-10` en escritorio, `max-md:h-11`.
@@ -64,6 +68,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 - En móvil, breadcrumbs ocultos y descripción limitada en fichas.
 - La tarjeta o fila completa puede ser enlace; el nombre del recurso es el
   enlace principal. No se añaden botones «Abrir» o «Ver».
+- El ítem activo del sidebar usa fondo azul tenue, texto e icono primarios y una
+  barra interior. En la barra inferior móvil, el ítem activo usa texto primario y
+  un fondo azul muy tenue.
 
 ## 5. Modales y overlays
 
@@ -128,13 +135,33 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 
 ## 9. Chips, estados y métricas
 
-- `Chip`: fondo tenue, texto del color, sin borde.
-- `StatusBadge` reutiliza `Chip`.
+- `Chip`: fondo tenue, texto del color y ring interior del mismo tono.
+- `StatusBadge` reutiliza `Chip` y añade un punto de color como señal redundante.
+- `LifecycleBadge` usa `Chip` para `En espera`, `Activo`, `Inactivo` y
+  `Archivado`; el archivado de contrato se etiqueta como «Contrato archivado».
+- `LifecycleFilter` agrupa botones con `aria-pressed` y contador por estado. Es
+  la única forma de filtrar listados por ciclo de vida.
 - El modo Directo/Dividido usa chip neutro.
 - En filas, los chips se alinean al final.
-- `ProgressMeter`: barra con marcas, `X/Y` y porcentaje; azul en curso y teal al
-  completar.
+- `ProgressMeter`: barra con marcas, `X/Y`, porcentaje y `role="progressbar"`;
+  azul en curso y teal al completar.
 - `MiniMeter`: barra compacta para progreso de elementos.
+- `MetricCard`: tarjeta con icono tintado, regla superior de color, etiqueta,
+  valor o contenido (por ejemplo, un medidor).
+- `StatusSpectrum`: barra segmentada de estados con contadores y leyenda.
+- `ReviewTrend`: actividad diaria de envíos, aprobaciones y rechazos en 30 días,
+  con barras CSS y sin librería de gráficos.
+- `ScopePulse`: contratos (admin) o servicios (supervisor) con progreso, cola,
+  rechazos y última actividad.
+- `ReviewQueue`: cola ordenada por antigüedad, con aviso visual a partir de 24 h.
+- `RecentDecisions`: últimas aprobaciones y rechazos, motivo y enlace a la
+  entrega.
+- El color del estado se refuerza con el rail lateral de filas y tarjetas, no
+  solo con el chip.
+- El dashboard incluye una franja o cuadrícula de **evidencia reciente** con
+  miniaturas reales; las fotos aportan el color natural del producto.
+- `EmptyState` usa icono tintado, fondo inset y borde discontinuo; no es una caja
+  blanca vacía.
 - El estado no se comunica solo por color.
 
 ## 10. Accesibilidad

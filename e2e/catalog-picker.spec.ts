@@ -22,6 +22,8 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 		.filter({ visible: true })
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
+		.filter({ visible: true })
+		.first()
 		.click();
 	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
 	await page.locator('#item-name').fill(itemName);
@@ -45,7 +47,9 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.filter({ visible: true })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');

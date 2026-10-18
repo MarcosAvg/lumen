@@ -17,6 +17,7 @@
 ```bash
 cp .env.example .env
 # Descomentar DATABASE_URL y TEST_DATABASE_URL
+mkdir -p data/photos
 
 docker compose -f compose.yaml -f compose.dev.yaml up -d db
 pnpm install
@@ -26,8 +27,10 @@ pnpm dev
 
 La aplicación queda en `http://localhost:5173`.
 
-En desarrollo, `PHOTO_STORAGE_PATH` apunta a `./data/photos`, ignorado por git.
-En producción se usa el volumen `lumen_photos` en `/data/photos`.
+`.env.example` incluye `PHOTO_STORAGE_PATH=./data/photos` para desarrollo. Es
+importante que esa ruta exista y sea escribible; si falta, las subidas
+responden con un error de almacenamiento. En producción Compose fija
+`/data/photos`, sobre el volumen `lumen_photos`.
 
 La referencia de variables está en
 [`../referencia/variables-entorno.md`](../referencia/variables-entorno.md).

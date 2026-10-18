@@ -70,11 +70,14 @@ export async function createWork(
 ): Promise<{ id: string; targetId: string | null; elementIds: string[] }> {
 	return db.transaction(async (tx) => {
 		const [service] = await tx
-			.select({ id: services.id })
+			.select({ id: services.id, lifecycle: services.lifecycle })
 			.from(services)
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+		if (service.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 
 		const elementInputs = input.elements ?? [];
 		if (input.mode !== 'divided' && elementInputs.length > 0) {
@@ -174,11 +177,20 @@ export async function createElement(
 ): Promise<{ id: string; targetId: string }> {
 	return db.transaction(async (tx) => {
 		const [work] = await tx
-			.select({ id: works.id, mode: works.mode, serviceId: works.serviceId })
+			.select({
+				id: works.id,
+				mode: works.mode,
+				serviceId: works.serviceId,
+				serviceLifecycle: services.lifecycle
+			})
 			.from(works)
+			.innerJoin(services, eq(services.id, works.serviceId))
 			.where(eq(works.id, input.workId))
 			.limit(1);
 		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.serviceLifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 		if (work.mode !== 'divided') {
 			throw new DomainError(409, 'Solo los trabajos divididos pueden tener elementos.');
 		}
@@ -233,11 +245,20 @@ export async function addElements(
 ): Promise<{ elementIds: string[] }> {
 	return db.transaction(async (tx) => {
 		const [work] = await tx
-			.select({ id: works.id, mode: works.mode, serviceId: works.serviceId })
+			.select({
+				id: works.id,
+				mode: works.mode,
+				serviceId: works.serviceId,
+				serviceLifecycle: services.lifecycle
+			})
 			.from(works)
+			.innerJoin(services, eq(services.id, works.serviceId))
 			.where(eq(works.id, input.workId))
 			.limit(1);
 		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.serviceLifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 		if (work.mode !== 'divided') {
 			throw new DomainError(409, 'Solo los trabajos divididos pueden tener elementos.');
 		}
@@ -310,14 +331,19 @@ export async function updateWork(db: Database, input: UpdateNamedItemInput): Pro
 			.select({
 				id: works.id,
 				serviceId: works.serviceId,
+				serviceLifecycle: services.lifecycle,
 				catalogItemId: works.catalogItemId,
 				catalogName: catalogItems.name
 			})
 			.from(works)
+			.innerJoin(services, eq(services.id, works.serviceId))
 			.leftJoin(catalogItems, eq(catalogItems.id, works.catalogItemId))
 			.where(eq(works.id, input.id))
 			.limit(1);
 		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.serviceLifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 
 		const keepsLink = Boolean(work.catalogItemId) && work.catalogName === input.name.trim();
 		await tx
@@ -348,15 +374,20 @@ export async function updateElement(db: Database, input: UpdateNamedItemInput): 
 				id: elements.id,
 				workId: elements.workId,
 				serviceId: works.serviceId,
+				serviceLifecycle: services.lifecycle,
 				catalogItemId: elements.catalogItemId,
 				catalogName: catalogItems.name
 			})
 			.from(elements)
 			.innerJoin(works, eq(works.id, elements.workId))
+			.innerJoin(services, eq(services.id, works.serviceId))
 			.leftJoin(catalogItems, eq(catalogItems.id, elements.catalogItemId))
 			.where(eq(elements.id, input.id))
 			.limit(1);
 		if (!row) throw new DomainError(404, 'Elemento no encontrado.');
+		if (row.serviceLifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 
 		const keepsLink = Boolean(row.catalogItemId) && row.catalogName === input.name.trim();
 		await tx

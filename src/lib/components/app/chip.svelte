@@ -17,17 +17,17 @@
 	}: { tone?: ChipTone; class?: string; children?: Snippet } = $props();
 
 	const tones: Record<ChipTone, string> = {
-		neutral: 'bg-muted text-muted-foreground',
-		attention: 'bg-state-attention/15 text-state-attention-ink',
-		pending: 'bg-state-pending/15 text-state-pending-ink',
-		approved: 'bg-state-approved/15 text-state-approved-ink',
-		rejected: 'bg-state-rejected/15 text-state-rejected-ink'
+		neutral: 'bg-muted text-muted-foreground ring-border',
+		attention: 'bg-state-attention/18 text-state-attention-ink ring-state-attention/15',
+		pending: 'bg-state-pending/18 text-state-pending-ink ring-state-pending/15',
+		approved: 'bg-state-approved/18 text-state-approved-ink ring-state-approved/15',
+		rejected: 'bg-state-rejected/18 text-state-rejected-ink ring-state-rejected/15'
 	};
 </script>
 
 <span
 	class={cn(
-		'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap',
+		'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset',
 		tones[tone],
 		className
 	)}

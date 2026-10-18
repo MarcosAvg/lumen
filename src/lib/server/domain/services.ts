@@ -1,14 +1,17 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	catalogItems,
 	contractAssignments,
 	contracts,
+	elements,
+	evidenceTargets,
 	serviceAssignments,
 	services,
-	users
+	users,
+	works
 } from '#lib/server/db/schema';
-import type { AssignmentRole, SessionUser } from '#lib/types';
+import type { AssignmentRole, ServiceLifecycle, SessionUser } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
 
@@ -24,6 +27,7 @@ export interface ServiceSummary {
 	contractName: string;
 	name: string;
 	description: string | null;
+	lifecycle: ServiceLifecycle;
 	buildingName: string | null;
 	buildingCatalogItemId: string | null;
 }
@@ -32,6 +36,8 @@ export interface CreateServiceInput {
 	contractId: string;
 	name: string;
 	description?: string | null;
+	/** `planned` permite preparar la estructura sin capturar evidencia. */
+	lifecycle?: Extract<ServiceLifecycle, 'planned' | 'active'>;
 	actorId: string;
 }
 
@@ -41,18 +47,23 @@ export async function createService(
 ): Promise<{ id: string; contractId: string }> {
 	return db.transaction(async (tx) => {
 		const [contract] = await tx
-			.select({ id: contracts.id })
+			.select({ id: contracts.id, lifecycle: contracts.lifecycle })
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+		if (contract.lifecycle !== 'active') {
+			throw new DomainError(409, 'Activa el contrato antes de añadir servicios.');
+		}
 
+		const lifecycle = input.lifecycle ?? 'active';
 		const [created] = await tx
 			.insert(services)
 			.values({
 				contractId: input.contractId,
 				name: input.name,
 				description: input.description?.trim() || null,
+				lifecycle,
 				createdBy: input.actorId
 			})
 			.returning({ id: services.id });
@@ -63,7 +74,7 @@ export async function createService(
 			entityType: 'service',
 			entityId: created.id,
 			action: 'service.created',
-			metadata: { name: input.name, contractId: input.contractId }
+			metadata: { name: input.name, contractId: input.contractId, lifecycle }
 		});
 
 		return { id: created.id, contractId: input.contractId };
@@ -85,11 +96,14 @@ export interface UpdateServiceInput {
 export async function updateService(db: Database, input: UpdateServiceInput): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [current] = await tx
-			.select({ id: services.id, contractId: services.contractId })
+			.select({ id: services.id, contractId: services.contractId, lifecycle: services.lifecycle })
 			.from(services)
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
 		if (!current) throw new DomainError(404, 'Servicio no encontrado.');
+		if (current.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado es de solo lectura.');
+		}
 
 		const values: Partial<typeof services.$inferInsert> = {
 			name: input.name,
@@ -117,11 +131,14 @@ export async function updateService(db: Database, input: UpdateServiceInput): Pr
 		// (los participantes de un servicio deben pertenecer a su contrato).
 		if (input.contractId && input.contractId !== current.contractId) {
 			const [contract] = await tx
-				.select({ id: contracts.id })
+				.select({ id: contracts.id, lifecycle: contracts.lifecycle })
 				.from(contracts)
 				.where(eq(contracts.id, input.contractId))
 				.limit(1);
 			if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+			if (contract.lifecycle !== 'active') {
+				throw new DomainError(409, 'Solo puedes mover servicios a contratos activos.');
+			}
 
 			values.contractId = input.contractId;
 
@@ -156,12 +173,123 @@ export async function updateService(db: Database, input: UpdateServiceInput): Pr
 	});
 }
 
+export interface SetServiceLifecycleInput {
+	serviceId: string;
+	lifecycle: ServiceLifecycle;
+	actorId: string;
+}
+
+/**
+ * Cambia el ciclo de vida del servicio sin alterar evidencias ni aprobaciones.
+ * `planned` solo se usa al crear. Un servicio archivado es terminal y, para
+ * archivarlo, todo su trabajo debe estar aprobado.
+ */
+export async function setServiceLifecycle(
+	db: Database,
+	input: SetServiceLifecycleInput
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [current] = await tx
+			.select({ id: services.id, lifecycle: services.lifecycle, contractId: services.contractId })
+			.from(services)
+			.where(eq(services.id, input.serviceId))
+			.for('update')
+			.limit(1);
+		if (!current) throw new DomainError(404, 'Servicio no encontrado.');
+		if (current.lifecycle === input.lifecycle) return;
+		if (current.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no puede reactivarse.');
+		}
+		if (input.lifecycle === 'planned') {
+			throw new DomainError(409, 'Un servicio existente no puede volver a la lista de espera.');
+		}
+
+		const [contract] = await tx
+			.select({ lifecycle: contracts.lifecycle })
+			.from(contracts)
+			.where(eq(contracts.id, current.contractId))
+			.for('update')
+			.limit(1);
+		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+
+		if (input.lifecycle === 'active' && contract.lifecycle !== 'active') {
+			throw new DomainError(409, 'Reactiva el contrato antes de activar este servicio.');
+		}
+
+		if (input.lifecycle === 'archived') {
+			const workRows = await tx
+				.select({ id: works.id, mode: works.mode })
+				.from(works)
+				.where(eq(works.serviceId, input.serviceId));
+			if (workRows.length === 0) {
+				throw new DomainError(409, 'El servicio no tiene trabajos y no puede archivarse.');
+			}
+
+			const workIds = workRows.map((row) => row.id);
+			const elementRows = await tx
+				.select({ id: elements.id, workId: elements.workId })
+				.from(elements)
+				.where(inArray(elements.workId, workIds));
+			const elementIds = elementRows.map((row) => row.id);
+			const directTargets = await tx
+				.select({ workId: evidenceTargets.workId, status: evidenceTargets.currentStatus })
+				.from(evidenceTargets)
+				.where(inArray(evidenceTargets.workId, workIds));
+			const elementTargets = elementIds.length
+				? await tx
+						.select({
+							elementId: evidenceTargets.elementId,
+							status: evidenceTargets.currentStatus
+						})
+						.from(evidenceTargets)
+						.where(inArray(evidenceTargets.elementId, elementIds))
+				: [];
+
+			const directStatus = new Map(directTargets.map((row) => [row.workId, row.status]));
+			const elementStatus = new Map(elementTargets.map((row) => [row.elementId, row.status]));
+			const elementsByWork = new Map<string, string[]>();
+			for (const row of elementRows) {
+				const list = elementsByWork.get(row.workId) ?? [];
+				list.push(row.id);
+				elementsByWork.set(row.workId, list);
+			}
+
+			const completed = workRows.every((work) => {
+				if (work.mode === 'direct') return directStatus.get(work.id) === 'approved';
+				const ids = elementsByWork.get(work.id) ?? [];
+				return ids.length > 0 && ids.every((id) => elementStatus.get(id) === 'approved');
+			});
+			if (!completed) {
+				throw new DomainError(
+					409,
+					'Solo puedes archivar un servicio cuando todos sus trabajos están aprobados.'
+				);
+			}
+		}
+
+		await tx
+			.update(services)
+			.set({ lifecycle: input.lifecycle, updatedAt: new Date() })
+			.where(eq(services.id, input.serviceId));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			serviceId: input.serviceId,
+			entityType: 'service',
+			entityId: input.serviceId,
+			action: 'service.lifecycle_changed',
+			metadata: { from: current.lifecycle, to: input.lifecycle }
+		});
+	});
+}
+
 const serviceColumns = {
 	id: services.id,
 	contractId: services.contractId,
 	contractName: visibleContractName,
 	name: services.name,
 	description: services.description,
+	lifecycle: services.lifecycle,
 	buildingName: visibleBuildingName,
 	buildingCatalogItemId: services.buildingCatalogItemId
 };
@@ -202,13 +330,23 @@ export async function listServicesForUser(
 		.orderBy(asc(services.createdAt));
 
 	return rows.map(
-		({ id, contractId, contractName, name, description, buildingName, buildingCatalogItemId }) =>
+		({
+			id,
+			contractId,
+			contractName,
+			name,
+			description,
+			lifecycle,
+			buildingName,
+			buildingCatalogItemId
+		}) =>
 			({
 				id,
 				contractId,
 				contractName,
 				name,
 				description,
+				lifecycle,
 				buildingName,
 				buildingCatalogItemId
 			}) satisfies ServiceSummary
@@ -246,6 +384,7 @@ export async function listServicesByContract(
 			contractName,
 			name,
 			description,
+			lifecycle,
 			buildingName,
 			buildingCatalogItemId
 		}) =>
@@ -255,6 +394,7 @@ export async function listServicesByContract(
 				contractName,
 				name,
 				description,
+				lifecycle,
 				buildingName,
 				buildingCatalogItemId
 			}) satisfies ServiceSummary

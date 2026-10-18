@@ -21,7 +21,8 @@ test('el botón «Volver» de la cabecera lleva al padre', async ({ page }, test
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: serviceName })
-		.getByRole('link', { name: serviceName });
+		.getByRole('link', { name: serviceName })
+		.first();
 	await page.goto((await serviceLink.getAttribute('href')) ?? '/admin/services');
 
 	// Crear un trabajo directo con nombre propio.
@@ -38,7 +39,8 @@ test('el botón «Volver» de la cabecera lleva al padre', async ({ page }, test
 		.locator('tr, li')
 		.filter({ visible: true })
 		.filter({ hasText: workName })
-		.getByRole('link', { name: workName });
+		.getByRole('link', { name: workName })
+		.first();
 	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
 
 	// «Volver» → ficha del servicio.

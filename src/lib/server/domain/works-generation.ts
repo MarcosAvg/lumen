@@ -176,11 +176,14 @@ export async function applyGeneration(
 ): Promise<ApplyGenerationResult> {
 	return db.transaction(async (tx) => {
 		const [service] = await tx
-			.select({ id: services.id })
+			.select({ id: services.id, lifecycle: services.lifecycle })
 			.from(services)
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+		if (service.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 
 		const includedWorks = input.works.filter((work) => work.include && work.name.trim());
 		if (includedWorks.length === 0) {

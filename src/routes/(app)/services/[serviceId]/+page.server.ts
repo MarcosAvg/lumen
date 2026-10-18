@@ -15,7 +15,12 @@ import {
 } from '#lib/server/domain/assignments';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { listContractMembers, listContractsForUser } from '#lib/server/domain/contracts';
-import { getServiceContractId, listParticipants, updateService } from '#lib/server/domain/services';
+import {
+	getServiceContractId,
+	listParticipants,
+	setServiceLifecycle,
+	updateService
+} from '#lib/server/domain/services';
 import {
 	createWork,
 	getServiceProgress,
@@ -28,6 +33,7 @@ import { requireUuidParam } from '#lib/server/params';
 import {
 	assignUserSchema,
 	revokeAssignmentSchema,
+	setServiceLifecycleSchema,
 	updateServiceSchema
 } from '#lib/schemas/services';
 import {
@@ -94,6 +100,23 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Servicio actualizado.' };
+	},
+
+	setLifecycle: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(setServiceLifecycleSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { message: 'Estado de servicio inválido.' });
+
+		try {
+			await setServiceLifecycle(getDatabase().db, {
+				serviceId: parsed.data.serviceId,
+				lifecycle: parsed.data.lifecycle,
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Estado del servicio actualizado.' };
 	},
 
 	createWork: async (event) => {

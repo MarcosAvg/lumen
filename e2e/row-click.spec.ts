@@ -20,7 +20,10 @@ test('la fila/tarjeta completa navega, no solo el nombre', async ({ page }, test
 	// Pulso con coordenadas sobre la descripción (que no es el enlace): el
 	// enlace estirado cubre toda la fila/tarjeta, así que el navegador enruta el
 	// clic al overlay y navega. Uso `mouse.click` para no frenar por intercepción.
-	const target = page.getByText(description).filter({ visible: true }).first();
+	// Hay una tarjeta (móvil) y una fila (escritorio) con el mismo texto; se
+	// elige el contenedor que aplica al proyecto para no resolver el oculto.
+	const container = testInfo.project.name === 'movil' ? page.locator('li') : page.locator('tr');
+	const target = container.filter({ hasText: description }).getByText(description).first();
 	await target.scrollIntoViewIfNeeded();
 	const box = await target.boundingBox();
 	if (!box) throw new Error('No se pudo localizar la descripción.');

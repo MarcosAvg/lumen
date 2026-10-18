@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import Bell from '@lucide/svelte/icons/bell';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -54,6 +55,7 @@
 
 	{#if data.items.length === 0}
 		<EmptyState
+			Icon={Bell}
 			title="No tienes notificaciones"
 			description="Aquí verás las entregas y revisiones."
 		/>

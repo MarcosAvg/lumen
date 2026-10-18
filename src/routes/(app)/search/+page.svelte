@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import Search from '@lucide/svelte/icons/search';
 	import { Button } from '#lib/components/ui/button';
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
@@ -92,11 +93,17 @@
 
 	{#if data.q.trim().length === 0}
 		<EmptyState
+			Icon={Search}
 			title="Escribe un término para buscar"
 			description="Servicios, trabajos y elementos de tu ámbito."
 		/>
 	{:else if data.results.length === 0}
-		<EmptyState title="Sin resultados" description="Nada coincide con «{data.q}»." />
+		<EmptyState
+			Icon={Search}
+			tone="neutral"
+			title="Sin resultados"
+			description="Nada coincide con «{data.q}»."
+		/>
 	{:else}
 		{#each grouped as group (group.type)}
 			<section class="space-y-2">

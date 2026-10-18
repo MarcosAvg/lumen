@@ -141,8 +141,16 @@ export async function appendPhoto(
 	const thumbRel = storage.thumbRelPath(id);
 
 	try {
-		await storage.save(objectRel, processed.jpeg);
-		await storage.save(thumbRel, processed.thumbnail);
+		try {
+			await storage.save(objectRel, processed.jpeg);
+			await storage.save(thumbRel, processed.thumbnail);
+		} catch (error) {
+			console.error('[storage] No se pudo guardar la fotografía.', error);
+			throw new DomainError(
+				503,
+				'No se pudo guardar la fotografía. Revisa el almacenamiento del servidor.'
+			);
+		}
 
 		return await db.transaction(async (tx) => {
 			const [locked] = await tx

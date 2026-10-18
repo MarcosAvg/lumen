@@ -62,6 +62,8 @@ Se pueden definir en el entorno del contenedor si hace falta ajustarlas:
 |---|---|
 | `DATABASE_URL` | PostgreSQL local, por ejemplo `postgres://lumen:...@127.0.0.1:5432/lumen` |
 | `TEST_DATABASE_URL` | Base para integración y E2E; por defecto `lumen_test` |
+| `PHOTO_STORAGE_PATH` | `./data/photos` en desarrollo; debe existir y ser escribible |
 
-Los contenedores de producción no usan estas dos variables de desarrollo.
+Los contenedores de producción no usan las variables de desarrollo. Compose fija
+`PHOTO_STORAGE_PATH=/data/photos` sobre el volumen persistente.
 Véase [`../desarrollo/setup.md`](../desarrollo/setup.md).

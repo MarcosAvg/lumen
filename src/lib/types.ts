@@ -18,6 +18,10 @@ export function canExportZip(role: Role): boolean {
 
 export type AssignmentRole = 'technician' | 'supervisor';
 
+export type ContractLifecycle = 'active' | 'inactive' | 'archived';
+
+export type ServiceLifecycle = 'planned' | 'active' | 'inactive' | 'archived';
+
 export type CatalogPurpose = 'general' | 'buildings' | 'requirements';
 
 export type WorkMode = 'direct' | 'divided';

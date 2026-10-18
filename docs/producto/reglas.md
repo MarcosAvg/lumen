@@ -89,19 +89,42 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
   contrato. Los detalles de exportación están en
   [`referencia/exportaciones.md`](../referencia/exportaciones.md).
 
+### Ciclo de vida del contrato
+
+- Estados: `active`, `inactive` y `archived`. Todo contrato nace `active`.
+- `inactive` es una pausa temporal y exige que no queden servicios `active` ni
+  `planned`. Se puede reactivar.
+- `archived` es terminal y exige que todos sus servicios estén archivados. No se
+  reactiva.
+- Archivar no reescribe aprobaciones, entregas, fotos ni participantes. El
+  contrato y sus recursos quedan visibles en solo lectura.
+- Un contrato `inactive` o `archived` no admite servicios nuevos.
+
 ## 5. Servicios
 
 ### Datos y ciclo de vida
 
 - `contrato` obligatorio. La migración inicial crea «General» y mueve los
   servicios existentes.
+- Estados: `planned`, `active`, `inactive` y `archived`. Todo servicio nace
+  `active`, salvo que el administrador marque «Crear en espera».
+- `planned` permite preparar trabajos, elementos y requisitos, pero **no capturar
+  evidencia ni enviar**. Pasar a `active` exige que el contrato esté activo.
+- `inactive` es una pausa temporal: la evidencia y las revisiones son de solo
+  lectura. Se puede reactivar si el contrato está activo.
+- `archived` es terminal y solo se permite cuando el servicio está completado.
+  No se reactiva.
+- Archivar no convierte el servicio en «completado» por sí mismo ni reescribe
+  aprobaciones: el completado sigue siendo derivado. Los recursos archivados
+  quedan visibles en solo lectura.
+- Un servicio archivado no admite cambios de estructura ni de asignaciones.
 - `nombre` requerido, `descripción` opcional y vínculo opcional a un ítem de
   catálogo de edificios.
 - Cambiar un servicio de contrato revoca las asignaciones de usuarios que no
   pertenezcan al nuevo contrato, con confirmación previa.
 - Se pueden añadir o quitar participantes entre los miembros del contrato.
-- Se pueden añadir o quitar trabajos en cualquier momento, incluso después de
-  completar el servicio. El avance se recalcula.
+- Se pueden añadir o quitar trabajos en cualquier momento mientras el servicio
+  no esté archivado, incluso después de completarlo. El avance se recalcula.
 - El administrador puede borrar el servicio con confirmación e impacto
   detallado. Se eliminan trabajos, elementos, fotos, entregas, revisiones,
   asignaciones y notificaciones vinculadas. No se borran usuarios ni catálogos

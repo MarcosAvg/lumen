@@ -132,6 +132,17 @@
 	{#if action?.message}
 		<Alert variant="destructive"><AlertDescription>{action.message}</AlertDescription></Alert>
 	{/if}
+	{#if data.serviceLifecycle !== 'active'}
+		<Alert>
+			<AlertDescription>
+				El servicio está {data.serviceLifecycle === 'planned'
+					? 'en espera'
+					: data.serviceLifecycle === 'inactive'
+						? 'inactivo'
+						: 'archivado'}; la evidencia es de solo lectura.
+			</AlertDescription>
+		</Alert>
+	{/if}
 
 	<div class="space-y-6">
 		<div class="space-y-6">

@@ -15,7 +15,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const db = getDatabase().db;
 
 	const element = await orHttp(getElementDetail(db, elementId));
-	await requireServiceAccess(locals, element.serviceId);
+	const { service } = await requireServiceAccess(locals, element.serviceId);
+	const serviceActive = service.lifecycle === 'active';
 
 	const target = await orHttp(getTargetForElement(db, elementId));
 	const [evidence, history, rejection, catalogs] = await Promise.all([
@@ -34,7 +35,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		history,
 		rejection,
 		catalogs,
-		editable: isEditableStatus(target.status),
+		serviceLifecycle: service.lifecycle,
+		editable: serviceActive && isEditableStatus(target.status),
 		isAdmin: user.role === 'admin'
 	};
 };

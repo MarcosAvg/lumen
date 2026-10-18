@@ -1,22 +1,31 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Clock3 from '@lucide/svelte/icons/clock-3';
+	import ClipboardCheck from '@lucide/svelte/icons/clipboard-check';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import Users from '@lucide/svelte/icons/users';
 	import { Button } from '#lib/components/ui/button';
-	import * as Card from '#lib/components/ui/card';
-	import PageIntro from '#lib/components/app/page-intro.svelte';
 	import EmptyState from '#lib/components/app/empty-state.svelte';
+	import MetricCard from '#lib/components/app/metric-card.svelte';
+	import PageIntro from '#lib/components/app/page-intro.svelte';
+	import RecentDecisions from '#lib/components/app/recent-decisions.svelte';
+	import RecentEvidence from '#lib/components/app/recent-evidence.svelte';
+	import ReviewQueue from '#lib/components/app/review-queue.svelte';
+	import ReviewTrend from '#lib/components/app/review-trend.svelte';
+	import ScopePulse from '#lib/components/app/scope-pulse.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import StatusSpectrum from '#lib/components/app/status-spectrum.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
+	import { formatRelativeAge } from '#lib/utils';
 	import type { AttentionWork } from '#lib/server/domain/dashboard';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const role = $derived(data.user.role);
-	const approvedPercent = $derived(
-		data.summary.totalTargets === 0
-			? 0
-			: Math.round((data.summary.approvedTargets / data.summary.totalTargets) * 100)
-	);
 	const workPercent = $derived(
 		data.summary.workTotal === 0
 			? 0
@@ -27,12 +36,17 @@
 	const rejected = $derived(data.attention.filter((work) => work.elementRejected > 0));
 	const inProgress = $derived(data.attention.filter((work) => work.elementRejected === 0));
 
-	// Muchos pendientes aglomeran el panel: se muestran los primeros y el resto
-	// se despliega bajo demanda. Seleccionar un servicio vive en su propia pestaña.
+	// El panel es un resumen acotado: el resto se consulta desde Servicios.
+	const REJECTED_LIMIT = 3;
 	const PENDING_LIMIT = 5;
-	let showAllPending = $state(false);
-	const visibleInProgress = $derived(
-		showAllPending ? inProgress : inProgress.slice(0, PENDING_LIMIT)
+	const visibleRejected = $derived(rejected.slice(0, REJECTED_LIMIT));
+	const visibleInProgress = $derived(inProgress.slice(0, PENDING_LIMIT));
+	const remainingRejected = $derived(Math.max(0, rejected.length - REJECTED_LIMIT));
+	const remainingInProgress = $derived(Math.max(0, inProgress.length - PENDING_LIMIT));
+	const oldestPendingLabel = $derived(
+		data.pending[0]?.submittedAt
+			? formatRelativeAge(data.pending[0].submittedAt).replace('hace ', '')
+			: '—'
 	);
 </script>
 
@@ -44,12 +58,14 @@
 	<ul class="divide-y overflow-hidden rounded-xl border border-border bg-card">
 		{#each works as work (work.workId)}
 			<li
-				class="relative flex min-h-14 items-start justify-between gap-3 border-l-2 p-3.5 hover:bg-muted/30 active:bg-muted/50 {work.status ===
+				class="relative flex min-h-14 items-start justify-between gap-3 border-l-2 p-3.5 transition-colors {work.status ===
 				'rejected'
-					? 'border-l-state-rejected'
+					? 'border-l-state-rejected bg-state-rejected/[0.04] hover:bg-state-rejected/[0.07]'
 					: work.status === 'approved'
-						? 'border-l-state-approved'
-						: 'border-l-primary/40'}"
+						? 'border-l-state-approved hover:bg-state-approved/[0.05]'
+						: work.status === 'in_progress'
+							? 'border-l-state-attention hover:bg-state-attention/[0.05]'
+							: 'border-l-state-pending/70 hover:bg-muted/30'}"
 			>
 				<div class="min-w-0 space-y-0.5">
 					<p class="flex flex-wrap items-center gap-2">
@@ -93,170 +109,217 @@
 		description={role === 'technician'
 			? 'Tu evidencia pendiente y rechazada.'
 			: role === 'supervisor'
-				? 'Entregas por revisar de tus servicios.'
-				: 'Resumen global y revisiones pendientes.'}
-	></PageIntro>
+				? 'Cola de revisión y carga de tus servicios.'
+				: 'Estado global de la operación y bloqueos que requieren atención.'}
+	>
+		{#if role === 'admin'}
+			<Button href={resolve('/(app)/admin/services')} variant="outline" size="sm">Servicios</Button>
+			<Button href={resolve('/(app)/admin/users')} variant="outline" size="sm">Usuarios</Button>
+			<Button href={resolve('/(app)/admin/catalogs')} variant="outline" size="sm">Catálogos</Button>
+			<Button href={resolve('/(app)/contracts')} variant="outline" size="sm">Contratos</Button>
+		{:else if role === 'supervisor'}
+			<Button href={resolve('/(app)/reviews')} variant="outline" size="sm">Revisar cola</Button>
+			<Button href={resolve('/(app)/services')} variant="outline" size="sm">Servicios</Button>
+		{/if}
+	</PageIntro>
 
 	{#if role === 'technician'}
 		<section aria-label="Tu resumen" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						Servicios
-					</p>
-					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.serviceCount}</p>
-				</Card.Content>
-			</Card.Root>
-			<Card.Root>
-				<Card.Content class="space-y-3">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						Aprobados
-					</p>
-					<ProgressMeter
-						approved={data.summary.workApproved}
-						total={data.summary.workTotal}
-						percent={workPercent}
-						completed={data.summary.workTotal > 0 &&
-							data.summary.workApproved === data.summary.workTotal}
-					/>
-				</Card.Content>
-			</Card.Root>
-			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						Por corregir
-					</p>
-					<p
-						class="tnum text-3xl font-semibold tracking-tight"
-						class:text-destructive={rejected.length > 0}
-					>
-						{rejected.length}
-					</p>
-				</Card.Content>
-			</Card.Root>
-			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						En curso
-					</p>
-					<p class="tnum text-3xl font-semibold tracking-tight">{inProgress.length}</p>
-				</Card.Content>
-			</Card.Root>
+			<MetricCard label="Servicios activos" value={data.summary.serviceCount} Icon={Building2} />
+			<MetricCard label="Aprobados" Icon={CircleCheck} tone="teal">
+				<ProgressMeter
+					approved={data.summary.workApproved}
+					total={data.summary.workTotal}
+					percent={workPercent}
+					completed={data.summary.workTotal > 0 &&
+						data.summary.workApproved === data.summary.workTotal}
+				/>
+			</MetricCard>
+			<MetricCard
+				label="Por corregir"
+				value={rejected.length}
+				Icon={TriangleAlert}
+				tone={rejected.length > 0 ? 'rejected' : 'neutral'}
+			/>
+			<MetricCard
+				label="En curso"
+				value={inProgress.length}
+				Icon={Clock3}
+				tone={inProgress.length > 0 ? 'attention' : 'neutral'}
+			/>
 		</section>
 
 		{#if rejected.length > 0}
 			<section class="space-y-2">
-				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+				<h2
+					class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+				>
+					<span class="h-3 w-0.5 rounded-full bg-state-rejected" aria-hidden="true"></span>
 					Requiere tu atención
 				</h2>
-				{@render workList(rejected)}
+				{@render workList(visibleRejected)}
+				{#if remainingRejected > 0}
+					<Button href={resolve('/(app)/services')} variant="ghost" size="sm">
+						{remainingRejected === 1
+							? 'Ver el restante en Servicios'
+							: `Ver los ${remainingRejected} restantes en Servicios`}
+					</Button>
+				{/if}
 			</section>
 		{/if}
 		{#if inProgress.length > 0}
 			<section class="space-y-2">
-				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+				<h2
+					class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase"
+				>
+					<span class="h-3 w-0.5 rounded-full bg-state-attention" aria-hidden="true"></span>
 					Pendientes
 				</h2>
 				{@render workList(visibleInProgress)}
-				{#if inProgress.length > PENDING_LIMIT}
-					<Button variant="outline" size="sm" onclick={() => (showAllPending = !showAllPending)}>
-						{showAllPending ? 'Mostrar menos' : `Mostrar todos (${inProgress.length})`}
+				{#if remainingInProgress > 0}
+					<Button href={resolve('/(app)/services')} variant="ghost" size="sm">
+						{remainingInProgress === 1
+							? 'Ver el restante en Servicios'
+							: `Ver los ${remainingInProgress} restantes en Servicios`}
 					</Button>
 				{/if}
 			</section>
 		{/if}
 		{#if data.attention.length === 0}
-			<p class="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-				No tienes evidencia pendiente. Buen trabajo.
-			</p>
-		{/if}
-	{:else}
-		{#if data.summary.pendingReviews > 0}
-			<div class="md:hidden">
-				<Button href={resolve('/(app)/reviews')} class="w-full justify-between">
-					<span>Revisar pendientes</span>
-					<span class="tnum">{data.summary.pendingReviews}</span>
-				</Button>
-			</div>
-		{/if}
-
-		<div class="grid gap-3 sm:grid-cols-3">
-			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						{role === 'admin' ? 'Servicios' : 'Servicios asignados'}
-					</p>
-					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.serviceCount}</p>
-				</Card.Content>
-			</Card.Root>
-			<Card.Root>
-				<Card.Content class="space-y-3">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						Objetivos aprobados
-					</p>
-					<ProgressMeter
-						approved={data.summary.approvedTargets}
-						total={data.summary.totalTargets}
-						percent={approvedPercent}
-						completed={data.summary.totalTargets > 0 &&
-							data.summary.approvedTargets === data.summary.totalTargets}
-					/>
-				</Card.Content>
-			</Card.Root>
-			<Card.Root>
-				<Card.Content class="space-y-2">
-					<p class="text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
-						Revisiones pendientes
-					</p>
-					<p class="tnum text-3xl font-semibold tracking-tight">{data.summary.pendingReviews}</p>
-				</Card.Content>
-			</Card.Root>
-		</div>
-
-		<section class="space-y-2">
-			<div class="flex items-center justify-between gap-2">
-				<h2 class="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
-					Entregas por revisar
-				</h2>
-				{#if data.pendingTotal > 0}
-					<Button href={resolve('/(app)/reviews')} variant="ghost" size="sm">Ver todas</Button>
-				{/if}
-			</div>
-			{#if data.pending.length === 0}
+			{#if data.summary.serviceCount === 0}
 				<EmptyState
-					title="Sin revisiones pendientes"
-					description="Cuando los técnicos envíen evidencia, aparecerá aquí."
+					Icon={Building2}
+					tone="neutral"
+					title="Sin servicios asignados"
+					description="Cuando te asignen un servicio, tus trabajos aparecerán aquí."
 				/>
 			{:else}
-				<ul class="divide-y overflow-hidden rounded-xl border border-border bg-card">
-					{#each data.pending as item (item.submissionId)}
-						<li
-							class="relative flex items-center justify-between gap-3 border-l-2 border-l-state-pending/60 p-3.5 hover:bg-muted/30 active:bg-muted/50"
-						>
-							<div class="space-y-0.5">
-								<a
-									class="font-medium text-foreground after:absolute after:inset-0"
-									href={resolve('/(app)/submissions/[submissionId]', {
-										submissionId: item.submissionId
-									})}
-								>
-									{item.label}
-								</a>
-								<p class="text-xs text-muted-foreground">
-									{item.serviceName} · {item.workName} · #{item.sequenceNo} ·
-									{item.submittedByName ?? 'Autor desconocido'}
-								</p>
-							</div>
-							<StatusBadge status="in_review" />
-						</li>
-					{/each}
-				</ul>
-				{#if data.pendingTotal > data.pending.length}
-					<Button href={resolve('/(app)/reviews')} variant="outline" size="sm">
-						Ver las {data.pendingTotal} pendientes
-					</Button>
-				{/if}
+				<EmptyState
+					Icon={CircleCheck}
+					tone="approved"
+					title="No tienes evidencia pendiente"
+					description="Buen trabajo. Cuando necesites continuar, tus trabajos aparecerán aquí."
+				/>
+			{/if}
+		{/if}
+
+		{#if data.summary.serviceCount > 0}
+			<RecentEvidence photos={data.recentPhotos} />
+		{/if}
+	{:else}
+		<section
+			aria-label="Resumen operativo"
+			class="grid grid-cols-2 gap-3 sm:grid-cols-3 {role === 'admin'
+				? 'xl:grid-cols-6'
+				: 'xl:grid-cols-5'}"
+		>
+			{#if role === 'admin'}
+				<MetricCard
+					label="Contratos activos"
+					value={data.summary.contractCount ?? 0}
+					Icon={ShieldCheck}
+				/>
+				<MetricCard label="Servicios activos" value={data.summary.serviceCount} Icon={Building2} />
+				<MetricCard
+					label="Usuarios activos"
+					value={data.summary.activeUsers ?? 0}
+					Icon={Users}
+					tone="neutral"
+				/>
+				<MetricCard
+					label="Revisiones pendientes"
+					value={data.summary.pendingReviews}
+					Icon={ClipboardCheck}
+					tone={data.summary.pendingReviews > 0 ? 'pending' : 'neutral'}
+				/>
+				<MetricCard
+					label="Aprobados 7 días"
+					value={data.summary.approvedLast7}
+					Icon={CircleCheck}
+					tone="teal"
+				/>
+				<MetricCard
+					label="Rechazados"
+					value={data.summary.statusCounts.rejected}
+					Icon={TriangleAlert}
+					tone={data.summary.statusCounts.rejected > 0 ? 'rejected' : 'neutral'}
+				/>
+			{:else}
+				<MetricCard label="Servicios activos" value={data.summary.serviceCount} Icon={Building2} />
+				<MetricCard
+					label="Revisiones pendientes"
+					value={data.summary.pendingReviews}
+					Icon={ClipboardCheck}
+					tone={data.summary.pendingReviews > 0 ? 'pending' : 'neutral'}
+				/>
+				<MetricCard
+					label="Por corregir"
+					value={data.summary.statusCounts.rejected}
+					Icon={TriangleAlert}
+					tone={data.summary.statusCounts.rejected > 0 ? 'rejected' : 'neutral'}
+				/>
+				<MetricCard
+					label="Aprobados 7 días"
+					value={data.summary.approvedLast7}
+					Icon={CircleCheck}
+					tone="teal"
+				/>
+				<MetricCard
+					label="Antigüedad máxima"
+					value={oldestPendingLabel}
+					Icon={Clock3}
+					tone={data.summary.pendingReviews > 0 ? 'attention' : 'neutral'}
+				/>
 			{/if}
 		</section>
+
+		<div class="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+			<StatusSpectrum counts={data.summary.statusCounts} />
+			<ReviewTrend points={data.trend} />
+		</div>
+
+		<div class="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+			{#if role === 'admin'}
+				<ScopePulse
+					kind="contract"
+					title="Contratos"
+					description="Volumen, avance y bloqueos por contrato"
+					items={data.contractPulse.map((contract) => ({
+						id: contract.contractId,
+						name: contract.name,
+						serviceCount: contract.serviceCount,
+						totalTargets: contract.totalTargets,
+						approvedTargets: contract.approvedTargets,
+						pendingReviews: contract.pendingReviews,
+						rejectedTargets: contract.rejectedTargets,
+						lastActivity: contract.lastActivity
+					}))}
+				/>
+			{:else}
+				<ScopePulse
+					kind="service"
+					title="Servicios a tu cargo"
+					description="Carga, avance y atención por servicio"
+					items={data.servicePulse.map((service) => ({
+						id: service.serviceId,
+						name: service.name,
+						totalTargets: service.totalTargets,
+						approvedTargets: service.approvedTargets,
+						pendingReviews: service.pendingReviews,
+						rejectedTargets: service.rejectedTargets,
+						lastActivity: service.lastActivity
+					}))}
+				/>
+			{/if}
+
+			<ReviewQueue items={data.pending} total={data.pendingTotal} />
+		</div>
+
+		<div class="grid gap-4 xl:grid-cols-[1fr_1.1fr]">
+			<RecentDecisions decisions={data.recentDecisions} />
+			{#if data.summary.serviceCount > 0}
+				<RecentEvidence photos={data.recentPhotos} layout="grid" />
+			{/if}
+		</div>
 	{/if}
 </div>

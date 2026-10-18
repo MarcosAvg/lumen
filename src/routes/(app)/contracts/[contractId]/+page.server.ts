@@ -14,6 +14,7 @@ import {
 	getContractPdfContext,
 	listContractAssignments,
 	revokeContractAssignment,
+	setContractLifecycle,
 	setContractPdfBackground,
 	updateContract,
 	updateContractPdfMargins
@@ -26,6 +27,7 @@ import {
 	assignContractUserSchema,
 	contractPdfMarginsSchema,
 	revokeContractAssignmentSchema,
+	setContractLifecycleSchema,
 	updateContractSchema
 } from '#lib/schemas/services';
 import { storage } from '#lib/server/storage';
@@ -102,6 +104,23 @@ export const actions: Actions = {
 			return failFrom(error);
 		}
 		return { success: 'Contrato actualizado.' };
+	},
+
+	setLifecycle: async (event) => {
+		const admin = requireAdmin(event.locals);
+		const parsed = parseForm(setContractLifecycleSchema, await event.request.formData());
+		if (!parsed.ok) return fail(400, { message: 'Estado de contrato inválido.' });
+
+		try {
+			await setContractLifecycle(getDatabase().db, {
+				contractId: parsed.data.contractId,
+				lifecycle: parsed.data.lifecycle,
+				actorId: admin.id
+			});
+		} catch (error) {
+			return failFrom(error);
+		}
+		return { success: 'Estado del contrato actualizado.' };
 	},
 
 	uploadBackground: async (event) => {

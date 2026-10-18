@@ -11,6 +11,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import ExportDialog from '#lib/components/app/export-dialog.svelte';
+	import LifecycleBadge from '#lib/components/app/lifecycle-badge.svelte';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import ParticipantManager from '#lib/components/app/participant-manager.svelte';
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
@@ -37,7 +38,17 @@
 	let editOpen = $state(false);
 	let membersOpen = $state(false);
 	let deleteOpen = $state(false);
+	let archiveOpen = $state(false);
 	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
+
+	const hasRunningServices = $derived(
+		data.services.some(
+			(service) => service.lifecycle === 'active' || service.lifecycle === 'planned'
+		)
+	);
+	const hasUnarchivedServices = $derived(
+		data.services.some((service) => service.lifecycle !== 'archived')
+	);
 	// Fondo del PDF: el selector nativo se oculta tras un botón visible.
 	let backgroundInput = $state<HTMLInputElement | null>(null);
 	let backgroundName = $state('');
@@ -64,6 +75,12 @@
 		async ({ update }) => {
 			await update({ reset: false });
 			deleteOpen = false;
+		};
+	const submitLifecycle: NonNullable<Parameters<typeof enhance>[1]> =
+		() =>
+		async ({ update }) => {
+			await update({ reset: false });
+			archiveOpen = false;
 		};
 	// Los márgenes se guardan sin recargar y sin resetear los campos.
 	const submitMargins: NonNullable<Parameters<typeof enhance>[1]> =
@@ -110,6 +127,7 @@
 				>
 				<span class="font-semibold text-foreground">{accessLabel}</span>
 			</span>
+			<LifecycleBadge lifecycle={data.contract.lifecycle} kind="contract" />
 			<StatusBadge
 				status={data.progress.completed ? 'approved' : 'in_progress'}
 				label={data.progress.completed ? 'Completado' : 'Incompleto'}
@@ -130,12 +148,50 @@
 					class="w-full sm:w-auto"
 				/>
 				{#if data.isAdmin}
-					<Button
-						variant="outline"
-						size="sm"
-						class="w-full sm:w-auto"
-						onclick={() => (editOpen = true)}>Editar contrato</Button
-					>
+					{#if data.contract.lifecycle === 'active'}
+						<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+							<input type="hidden" name="contractId" value={data.contract.id} />
+							<input type="hidden" name="lifecycle" value="inactive" />
+							<Button
+								type="submit"
+								variant="outline"
+								size="sm"
+								class="w-full sm:w-auto"
+								disabled={hasRunningServices}
+								title={hasRunningServices
+									? 'Pausa o archiva antes los servicios activos o en espera.'
+									: undefined}>Pausar contrato</Button
+							>
+						</form>
+					{:else if data.contract.lifecycle === 'inactive'}
+						<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+							<input type="hidden" name="contractId" value={data.contract.id} />
+							<input type="hidden" name="lifecycle" value="active" />
+							<Button type="submit" variant="outline" size="sm" class="w-full sm:w-auto"
+								>Reactivar contrato</Button
+							>
+						</form>
+					{/if}
+					{#if data.contract.lifecycle !== 'archived'}
+						<Button
+							variant="outline"
+							size="sm"
+							class="w-full sm:w-auto"
+							disabled={hasUnarchivedServices}
+							title={hasUnarchivedServices
+								? 'Archiva todos los servicios antes de archivar el contrato.'
+								: undefined}
+							onclick={() => (archiveOpen = true)}>Archivar contrato</Button
+						>
+					{/if}
+					{#if data.contract.lifecycle !== 'archived'}
+						<Button
+							variant="outline"
+							size="sm"
+							class="w-full sm:w-auto"
+							onclick={() => (editOpen = true)}>Editar contrato</Button
+						>
+					{/if}
 				{/if}
 			{/if}
 		{/snippet}
@@ -176,6 +232,7 @@
 												>
 													{service.name}
 												</a>
+												<LifecycleBadge lifecycle={service.lifecycle} />
 											</div>
 											{#if service.description}
 												<p class="line-clamp-1 text-sm text-muted-foreground">
@@ -208,7 +265,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-wrap items-center justify-between gap-2">
 					<Card.Title class="text-base">Participantes</Card.Title>
-					{#if data.canManage}
+					{#if data.canManage && data.contract.lifecycle !== 'archived'}
 						<Button variant="outline" size="sm" onclick={() => (membersOpen = true)}
 							>Gestionar participantes</Button
 						>
@@ -217,7 +274,7 @@
 				<Card.Content>
 					{#if data.assignments.length === 0}
 						<p class="text-sm text-muted-foreground">
-							{#if data.canManage}
+							{#if data.canManage && data.contract.lifecycle !== 'archived'}
 								Sin participantes.
 								<button
 									type="button"
@@ -241,7 +298,7 @@
 				</Card.Content>
 			</Card.Root>
 
-			{#if data.isAdmin}
+			{#if data.isAdmin && data.contract.lifecycle !== 'archived'}
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-base">PDF de evidencia</Card.Title>
@@ -481,6 +538,26 @@
 			<form method="POST" action="?/revokeMember" use:enhance={submitRevoke}>
 				<input type="hidden" name="assignmentId" value={revokeTarget?.id ?? ''} />
 				<Button type="submit" variant="destructive">Revocar del contrato</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={archiveOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>¿Archivar el contrato «{data.contract.name}»?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Quedará en solo lectura y no podrá reactivarse. Sus servicios archivados, entregas y fotos
+				se conservan.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+			<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+				<input type="hidden" name="contractId" value={data.contract.id} />
+				<input type="hidden" name="lifecycle" value="archived" />
+				<Button type="submit" variant="destructive">Archivar contrato</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

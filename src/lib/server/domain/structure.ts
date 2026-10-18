@@ -516,12 +516,21 @@ export async function convertWorkMode(
 ): Promise<ConvertWorkModeResult> {
 	return db.transaction(async (tx) => {
 		const [work] = await tx
-			.select({ id: works.id, serviceId: works.serviceId, mode: works.mode })
+			.select({
+				id: works.id,
+				serviceId: works.serviceId,
+				mode: works.mode,
+				serviceLifecycle: services.lifecycle
+			})
 			.from(works)
+			.innerJoin(services, eq(services.id, works.serviceId))
 			.where(eq(works.id, input.workId))
 			.for('update')
 			.limit(1);
 		if (!work) throw new DomainError(404, 'Trabajo no encontrado.');
+		if (work.serviceLifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de estructura.');
+		}
 
 		const targetIds = await targetIdsForWork(tx, work.id);
 		await assertNoSubmissions(tx, targetIds);

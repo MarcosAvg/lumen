@@ -27,5 +27,6 @@ test('el administrador elimina un usuario', async ({ page }, testInfo) => {
 	await expect(dialog.getByText(`¿Eliminar «${displayName}»?`)).toBeVisible();
 	await dialog.getByRole('button', { name: 'Confirmar eliminación' }).click();
 
-	await expect(page.getByText(displayName)).toHaveCount(0);
+	// Excluye el toast de notificaciones, que también es un `li` con el nombre.
+	await expect(page.locator('main tr, main li').filter({ hasText: displayName })).toHaveCount(0);
 });

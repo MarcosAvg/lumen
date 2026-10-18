@@ -35,6 +35,24 @@ export const updateServiceSchema = z.object({
 		.default('')
 });
 
+export const serviceLifecycleSchema = z.enum(['planned', 'active', 'inactive', 'archived'], {
+	message: 'Estado de servicio inválido.'
+});
+
+export const contractLifecycleSchema = z.enum(['active', 'inactive', 'archived'], {
+	message: 'Estado de contrato inválido.'
+});
+
+export const setServiceLifecycleSchema = z.object({
+	serviceId: z.uuid('Servicio inválido.'),
+	lifecycle: serviceLifecycleSchema
+});
+
+export const setContractLifecycleSchema = z.object({
+	contractId: z.uuid('Contrato inválido.'),
+	lifecycle: contractLifecycleSchema
+});
+
 export const assignUserSchema = z.object({
 	serviceId: z.uuid('Servicio inválido.'),
 	userId: z.uuid('Usuario inválido.'),

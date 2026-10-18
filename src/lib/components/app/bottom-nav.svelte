@@ -107,9 +107,9 @@
 						href={item.href}
 						aria-current={current ? 'page' : undefined}
 						aria-label={(item.badge ?? 0) > 0 ? `${item.label}: ${item.badge}` : undefined}
-						class="relative flex w-full flex-col items-center gap-0.5 py-2 text-[11px] {current
-							? 'font-medium text-foreground'
-							: 'text-muted-foreground'}"
+						class="relative flex w-full flex-col items-center gap-0.5 py-2 text-[11px] transition-colors {current
+							? 'bg-primary/[0.06] font-medium text-primary'
+							: 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'}"
 					>
 						{#if current}
 							<span

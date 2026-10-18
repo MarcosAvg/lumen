@@ -55,6 +55,27 @@ en el modal.
 ese contrato quedan revocadas y la siguiente lectura o subida responde
 `404`/`403`, aunque tuviera la galería abierta.
 
+### Ciclo de vida de contratos y servicios
+
+1. Los contratos y servicios existentes se migran como `active`.
+2. Un servicio puede crearse `planned` marcando «Crear en espera». En ese estado
+   se puede preparar la estructura, pero toda captura, envío o revisión responde
+   `409`.
+3. `planned → active` exige un contrato activo. `active → inactive` pausa la
+   captura y la revisión sin borrar nada. `inactive → active` reanuda si el
+   contrato sigue activo.
+4. `active|inactive → archived` exige que el servicio esté completado. El
+   archivado es terminal y deja el servicio en solo lectura.
+5. Un contrato solo pasa a `inactive` si no tiene servicios `active` o
+   `planned`. Solo pasa a `archived` cuando todos sus servicios están
+   archivados. El archivado del contrato es terminal.
+6. Las listas de contratos y servicios muestran por defecto el estado activo y
+   permiten consultar los demás estados. El tablero solo agrega servicios
+   activos.
+7. Archivar nunca reescribe aprobaciones, entregas, fotos ni autoría. Si un
+   administrador añade estructura después de una aprobación, el avance se
+   recalcula según las reglas existentes.
+
 ## 3. Catálogos y generación de estructura
 
 1. El administrador crea catálogos globales con propósito general, edificios o

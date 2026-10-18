@@ -65,11 +65,18 @@ export async function assignUser(
 ): Promise<{ id: string; created: boolean }> {
 	return db.transaction(async (tx) => {
 		const [service] = await tx
-			.select({ id: services.id, contractId: services.contractId })
+			.select({
+				id: services.id,
+				contractId: services.contractId,
+				lifecycle: services.lifecycle
+			})
 			.from(services)
 			.where(eq(services.id, input.serviceId))
 			.limit(1);
 		if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+		if (service.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de asignaciones.');
+		}
 
 		const [user] = await tx
 			.select({ id: users.id, role: users.role, isActive: users.isActive })
@@ -185,6 +192,15 @@ export async function revokeAssignment(
 			.limit(1);
 		if (!assignment) throw new DomainError(404, 'Asignación no encontrada.');
 		if (assignment.revokedAt) return { serviceId: assignment.serviceId };
+
+		const [service] = await tx
+			.select({ lifecycle: services.lifecycle })
+			.from(services)
+			.where(eq(services.id, assignment.serviceId))
+			.limit(1);
+		if (service?.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un servicio archivado no admite cambios de asignaciones.');
+		}
 
 		await tx
 			.update(serviceAssignments)

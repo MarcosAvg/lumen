@@ -79,6 +79,9 @@ export async function hasSubmissions(db: Database, targetId: string): Promise<bo
  */
 export async function assertRequirementsEditable(db: Database, targetId: string): Promise<void> {
 	const target = await getTargetContext(db, targetId);
+	if (target.serviceLifecycle !== 'active') {
+		throw new DomainError(409, 'El servicio no está activo; los requisitos son de solo lectura.');
+	}
 	if (!isEditableStatus(target.status)) {
 		throw new DomainError(409, 'La evidencia no es editable en su estado actual.');
 	}

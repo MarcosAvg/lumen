@@ -15,6 +15,8 @@ async function createService(page: Page, name: string): Promise<string> {
 		.filter({ visible: true })
 		.filter({ hasText: name })
 		.getByRole('link', { name })
+		.filter({ visible: true })
+		.first()
 		.getAttribute('href');
 	return (href ?? '').split('/').pop() ?? '';
 }

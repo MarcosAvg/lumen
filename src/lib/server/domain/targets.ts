@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '#lib/server/db';
 import { catalogItems, elements, evidenceTargets, services, works } from '#lib/server/db/schema';
-import type { TargetStatus, WorkMode } from '#lib/types';
+import type { ServiceLifecycle, TargetStatus, WorkMode } from '#lib/types';
 import { DomainError } from './errors';
 
 export interface TargetContext {
@@ -11,6 +11,7 @@ export interface TargetContext {
 	elementId: string | null;
 	serviceId: string;
 	serviceName: string;
+	serviceLifecycle: ServiceLifecycle;
 	/** Nombre visible del trabajo o elemento que contiene el objetivo. */
 	label: string;
 	/** Nombre visible del trabajo padre (igual a `label` en trabajos directos). */
@@ -25,6 +26,7 @@ async function workLabel(db: Database, workId: string) {
 		.select({
 			serviceId: works.serviceId,
 			serviceName: services.name,
+			serviceLifecycle: services.lifecycle,
 			mode: works.mode,
 			label: sql<string>`coalesce(${catalogItems.name}, ${works.customName})`
 		})
@@ -42,6 +44,7 @@ async function elementLabel(db: Database, elementId: string) {
 		.select({
 			serviceId: works.serviceId,
 			serviceName: services.name,
+			serviceLifecycle: services.lifecycle,
 			workMode: works.mode,
 			label: sql<string>`coalesce(${catalogItems.name}, ${elements.customName})`,
 			workName: sql<string>`coalesce(${workCatalog.name}, ${works.customName})`
@@ -74,6 +77,7 @@ export async function getTargetContext(db: Database, targetId: string): Promise<
 			elementId: null,
 			serviceId: work.serviceId,
 			serviceName: work.serviceName,
+			serviceLifecycle: work.serviceLifecycle,
 			label: work.label,
 			workName: work.label,
 			mode: work.mode,
@@ -90,6 +94,7 @@ export async function getTargetContext(db: Database, targetId: string): Promise<
 		elementId: target.elementId,
 		serviceId: element.serviceId,
 		serviceName: element.serviceName,
+		serviceLifecycle: element.serviceLifecycle,
 		label: element.label,
 		workName: element.workName,
 		mode: 'divided',

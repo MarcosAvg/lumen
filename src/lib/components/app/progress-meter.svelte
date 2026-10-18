@@ -19,7 +19,15 @@
 	const description = $derived(`${approved} de ${total} objetivos aprobados (${percent}%)`);
 </script>
 
-<div class="space-y-2" title={description} aria-label={description}>
+<div
+	class="space-y-2"
+	title={description}
+	aria-label={description}
+	role="progressbar"
+	aria-valuemin="0"
+	aria-valuemax={total}
+	aria-valuenow={approved}
+>
 	<div class="flex items-end justify-between gap-3">
 		<span class="tnum text-lg leading-none font-semibold tracking-tight text-foreground">
 			{approved}<span class="text-sm font-medium text-muted-foreground">/{total}</span>
@@ -28,7 +36,7 @@
 			>{percent}%</span
 		>
 	</div>
-	<div class="relative h-2 overflow-hidden rounded-[3px] bg-muted">
+	<div class="relative h-2 overflow-hidden rounded-[3px] bg-muted ring-1 ring-border/60 ring-inset">
 		<div
 			class="h-full rounded-[3px] transition-[width] duration-300 {completed
 				? 'bg-teal'

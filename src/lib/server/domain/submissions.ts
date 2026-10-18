@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	contractAssignments,
@@ -599,6 +599,8 @@ export interface PendingReviewFilters {
 	q?: string | null;
 	limit?: number;
 	offset?: number;
+	/** `newest` por defecto; `oldest` para la cola priorizada del tablero. */
+	sort?: 'newest' | 'oldest';
 }
 
 export interface PendingReviewPage {
@@ -663,7 +665,11 @@ export async function listPendingReviews(
 		.innerJoin(evidenceTargets, eq(evidenceTargets.id, evidenceSubmissions.targetId))
 		.leftJoin(users, eq(users.id, evidenceSubmissions.submittedBy))
 		.where(and(...conditions))
-		.orderBy(desc(evidenceSubmissions.submittedAt));
+		.orderBy(
+			filters.sort === 'oldest'
+				? asc(evidenceSubmissions.submittedAt)
+				: desc(evidenceSubmissions.submittedAt)
+		);
 
 	const query = filters.q?.trim().toLowerCase() ?? '';
 	const matched: PendingReview[] = [];

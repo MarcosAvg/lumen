@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	contractAssignments,
@@ -7,7 +7,7 @@ import {
 	services,
 	users
 } from '#lib/server/db/schema';
-import type { AssignmentRole, SessionUser } from '#lib/types';
+import type { AssignmentRole, ContractLifecycle, SessionUser } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
 
@@ -22,6 +22,7 @@ export interface ContractSummary {
 	id: string;
 	name: string;
 	description: string | null;
+	lifecycle: ContractLifecycle;
 	serviceCount: number;
 }
 
@@ -35,6 +36,7 @@ export async function listContractsForUser(
 		id: contracts.id,
 		name: contracts.name,
 		description: contracts.description,
+		lifecycle: contracts.lifecycle,
 		serviceCount: serviceCountExpr
 	};
 
@@ -78,6 +80,7 @@ export async function getContractAccess(
 			id: contracts.id,
 			name: contracts.name,
 			description: contracts.description,
+			lifecycle: contracts.lifecycle,
 			serviceCount: serviceCountExpr
 		})
 		.from(contracts)
@@ -151,11 +154,14 @@ export async function updateContractPdfMargins(
 ): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [row] = await tx
-			.select({ id: contracts.id })
+			.select({ id: contracts.id, lifecycle: contracts.lifecycle })
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+		if (row.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado es de solo lectura.');
+		}
 
 		await tx
 			.update(contracts)
@@ -185,11 +191,18 @@ export async function setContractPdfBackground(
 ): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [row] = await tx
-			.select({ id: contracts.id, previous: contracts.pdfBackgroundPath })
+			.select({
+				id: contracts.id,
+				lifecycle: contracts.lifecycle,
+				previous: contracts.pdfBackgroundPath
+			})
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+		if (row.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado es de solo lectura.');
+		}
 
 		await tx
 			.update(contracts)
@@ -309,11 +322,14 @@ export interface UpdateContractInput {
 export async function updateContract(db: Database, input: UpdateContractInput): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [current] = await tx
-			.select({ id: contracts.id })
+			.select({ id: contracts.id, lifecycle: contracts.lifecycle })
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!current) throw new DomainError(404, 'Contrato no encontrado.');
+		if (current.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado es de solo lectura.');
+		}
 
 		await tx
 			.update(contracts)
@@ -334,6 +350,82 @@ export async function updateContract(db: Database, input: UpdateContractInput): 
 	});
 }
 
+export interface SetContractLifecycleInput {
+	contractId: string;
+	lifecycle: ContractLifecycle;
+	actorId: string;
+}
+
+/**
+ * Cambia el ciclo de vida del contrato sin tocar servicios, evidencias ni
+ * aprobaciones. `inactive` exige que no queden servicios activos o en espera;
+ * `archived` exige que todos los servicios estén archivados.
+ */
+export async function setContractLifecycle(
+	db: Database,
+	input: SetContractLifecycleInput
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [current] = await tx
+			.select({ id: contracts.id, lifecycle: contracts.lifecycle })
+			.from(contracts)
+			.where(eq(contracts.id, input.contractId))
+			.for('update')
+			.limit(1);
+		if (!current) throw new DomainError(404, 'Contrato no encontrado.');
+		if (current.lifecycle === input.lifecycle) return;
+		if (current.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado no puede reactivarse.');
+		}
+
+		if (input.lifecycle === 'inactive') {
+			const [row] = await tx
+				.select({ value: sql<number>`cast(count(*) as int)` })
+				.from(services)
+				.where(
+					and(
+						eq(services.contractId, input.contractId),
+						inArray(services.lifecycle, ['planned', 'active'])
+					)
+				);
+			if ((row?.value ?? 0) > 0) {
+				throw new DomainError(
+					409,
+					'Pausa o archiva los servicios activos o en espera antes de pausar el contrato.'
+				);
+			}
+		}
+
+		if (input.lifecycle === 'archived') {
+			const [row] = await tx
+				.select({ value: sql<number>`cast(count(*) as int)` })
+				.from(services)
+				.where(
+					and(
+						eq(services.contractId, input.contractId),
+						inArray(services.lifecycle, ['planned', 'active', 'inactive'])
+					)
+				);
+			if ((row?.value ?? 0) > 0) {
+				throw new DomainError(409, 'Archiva todos los servicios del contrato antes de archivarlo.');
+			}
+		}
+
+		await tx
+			.update(contracts)
+			.set({ lifecycle: input.lifecycle, updatedAt: new Date() })
+			.where(eq(contracts.id, input.contractId));
+
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'contract',
+			entityId: input.contractId,
+			action: 'contract.lifecycle_changed',
+			metadata: { from: current.lifecycle, to: input.lifecycle }
+		});
+	});
+}
+
 /** Elimina un contrato solo si no tiene servicios (evita pérdidas silenciosas). */
 export async function deleteContract(
 	db: Database,
@@ -341,11 +433,14 @@ export async function deleteContract(
 ): Promise<void> {
 	await db.transaction(async (tx) => {
 		const [row] = await tx
-			.select({ id: contracts.id, name: contracts.name })
+			.select({ id: contracts.id, name: contracts.name, lifecycle: contracts.lifecycle })
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!row) throw new DomainError(404, 'Contrato no encontrado.');
+		if (row.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado es de solo lectura.');
+		}
 
 		const [{ value: serviceCount }] = await tx
 			.select({ value: sql<number>`cast(count(*) as int)` })
@@ -383,11 +478,14 @@ export async function assignContractUser(
 ): Promise<{ id: string; created: boolean }> {
 	return db.transaction(async (tx) => {
 		const [contract] = await tx
-			.select({ id: contracts.id })
+			.select({ id: contracts.id, lifecycle: contracts.lifecycle })
 			.from(contracts)
 			.where(eq(contracts.id, input.contractId))
 			.limit(1);
 		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
+		if (contract.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado no admite cambios de participantes.');
+		}
 
 		const [user] = await tx
 			.select({ id: users.id, role: users.role, isActive: users.isActive })
@@ -456,6 +554,15 @@ export async function revokeContractAssignment(
 		if (!assignment) throw new DomainError(404, 'Asignación no encontrada.');
 		if (assignment.revokedAt) {
 			return { contractId: assignment.contractId, revokedServiceAssignments: 0 };
+		}
+
+		const [contract] = await tx
+			.select({ lifecycle: contracts.lifecycle })
+			.from(contracts)
+			.where(eq(contracts.id, assignment.contractId))
+			.limit(1);
+		if (contract?.lifecycle === 'archived') {
+			throw new DomainError(409, 'Un contrato archivado no admite cambios de participantes.');
 		}
 
 		await tx

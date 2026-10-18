@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import EvidenceCapture from '#lib/components/evidence/evidence-capture.svelte';
@@ -45,6 +46,18 @@
 			<p class="line-clamp-2 text-sm text-muted-foreground">{data.element.description}</p>
 		{/if}
 	</PageHeader>
+
+	{#if data.serviceLifecycle !== 'active'}
+		<Alert>
+			<AlertDescription>
+				El servicio está {data.serviceLifecycle === 'planned'
+					? 'en espera'
+					: data.serviceLifecycle === 'inactive'
+						? 'inactivo'
+						: 'archivado'}; la evidencia es de solo lectura.
+			</AlertDescription>
+		</Alert>
+	{/if}
 
 	<EvidenceCapture
 		targetId={data.evidence.target.id}
