@@ -101,6 +101,22 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 			.first();
 		await page.goto((await reviewLink.getAttribute('href')) ?? '/reviews');
 		await expect(page.getByRole('heading', { name: /Entrega #/ })).toBeVisible();
+
+		// La revisión abre las fotos en el visor, no en otra pestaña.
+		await page
+			.getByRole('button', { name: /Abrir foto 1 de/ })
+			.first()
+			.click();
+		const viewer = page.getByRole('dialog', { name: 'Fotografía de evidencia' });
+		await expect(viewer).toBeVisible();
+		await expect(viewer.getByText('1 / 2')).toBeVisible();
+		await expect(viewer.getByRole('link', { name: 'Descargar' })).toHaveCSS(
+			'color',
+			'rgb(255, 255, 255)'
+		);
+		await page.keyboard.press('Escape');
+		await expect(viewer).toBeHidden();
+
 		await page.getByRole('button', { name: 'Aprobar entrega' }).click();
 		await page.getByRole('button', { name: 'Confirmar aprobación' }).click();
 		await expect(page.getByText('Aprobada').first()).toBeVisible();

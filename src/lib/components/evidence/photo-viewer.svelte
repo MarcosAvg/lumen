@@ -14,7 +14,11 @@
 		photos,
 		startIndex = 0,
 		open = $bindable(false)
-	}: { photos: { id: string }[]; startIndex?: number; open?: boolean } = $props();
+	}: { photos: { id: string; label?: string }[]; startIndex?: number; open?: boolean } = $props();
+
+	/** Controles legibles sobre el fondo translúcido en claro y oscuro. */
+	const viewerButtonClass =
+		'border-white/35 bg-white/10 text-white hover:bg-white/20 hover:text-white focus-visible:ring-white/70';
 
 	let current = $state(untrack(() => startIndex));
 	let container = $state<HTMLDivElement | null>(null);
@@ -128,14 +132,19 @@
 		aria-modal="true"
 		aria-label="Fotografía de evidencia"
 		tabindex="-1"
-		class="fixed inset-0 z-50 flex flex-col bg-black/95 text-white outline-none"
+		class="fixed inset-0 z-50 flex flex-col bg-black/80 text-white backdrop-blur-sm outline-none"
 		onkeydown={handleKey}
 	>
 		<div
-			class="flex items-center justify-between gap-2 px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2"
+			class="flex items-center justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2"
 		>
 			<span class="tnum text-sm" aria-live="polite">{current + 1} / {photos.length}</span>
-			<Button variant="ghost" size="icon" class="text-white" onclick={close}>
+			<Button
+				variant="ghost"
+				size="icon"
+				class="text-white hover:bg-white/15 hover:text-white focus-visible:ring-white/70"
+				onclick={close}
+			>
 				<XIcon />
 				<span class="sr-only">Cerrar</span>
 			</Button>
@@ -153,7 +162,7 @@
 		>
 			<img
 				src={`/api/photos/${photo.id}/content`}
-				alt={`Fotografía ${current + 1} de ${photos.length}`}
+				alt={photo.label ?? `Fotografía ${current + 1} de ${photos.length}`}
 				draggable="false"
 				class="absolute inset-0 m-auto max-h-full max-w-full object-contain transition-transform duration-100"
 				style={`transform: translate(${tx}px, ${ty}px) scale(${scale})`}
@@ -161,13 +170,17 @@
 		</div>
 
 		<div
-			class="flex items-center justify-center gap-2 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+			class="flex items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
 		>
 			{#if photos.length > 1}
-				<Button variant="outline" onclick={() => go(-1)}>Anterior</Button>
-				<Button variant="outline" onclick={() => go(1)}>Siguiente</Button>
+				<Button variant="outline" class={viewerButtonClass} onclick={() => go(-1)}>Anterior</Button>
+				<Button variant="outline" class={viewerButtonClass} onclick={() => go(1)}>Siguiente</Button>
 			{/if}
-			<Button href={`/api/photos/${photo.id}/content?download=1`} variant="outline">
+			<Button
+				href={`/api/photos/${photo.id}/content?download=1`}
+				variant="outline"
+				class={viewerButtonClass}
+			>
 				<DownloadIcon />
 				Descargar
 			</Button>

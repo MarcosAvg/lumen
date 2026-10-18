@@ -8,6 +8,7 @@
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import PageHeader from '#lib/components/app/page-header.svelte';
 	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import PhotoViewer from '#lib/components/evidence/photo-viewer.svelte';
 	import type { PageProps } from './$types';
 	import { ADDITIONAL_GROUP_LABEL, NO_REQUIREMENT_GROUP_LABEL } from '#lib/types';
 
@@ -47,6 +48,24 @@
 				};
 			})
 	);
+
+	let viewerOpen = $state(false);
+	let viewerIndex = $state(0);
+	const viewerPhotos = $derived(
+		groups.flatMap((group) =>
+			group.photos.map((photo, index) => ({
+				id: photo.photoId,
+				label: `${group.name} · Foto ${index + 1} de ${group.photos.length}`
+			}))
+		)
+	);
+
+	function openViewer(photoId: string) {
+		const index = viewerPhotos.findIndex((photo) => photo.id === photoId);
+		if (index < 0) return;
+		viewerIndex = index;
+		viewerOpen = true;
+	}
 </script>
 
 <svelte:head>
@@ -116,7 +135,7 @@
 									<button
 										type="button"
 										class="block w-full"
-										onclick={() => window.open(`/api/photos/${photo.photoId}/content`, '_blank')}
+										onclick={() => openViewer(photo.photoId)}
 										aria-label={`Abrir foto ${index + 1} de ${group.photos.length}`}
 									>
 										<img
@@ -168,6 +187,8 @@
 		</div>
 	</div>
 </div>
+
+<PhotoViewer photos={viewerPhotos} startIndex={viewerIndex} bind:open={viewerOpen} />
 
 <AlertDialog.Root bind:open={showApprove}>
 	<AlertDialog.Content>
