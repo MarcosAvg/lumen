@@ -22,9 +22,11 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   a mano en las vistas.
 - **Tema:** claro, oscuro y sistema. La preferencia se guarda en el dispositivo
   y «Sistema» sigue `prefers-color-scheme`.
-- **Barra del sistema (PWA):** `theme-color` usa el azul de marca `#1e4b8d` en
-  claro y el navy `#0f172a` en oscuro, tanto en el manifiesto como en el meta
-  dinámico. No se usa el color de fondo de la página.
+- **Barra del sistema (PWA):** `theme-color` usa el mismo color que el canvas,
+  `#edf2f6` en claro y `#070a10` en oscuro, tanto en el manifiesto como en el
+  meta dinámico. La barra se integra con el fondo en vez de crear una banda de
+  color de marca. La barra de gestos de Android la controla el sistema y no se
+  intenta forzar desde la PWA.
 
 ## 2. Forma, espacio y controles
 

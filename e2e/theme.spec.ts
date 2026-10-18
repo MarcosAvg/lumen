@@ -4,14 +4,16 @@ import { ensureAdmin } from './helpers';
 test('el tema claro/oscuro/sistema persiste y actualiza la interfaz', async ({ page }) => {
 	await ensureAdmin(page);
 	const manifest = await (await page.request.get('/manifest.webmanifest')).json();
-	expect(manifest.theme_color).toBe('#1e4b8d');
+	expect(manifest.theme_color).toBe('#edf2f6');
+	expect(manifest.background_color).toBe('#edf2f6');
 	await page.goto('/settings');
 
 	const oscuro = page.getByRole('button', { name: 'Oscuro' });
 	await oscuro.click();
 	await expect(page.locator('html')).toHaveClass(/dark/);
+	await expect(page.locator('html')).toHaveCSS('background-color', 'oklch(0.145 0.014 258)');
 	await expect(oscuro).toHaveAttribute('aria-pressed', 'true');
-	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#0f172a');
+	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#070a10');
 
 	await page.reload();
 	await expect(page.locator('html')).toHaveClass(/dark/);
@@ -29,5 +31,6 @@ test('el tema claro/oscuro/sistema persiste y actualiza la interfaz', async ({ p
 
 	await page.getByRole('button', { name: 'Claro' }).click();
 	await expect(page.locator('html')).not.toHaveClass(/dark/);
-	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#1e4b8d');
+	await expect(page.locator('html')).toHaveCSS('background-color', 'oklch(0.958 0.008 250)');
+	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#edf2f6');
 });

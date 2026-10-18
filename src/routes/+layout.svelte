@@ -7,9 +7,9 @@
 
 	let { children }: LayoutProps = $props();
 
-	// La barra del sistema (notificaciones/estado) usa el azul de marca, no el
-	// fondo de la página, para que la PWA instalada se reconozca como Lumen.
-	const themeColors = { light: '#1e4b8d', dark: '#0f172a' };
+	// La barra del sistema usa el mismo color que el canvas para integrarse con
+	// la app. Los valores hex son el equivalente sRGB de `--background`.
+	const themeColors = { light: '#edf2f6', dark: '#070a10' };
 
 	$effect(() => {
 		const themeColor = document.querySelector('meta[name="theme-color"]');
