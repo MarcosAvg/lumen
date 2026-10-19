@@ -227,6 +227,42 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 		);
 	});
 
+	it('crea un servicio con edificio y rechaza ítems que no son edificio', async () => {
+		const admin = await seedAdmin();
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificios.');
+		const buildingCatalog = await createCatalog(db, {
+			name: 'Edificios',
+			typeId: buildingType.id,
+			actorId: admin
+		});
+		const building = await seedItem(buildingCatalog.id, 'Edificio A', admin);
+		const otherCatalog = await createCatalog(db, { name: 'Pisos', actorId: admin });
+		const otherItem = await seedItem(otherCatalog.id, 'Piso 1', admin);
+		const contractId = await seedContract(db, admin);
+
+		const service = await createService(db, {
+			contractId,
+			name: 'Servicio con edificio',
+			buildingCatalogItemId: building.id,
+			actorId: admin
+		});
+		const detail = await getServiceForUser(db, adminUser(admin), service.id);
+		expect(detail.service.buildingName).toBe('Edificio A');
+		expect(detail.service.buildingCatalogItemId).toBe(building.id);
+
+		await expect(
+			createService(db, {
+				contractId,
+				name: 'Servicio inválido',
+				buildingCatalogItemId: otherItem.id,
+				actorId: admin
+			})
+		).rejects.toThrow('El edificio debe pertenecer a un catálogo de tipo Edificio.');
+	});
+
 	it('generación 34×4 crea la estructura esperada', async () => {
 		const admin = await seedAdmin();
 		const service = await createService(db, {

@@ -11,6 +11,7 @@
 	import EmptyState from '#lib/components/app/empty-state.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import TableActions from '#lib/components/app/table-actions.svelte';
+	import CatalogItemPicker from '#lib/components/catalog/catalog-item-picker.svelte';
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import LifecycleBadge from '#lib/components/app/lifecycle-badge.svelte';
 	import LifecycleFilter from '#lib/components/app/lifecycle-filter.svelte';
@@ -30,6 +31,7 @@
 
 	let createOpen = $state(false);
 	let createContractId = $state('');
+	let createBuildingItemId = $state('');
 	let createName = $state('');
 	let createPlanned = $state(false);
 	let lifecycleFilter = $state<ServiceLifecycle>('active');
@@ -56,6 +58,7 @@
 
 	function openCreate() {
 		createContractId = '';
+		createBuildingItemId = '';
 		createName = '';
 		createPlanned = false;
 		createOpen = true;
@@ -117,6 +120,15 @@
 									Necesitas un contrato activo. Créalo o reactívalo en «Contratos».
 								</p>
 							{/if}
+						</div>
+						<div class="space-y-2">
+							<Label for="buildingItemId">Edificio (opcional)</Label>
+							<CatalogItemPicker
+								name="buildingItemId"
+								catalogs={data.buildingCatalogs}
+								bind:value={createBuildingItemId}
+								itemPlaceholder="Sin edificio"
+							/>
 						</div>
 					</Dialog.Section>
 					<Dialog.Section title="Datos">

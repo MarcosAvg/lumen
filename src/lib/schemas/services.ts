@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const buildingItemIdSchema = z
+	.union([z.uuid('Edificio inválido.'), z.literal('')])
+	.optional()
+	.default('');
+
 export const createServiceSchema = z.object({
 	contractId: z.uuid('Contrato inválido.'),
 	name: z
@@ -12,7 +17,8 @@ export const createServiceSchema = z.object({
 		.trim()
 		.max(2000, 'La descripción no puede superar 2000 caracteres.')
 		.optional()
-		.default('')
+		.default(''),
+	buildingItemId: buildingItemIdSchema
 });
 
 export const updateServiceSchema = z.object({
@@ -29,10 +35,7 @@ export const updateServiceSchema = z.object({
 		.max(2000, 'La descripción no puede superar 2000 caracteres.')
 		.optional()
 		.default(''),
-	buildingItemId: z
-		.union([z.uuid('Edificio inválido.'), z.literal('')])
-		.optional()
-		.default('')
+	buildingItemId: buildingItemIdSchema
 });
 
 export const serviceLifecycleSchema = z.enum(['planned', 'active', 'inactive', 'archived'], {

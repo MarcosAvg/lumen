@@ -22,6 +22,21 @@ const visibleBuildingName = sql<
 
 const visibleContractName = sql<string>`${contracts.name}`;
 
+/** Resuelve y valida un ítem del catálogo de edificios. */
+async function resolveBuildingItem(
+	db: Database,
+	catalogItemId: string
+): Promise<{ id: string; name: string }> {
+	const [item] = await db
+		.select({ id: catalogItems.id, name: catalogItems.name })
+		.from(catalogItems)
+		.where(eq(catalogItems.id, catalogItemId))
+		.limit(1);
+	if (!item) throw new DomainError(404, 'Ítem de edificio no encontrado.');
+	await assertBuildingCatalogItem(db, item.id);
+	return item;
+}
+
 export interface ServiceSummary {
 	id: string;
 	contractId: string;
@@ -37,6 +52,8 @@ export interface CreateServiceInput {
 	contractId: string;
 	name: string;
 	description?: string | null;
+	/** Edificio opcional; debe pertenecer a un catálogo de tipo Edificios. */
+	buildingCatalogItemId?: string | null;
 	/** `planned` permite preparar la estructura sin capturar evidencia. */
 	lifecycle?: Extract<ServiceLifecycle, 'planned' | 'active'>;
 	actorId: string;
@@ -57,6 +74,14 @@ export async function createService(
 			throw new DomainError(409, 'Activa el contrato antes de añadir servicios.');
 		}
 
+		let buildingCatalogItemId: string | null = null;
+		let buildingNameSnapshot: string | null = null;
+		if (input.buildingCatalogItemId) {
+			const building = await resolveBuildingItem(tx, input.buildingCatalogItemId);
+			buildingCatalogItemId = building.id;
+			buildingNameSnapshot = building.name;
+		}
+
 		const lifecycle = input.lifecycle ?? 'active';
 		const [created] = await tx
 			.insert(services)
@@ -65,6 +90,8 @@ export async function createService(
 				name: input.name,
 				description: input.description?.trim() || null,
 				lifecycle,
+				buildingCatalogItemId,
+				buildingNameSnapshot,
 				createdBy: input.actorId
 			})
 			.returning({ id: services.id });
@@ -75,7 +102,12 @@ export async function createService(
 			entityType: 'service',
 			entityId: created.id,
 			action: 'service.created',
-			metadata: { name: input.name, contractId: input.contractId, lifecycle }
+			metadata: {
+				name: input.name,
+				contractId: input.contractId,
+				buildingCatalogItemId,
+				lifecycle
+			}
 		});
 
 		return { id: created.id, contractId: input.contractId };
@@ -117,13 +149,7 @@ export async function updateService(db: Database, input: UpdateServiceInput): Pr
 				values.buildingCatalogItemId = null;
 				values.buildingNameSnapshot = null;
 			} else {
-				const [item] = await tx
-					.select({ id: catalogItems.id, name: catalogItems.name })
-					.from(catalogItems)
-					.where(eq(catalogItems.id, input.buildingCatalogItemId))
-					.limit(1);
-				if (!item) throw new DomainError(404, 'Ítem de edificio no encontrado.');
-				await assertBuildingCatalogItem(tx, item.id);
+				const item = await resolveBuildingItem(tx, input.buildingCatalogItemId);
 				values.buildingCatalogItemId = item.id;
 				values.buildingNameSnapshot = item.name;
 			}

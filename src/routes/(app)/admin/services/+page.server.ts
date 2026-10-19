@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import { requireAdmin } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
+import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { listContractsForUser } from '#lib/server/domain/contracts';
 import { createService, listServicesForUser } from '#lib/server/domain/services';
 import { failFrom, parseForm } from '#lib/server/forms';
@@ -10,11 +11,17 @@ import type { Actions, PageServerLoad } from './$types';
 export const load: PageServerLoad = async ({ locals }) => {
 	const admin = requireAdmin(locals);
 	const db = getDatabase().db;
-	const [services, contracts] = await Promise.all([
+	const [services, contracts, allCatalogs] = await Promise.all([
 		listServicesForUser(db, admin),
-		listContractsForUser(db, admin)
+		listContractsForUser(db, admin),
+		listCatalogsWithItems(db)
 	]);
-	return { title: 'Servicios', services, contracts };
+	return {
+		title: 'Servicios',
+		services,
+		contracts,
+		buildingCatalogs: allCatalogs.filter((catalog) => catalog.typeSystemRole === 'building')
+	};
 };
 
 export const actions: Actions = {
@@ -29,6 +36,7 @@ export const actions: Actions = {
 				contractId: parsed.data.contractId,
 				name: parsed.data.name,
 				description: parsed.data.description,
+				buildingCatalogItemId: parsed.data.buildingItemId || null,
 				lifecycle:
 					formData.get('planned') === 'on' || formData.get('planned') === 'true'
 						? 'planned'

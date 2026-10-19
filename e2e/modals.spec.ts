@@ -18,6 +18,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	// Servicio: editar desde la ficha.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
+	await expect(page.getByRole('dialog').getByText('Edificio (opcional)')).toBeVisible();
 	await page.locator('#contractId').selectOption({ label: 'General' });
 	await page.getByLabel('Nombre', { exact: true }).fill(service);
 	await page.getByRole('button', { name: 'Crear servicio' }).click();
