@@ -1,33 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { createRelationsBatchSchema } from './catalogs';
+import { createCatalogSchema, createCatalogTypeSchema } from './catalogs';
 
-const ITEM = '11111111-1111-4111-8111-111111111111';
-const ITEM2 = '22222222-2222-4222-8222-222222222222';
+const TYPE = '11111111-1111-4111-8111-111111111111';
 
-describe('relaciones de catálogo en lote (validación)', () => {
-	it('exige al menos un ítem en cada lado', () => {
-		expect(
-			createRelationsBatchSchema.safeParse({ fromItemIds: [], toItemIds: [ITEM] }).success
-		).toBe(false);
-		expect(
-			createRelationsBatchSchema.safeParse({ fromItemIds: [ITEM], toItemIds: [] }).success
-		).toBe(false);
+describe('catálogos (validación)', () => {
+	it('exige un tipo de catálogo', () => {
+		expect(createCatalogSchema.safeParse({ name: 'Pisos' }).success).toBe(false);
+		expect(createCatalogSchema.safeParse({ name: 'Pisos', typeId: TYPE }).success).toBe(true);
 	});
 
-	it('acepta varios ítems y normaliza el tipo opcional', () => {
-		const parsed = createRelationsBatchSchema.safeParse({
-			fromItemIds: [ITEM, ITEM2],
-			toItemIds: [ITEM]
-		});
+	it('normaliza el ámbito de edificios', () => {
+		const parsed = createCatalogSchema.safeParse({ name: 'Pisos', typeId: TYPE });
 		expect(parsed.success).toBe(true);
-		if (parsed.success) {
-			expect(parsed.data.relationType).toBe('');
-		}
+		if (parsed.success) expect(parsed.data.allBuildings).toBe('true');
 	});
 
-	it('rechaza identificadores que no son uuid', () => {
-		expect(
-			createRelationsBatchSchema.safeParse({ fromItemIds: ['no-uuid'], toItemIds: [ITEM] }).success
-		).toBe(false);
+	it('valida el nombre del tipo', () => {
+		expect(createCatalogTypeSchema.safeParse({ name: '  ' }).success).toBe(false);
+		expect(createCatalogTypeSchema.safeParse({ name: 'Sistema' }).success).toBe(true);
 	});
 });

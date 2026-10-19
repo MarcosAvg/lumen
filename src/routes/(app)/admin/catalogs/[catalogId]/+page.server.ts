@@ -10,8 +10,7 @@ import {
 	getCatalogItemImpact,
 	getCatalogMeta,
 	listCatalogsWithItems,
-	listCatalogItemOptions,
-	listRelationsForCatalog,
+	listCatalogTypes,
 	moveCatalogItem,
 	renameCatalogItem,
 	searchCatalogItems,
@@ -36,12 +35,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const page = Math.max(Number(url.searchParams.get('page') ?? '1') || 1, 1);
 	const PAGE_SIZE = 25;
 
-	const [catalog, itemsPage, relations, allCatalogs, fromItems] = await Promise.all([
+	const [catalog, itemsPage, types, allCatalogs] = await Promise.all([
 		orHttp(getCatalogMeta(db, catalogId)),
 		searchCatalogItems(db, catalogId, { q, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
-		listRelationsForCatalog(db, catalogId),
-		listCatalogsWithItems(db),
-		listCatalogItemOptions(db, catalogId)
+		listCatalogTypes(db),
+		listCatalogsWithItems(db)
 	]);
 
 	return {
@@ -53,20 +51,28 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		page,
 		pageSize: PAGE_SIZE,
 		q,
-		relations,
-		fromItems,
-		otherCatalogs: allCatalogs.filter((entry) => entry.id !== catalogId)
+		types,
+		buildingCatalogs: allCatalogs.filter((entry) => entry.typeSystemRole === 'building')
 	};
 };
 
 export const actions: Actions = {
 	updateCatalog: async (event) => {
 		const admin = requireAdmin(event.locals);
-		const parsed = parseForm(updateCatalogSchema, await event.request.formData());
+		const form = await event.request.formData();
+		const parsed = parseForm(updateCatalogSchema, form);
 		if (!parsed.ok) return fail(400, { message: 'Datos del catálogo inválidos.' });
 
 		try {
-			await updateCatalog(getDatabase().db, { ...parsed.data, actorId: admin.id });
+			await updateCatalog(getDatabase().db, {
+				catalogId: parsed.data.catalogId,
+				name: parsed.data.name,
+				description: parsed.data.description,
+				typeId: parsed.data.typeId,
+				allBuildings: parsed.data.allBuildings !== 'false',
+				buildingCatalogItemIds: form.getAll('buildingIds').map(String),
+				actorId: admin.id
+			});
 		} catch (error) {
 			return failFrom(error);
 		}

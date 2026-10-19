@@ -13,22 +13,46 @@ export const catalogDescriptionSchema = z
 	.optional()
 	.default('');
 
-export const catalogPurposeSchema = z
-	.union([z.enum(['general', 'buildings', 'requirements']), z.literal('')])
+export const catalogTypeNameSchema = z
+	.string()
+	.trim()
+	.min(1, 'El nombre del tipo es obligatorio.')
+	.max(80, 'El nombre no puede superar 80 caracteres.');
+
+export const catalogSortOrderSchema = z.coerce
+	.number()
+	.int('El orden debe ser un número entero.')
+	.min(0, 'El orden no puede ser negativo.')
 	.optional()
-	.default('');
+	.default(0);
 
 export const createCatalogSchema = z.object({
 	name: catalogNameSchema,
 	description: catalogDescriptionSchema,
-	purpose: catalogPurposeSchema
+	typeId: z.uuid('Tipo de catálogo inválido.'),
+	allBuildings: z
+		.enum(['true', 'false'], { message: 'Ámbito de edificios inválido.' })
+		.optional()
+		.default('true')
 });
 
-export const updateCatalogSchema = z.object({
-	catalogId: z.uuid('Catálogo inválido.'),
-	name: catalogNameSchema,
-	description: catalogDescriptionSchema,
-	purpose: catalogPurposeSchema
+export const updateCatalogSchema = createCatalogSchema.extend({
+	catalogId: z.uuid('Catálogo inválido.')
+});
+
+export const createCatalogTypeSchema = z.object({
+	name: catalogTypeNameSchema,
+	sortOrder: catalogSortOrderSchema
+});
+
+export const updateCatalogTypeSchema = z.object({
+	typeId: z.uuid('Tipo de catálogo inválido.'),
+	name: catalogTypeNameSchema,
+	sortOrder: catalogSortOrderSchema
+});
+
+export const deleteCatalogTypeSchema = z.object({
+	typeId: z.uuid('Tipo de catálogo inválido.')
 });
 
 export const catalogIdSchema = z.object({
@@ -55,19 +79,4 @@ export const renameCatalogItemSchema = z.object({
 
 export const deleteCatalogItemSchema = z.object({
 	itemId: z.uuid('Ítem inválido.')
-});
-
-export const createRelationsBatchSchema = z.object({
-	fromItemIds: z
-		.array(z.uuid('Ítem de origen inválido.'))
-		.min(1, 'Elige al menos un ítem de origen.'),
-	toItemIds: z
-		.array(z.uuid('Ítem de destino inválido.'))
-		.min(1, 'Elige al menos un ítem de destino.'),
-	relationType: z
-		.string()
-		.trim()
-		.max(80, 'El tipo no puede superar 80 caracteres.')
-		.optional()
-		.default('')
 });

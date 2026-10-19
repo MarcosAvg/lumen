@@ -45,8 +45,9 @@ users ──< sessions
   ├──< push_subscriptions
   └──< audit_events
 
-catalogs ──< catalog_items ──< catalog_item_relations >── catalog_items
-                         └──(vínculos opcionales)── works / elements / services / photo_requirements
+catalog_types ──< catalogs ──< catalog_items
+                       └──< catalog_buildings >── catalog_items
+catalog_items ──(vínculos opcionales)── works / elements / services / photo_requirements
 ```
 
 Un `evidence_target` se enlaza **o** con un trabajo directo **o** con un
@@ -122,7 +123,9 @@ actual; no se confía en permisos cacheados en la cookie.
 - Cambiar de contrato revoca las asignaciones de servicio incompatibles.
 - El administrador que asigna un servicio incorpora al usuario al contrato si
   falta; el supervisor del contrato solo puede asignar a miembros existentes.
-- El edificio puede ser un ítem de catálogo o un nombre conservado en snapshot.
+- El edificio se elige entre ítems de catálogos cuyo tipo tiene
+  `system_role = 'building'`. `building_name_snapshot` conserva el nombre para
+  lecturas históricas si el catálogo cambia o se desvincula.
 
 ### `service_assignments`
 
@@ -138,16 +141,40 @@ actual; no se confía en permisos cacheados en la cookie.
 
 ## 4. Catálogos
 
-### `catalogs`
+### `catalog_types`
 
-`id`, `name`, `description`, `purpose`, `sort_order`, `created_at`,
+`id`, `name`, `system_role` nullable, `sort_order`, `created_at`,
 `updated_at`.
 
-`purpose` es un enum con tres valores:
+- Los tipos son administrables. `system_role = 'building'` identifica el tipo
+  protegido **Edificios**, que alimenta el campo edificio de los servicios.
+- Un tipo con `system_role = 'building'` no se elimina. Un tipo con catálogos
+  tampoco se elimina.
+- Índice único case-insensitive sobre `lower(name)`.
+- El nombre y el orden se pueden editar; el rol de sistema no se expone en UI.
 
-- `general`: nombres de trabajos y elementos.
-- `buildings`: edificios de servicio.
-- `requirements`: requisitos fotográficos.
+### `catalogs`
+
+`id`, `name`, `description`, `type_id` (FK `catalog_types` `RESTRICT`),
+`all_buildings`, `sort_order`, `created_at`, `updated_at`.
+
+- `all_buildings = true` significa disponible en todos los servicios.
+- `all_buildings = false` limita el catálogo a los edificios de
+  `catalog_buildings`. Debe existir al menos uno.
+- El catálogo no define usos permitidos: el tipo es un filtro de navegación y
+  cualquier catálogo no-edificio puede nombrar trabajos, elementos o requisitos.
+- Los ítems del tipo de sistema `Edificios` se usan solo para el campo edificio;
+  el servidor rechaza usarlos como nombre de trabajo, elemento o requisito.
+- Índice por `type_id`.
+
+### `catalog_buildings`
+
+`catalog_id` (FK `CASCADE`), `building_catalog_item_id` (FK `catalog_items`
+`CASCADE`), `created_at`.
+
+- Clave primaria compuesta.
+- Solo admite ítems cuyo catálogo pertenezca al tipo de sistema `Edificios`.
+- Índice por `building_catalog_item_id`.
 
 ### `catalog_items`
 
@@ -159,18 +186,6 @@ actual; no se confía en permisos cacheados en la cookie.
 - El nombre visible de una instancia es `COALESCE(catalog_item.name,
   custom_name)`.
 
-### `catalog_item_relations`
-
-`id`, `from_item_id`, `to_item_id`, `relation_type` nullable, `created_at`.
-
-- FK `CASCADE` hacia ítems.
-- CHECK contra relaciones de un ítem consigo mismo.
-- Unicidad de `(from_item_id, to_item_id, relation_type)`.
-- Índice único parcial para el par sin tipo (`relation_type IS NULL`), porque
-  PostgreSQL considera distintos los `NULL`.
-- La creación en lote omite pares ya existentes.
-- El sentido es explícito; no se deduce una jerarquía universal.
-
 ### Eliminación y desvinculación
 
 - `works.catalog_item_id`, `elements.catalog_item_id` y
@@ -178,7 +193,8 @@ actual; no se confía en permisos cacheados en la cookie.
 - `services.building_catalog_item_id` es anulable y conserva
   `building_name_snapshot`.
 - Borrar un ítem ejecuta una transacción que copia el último nombre a
-  `custom_name` o al snapshot, anula la FK, elimina relaciones y borra el ítem.
+  `custom_name` o al snapshot, anula la FK, elimina las filas de
+  `catalog_buildings` que lo usan como edificio y borra el ítem.
 - No hay `ON DELETE CASCADE` desde catálogos hacia evidencia.
 - Renombrar una instancia concreta guarda `custom_name` y anula
   `catalog_item_id` atómicamente.
@@ -438,8 +454,10 @@ archivado no vuelve a `active`.
 - `contracts(lifecycle)` y `services(lifecycle)` para filtros de listado y
   tablero.
 - `catalog_items(catalog_id, lower(name))`.
-- `catalog_item_relations(from_item_id, to_item_id, relation_type)` y parcial
-  para tipo nulo.
+- `catalog_types(lower(name))`, `catalog_types(sort_order)` y
+  `catalogs(type_id)`.
+- `catalog_buildings(building_catalog_item_id)`; PK
+  `(catalog_id, building_catalog_item_id)`.
 - `evidence_targets(work_id)` y `(element_id)` únicos.
 - `photo_requirements(target_id, sort_order)`.
 - `photos(target_id, removed_at, requirement_id, sort_order)`.

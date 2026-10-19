@@ -1,14 +1,14 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import {
 	catalogItems,
-	catalogs,
 	evidenceSubmissions,
 	evidenceTargets,
 	photoRequirements,
 	photos
 } from '#lib/server/db/schema';
 import { recordAudit } from './audit';
+import { assertCatalogItemAvailableForService } from './catalog-scope';
 import { DomainError } from './errors';
 import { getTargetContext, isEditableStatus } from './targets';
 
@@ -24,12 +24,13 @@ export interface RequirementRow {
 const visibleRequirementName = sql<string>`coalesce(${catalogItems.name}, ${photoRequirements.customName})`;
 
 /**
- * Resuelve el origen del nombre de un requisito: o un ítem de un catálogo de
- * propósito `requirements`, o un nombre propio. Exactamente uno.
+ * Resuelve el origen del nombre de un requisito: un ítem de catálogo o un
+ * nombre propio. Exactamente uno, y el ítem debe ser visible en el servicio.
  */
 async function resolveNameSource(
 	db: Database,
-	source: { catalogItemId?: string | null; name?: string | null }
+	source: { catalogItemId?: string | null; name?: string | null },
+	serviceId: string
 ): Promise<{ catalogItemId: string | null; customName: string | null }> {
 	const hasCatalog = Boolean(source.catalogItemId);
 	const custom = source.name?.trim() ?? '';
@@ -46,15 +47,10 @@ async function resolveNameSource(
 		const [item] = await db
 			.select({ id: catalogItems.id })
 			.from(catalogItems)
-			.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
-			.where(
-				and(
-					eq(catalogItems.id, source.catalogItemId as string),
-					eq(catalogs.purpose, 'requirements')
-				)
-			)
+			.where(eq(catalogItems.id, source.catalogItemId as string))
 			.limit(1);
-		if (!item) throw new DomainError(404, 'Ítem de catálogo de requisitos no encontrado.');
+		if (!item) throw new DomainError(404, 'Ítem de catálogo no encontrado.');
+		await assertCatalogItemAvailableForService(db, serviceId, item.id);
 		return { catalogItemId: item.id, customName: null };
 	}
 
@@ -77,7 +73,10 @@ export async function hasSubmissions(db: Database, targetId: string): Promise<bo
  * Los requisitos solo pueden modificarse mientras la evidencia sea editable y el
  * objetivo **nunca se haya enviado** (docs/producto/reglas.md).
  */
-export async function assertRequirementsEditable(db: Database, targetId: string): Promise<void> {
+export async function assertRequirementsEditable(
+	db: Database,
+	targetId: string
+): Promise<Awaited<ReturnType<typeof getTargetContext>>> {
 	const target = await getTargetContext(db, targetId);
 	if (target.serviceLifecycle !== 'active') {
 		throw new DomainError(409, 'El servicio no está activo; los requisitos son de solo lectura.');
@@ -88,6 +87,7 @@ export async function assertRequirementsEditable(db: Database, targetId: string)
 	if (await hasSubmissions(db, targetId)) {
 		throw new DomainError(409, 'Los requisitos quedaron congelados tras el primer envío.');
 	}
+	return target;
 }
 
 async function bumpVersion(tx: Database, targetId: string): Promise<void> {
@@ -125,8 +125,8 @@ export async function createRequirement(
 	input: CreateRequirementInput
 ): Promise<{ id: string }> {
 	return db.transaction(async (tx) => {
-		await assertRequirementsEditable(tx, input.targetId);
-		const source = await resolveNameSource(tx, input);
+		const target = await assertRequirementsEditable(tx, input.targetId);
+		const source = await resolveNameSource(tx, input, target.serviceId);
 
 		const [next] = await tx
 			.select({ value: sql<number>`coalesce(max(${photoRequirements.sortOrder}), -1) + 1` })
@@ -179,7 +179,12 @@ export interface InsertRequirementsResult {
  */
 export async function insertRequirements(
 	tx: Database,
-	input: { targetId: string; requirements: RequirementInput[]; isRequired: boolean }
+	input: {
+		targetId: string;
+		serviceId: string;
+		requirements: RequirementInput[];
+		isRequired: boolean;
+	}
 ): Promise<InsertRequirementsResult> {
 	if (input.requirements.length === 0) {
 		return { created: 0, skipped: 0, requirements: [] };
@@ -188,7 +193,7 @@ export async function insertRequirements(
 	// Resuelve el origen y el nombre visible de cada entrada.
 	const resolved: { catalogItemId: string | null; name: string }[] = [];
 	for (const draft of input.requirements) {
-		const source = await resolveNameSource(tx, draft);
+		const source = await resolveNameSource(tx, draft, input.serviceId);
 		let name = source.customName ?? '';
 		if (source.catalogItemId) {
 			const [item] = await tx
@@ -271,10 +276,11 @@ export async function createRequirementsBatch(
 	}
 
 	return db.transaction(async (tx) => {
-		await assertRequirementsEditable(tx, input.targetId);
+		const target = await assertRequirementsEditable(tx, input.targetId);
 
 		const result = await insertRequirements(tx, {
 			targetId: input.targetId,
+			serviceId: target.serviceId,
 			requirements: catalogItemIds.map((catalogItemId) => ({ catalogItemId })),
 			isRequired: input.isRequired
 		});

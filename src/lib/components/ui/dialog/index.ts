@@ -1,5 +1,7 @@
 import Body from './dialog-body.svelte';
 import Close from './dialog-close.svelte';
+import CollapsibleSection from './dialog-collapsible-section.svelte';
+import Context from './dialog-context.svelte';
 import Section from './dialog-section.svelte';
 import Content from './dialog-content.svelte';
 import Description from './dialog-description.svelte';
@@ -16,6 +18,8 @@ export {
 	Title,
 	Body,
 	Section,
+	Context,
+	CollapsibleSection,
 	Portal,
 	Footer,
 	Header,
@@ -29,6 +33,8 @@ export {
 	Title as DialogTitle,
 	Body as DialogBody,
 	Section as DialogSection,
+	Context as DialogContext,
+	CollapsibleSection as DialogCollapsibleSection,
 	Portal as DialogPortal,
 	Footer as DialogFooter,
 	Header as DialogHeader,

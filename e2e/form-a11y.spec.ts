@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { ensureAdmin } from './helpers';
 
-test('los errores de campo se asocian al control (aria-invalid/aria-describedby)', async ({
+test('los errores de campo se asocian al control (aria-invalid/aria-describedby) @mobile', async ({
 	page
 }, testInfo) => {
 	test.setTimeout(90_000);

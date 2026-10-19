@@ -16,11 +16,16 @@ El estado detallado de la implementación está en
 | Estilo | `pnpm lint` | Prettier + ESLint |
 | Unitarias | `pnpm test` | Reglas puras, utilidades y componentes |
 | Integración | `pnpm test:integration` | PostgreSQL real, transacciones y constraints |
-| E2E | `pnpm test:e2e` | Flujos críticos en escritorio y móvil |
+| E2E rápido | `pnpm test:e2e` | Todo escritorio + móvil smoke (`@mobile`) |
+| E2E completo | `pnpm test:e2e:all` | Escritorio y móvil completos antes de publicar |
 | Build | `pnpm build` | Build de producción con adapter-node |
 
 Las pruebas de concurrencia usan transacciones y sesiones reales de PostgreSQL,
 no mocks que omitan locks.
+
+Los cambios de paleta o tokens visuales usan `pnpm verify:visual` (lint, build y
+prueba de tema). No requieren unitarias, integración ni E2E completo; esos
+niveles no detectan contraste ni controles nativos mal tematizados.
 
 ## 2. Definición de terminado
 
@@ -78,9 +83,11 @@ Una función está terminada cuando:
 | EXP-08 | ZIP de contrato con recopilados | Un PDF por servicio con evidencia, dentro de su carpeta |
 | SEARCH-01 | Buscar un recurso no asignado | No aparece |
 | DEL-01 | Borrar un servicio con historial | Confirmación, cascada acotada y limpieza posterior |
-| CAT-04 | Migrar un catálogo con propósito requirements | Selector y vínculos correctos |
+| CAT-04 | Catálogo limitado al edificio A usado en servicio B | No aparece en el selector y el servidor responde `409` |
+| CAT-05 | Crear, renombrar y eliminar tipos de catálogo | El tipo Edificios y los tipos con catálogos no se eliminan |
+| CAT-06 | Selección con varios tipos de catálogo | El filtro por tipo acota la lista y conserva el ítem elegido |
 | UI-01 | Alta sin selección inicial | Ningún desplegable obligatorio preselecciona el primer registro |
-| UI-02 | Catálogos en un contexto mixto | Agrupados por Generales, Edificios y Requisitos |
+| UI-02 | Catálogos en un contexto mixto | Agrupados por tipo; los limitados a otros edificios no aparecen |
 | UI-03 | Asignación sin rol ni persona | Añadir deshabilitado hasta completar |
 | PANEL-01 | Panel de administrador | Agregados globales, contratos, tendencia y cola sin datos ajenos |
 | PANEL-02 | Panel de supervisor | Solo servicios y contratos asignados; cola y decisiones acotadas |
@@ -97,18 +104,23 @@ Una función está terminada cuando:
 
 ## 4. Pruebas E2E mínimas
 
-- Configuración inicial y login.
-- Crear contrato, usuario, catálogo, servicio, trabajo directo y dividido.
-- Captura, envío, aprobación y rechazo con corrección.
-- Historial y descargas autorizadas/denegadas.
-- Búsqueda filtrada por ámbito.
-- Asignaciones y revocaciones.
-- Catálogos agrupados y ausencia de valores preseleccionados.
-- Ciclo de vida: crear en espera, activar, pausar, archivar completo y filtrar
-  archivados en solo lectura.
-- Exportaciones ZIP, XLSX y PDF.
-- Estados vacíos, error, conflicto y sin permiso.
-- Móvil y escritorio.
+La suite E2E cubre recorridos completos y el cableado entre UI y servidor. Las
+reglas de negocio se prueban en integración y no se duplican aquí. La suite se
+mantiene deliberadamente pequeña: 21 escenarios.
+
+- Configuración inicial, login, perfil y cierre de sesión.
+- Flujo crítico: captura, envío, aprobación, rechazo, corrección y reenvío.
+- Trabajo directo y dividido: elementos, requisitos y generación en lote.
+- Catálogos: tipos, búsqueda de ítems y selección por tipo/catálogo.
+- Catálogo de requisitos y checklist de envío.
+- Búsqueda filtrada por ámbito, permisos de exportación y cabeceras de seguridad.
+- Administración de usuarios y edición de recursos en modal.
+- Estados vacíos, 404 y vistas de error.
+- Tema claro/oscuro, accesibilidad de formularios y responsive sin overflow.
+
+Quedan cubiertos por integración, sin E2E dedicado: ciclo de vida, contratos,
+tablero y agregados, asignaciones/revocaciones, borrado destructivo de servicio
+y variantes de exportación ZIP/XLSX/PDF.
 
 ## 5. Regresión
 

@@ -6,7 +6,6 @@ import {
 	deleteCatalogItem,
 	renameCatalogItem
 } from '#lib/server/domain/catalogs';
-import { DomainError } from '#lib/server/domain/errors';
 import {
 	createRequirement,
 	createRequirementsBatch,
@@ -55,7 +54,7 @@ await describeWithDatabase('Requisitos desde catálogo', ({ db, client }) => {
 	}
 
 	async function requirementCatalog(admin: string, name = 'Requisitos') {
-		const catalog = await createCatalog(db, { name, purpose: 'requirements', actorId: admin });
+		const catalog = await createCatalog(db, { name, actorId: admin });
 		return catalog.id;
 	}
 
@@ -153,25 +152,6 @@ await describeWithDatabase('Requisitos desde catálogo', ({ db, client }) => {
 		});
 		expect(second.created).toBe(0);
 		expect(second.skipped).toBe(3);
-	});
-
-	it('no acepta ítems que no sean de un catálogo de requisitos', async () => {
-		const { admin, targetId } = await seed();
-		const general = await createCatalog(db, { name: 'General', actorId: admin });
-		const item = await createCatalogItem(db, {
-			catalogId: general.id,
-			name: 'Piso',
-			actorId: admin
-		});
-
-		await expect(
-			createRequirement(db, {
-				targetId,
-				catalogItemId: item.id,
-				isRequired: true,
-				actorId: admin
-			})
-		).rejects.toBeInstanceOf(DomainError);
 	});
 
 	it('al crear un trabajo directo aplica los requisitos (catálogo y propios)', async () => {

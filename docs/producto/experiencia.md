@@ -278,15 +278,16 @@ UMA 03                              [Rechazado]
 
 ## 12. Administración de catálogos
 
-- Lista con búsqueda y pestañas por propósito: Todos, Generales, Edificios y
-  Requisitos.
-- Crear o editar catálogo abre modal y permite elegir el propósito.
-- El alta y el renombrado de ítems son modales.
-- El detalle muestra ítems, relaciones, orden y usos.
-- Las relaciones por ítem muestran ambos sentidos, permiten añadir y quitar. El
-  sentido es explícito.
-- Las relaciones en lote permiten varios ítems de un catálogo contra un único
-  ítem de otro, con resumen de creadas y omitidas.
+- Lista con búsqueda y pestañas dinámicas por tipo de catálogo (Todos + cada
+  tipo administrado).
+- El botón **Tipos de catálogo** abre un modal compacto: lista de tipos con uso,
+  badge **Sistema**, edición inline y alta bajo demanda. El tipo `Edificios` no se
+  puede eliminar. Un tipo con catálogos tampoco.
+- Crear o editar catálogo abre un modal con dos bloques: identidad y dónde
+  aparece. El ámbito se elige entre «Todos» y «Edificios concretos», con una
+  cinta de contexto que resume tipo y alcance.
+- El detalle muestra tipo, ámbito, ítems, orden y usos. Ya no hay relaciones
+  entre ítems.
 - Al renombrar un ítem se avisa de que se actualizarán las instancias vinculadas.
 - Al renombrar una instancia se avisa de que se desvinculará.
 - Al borrar un ítem se muestra el impacto y se recuerda que las evidencias no se
@@ -296,12 +297,13 @@ UMA 03                              [Rechazado]
 
 - Formularios simples: nombre, descripción, edificio opcional y participantes.
 - Al crear un trabajo se elige directo o dividido, con explicación de dónde
-  vivirán las fotos y las aprobaciones.
+  vivirán las fotos y las aprobaciones. Una cinta de contexto resume modo,
+  elementos y requisitos.
 - Los trabajos y elementos se crean manualmente o en lote desde catálogo.
-- La vista previa del lote muestra árbol, cantidad final, duplicados y
-  excepciones por instancia.
-- Al crear un trabajo o añadir elementos se pueden elegir requisitos de catálogo
-  o libres.
+- La generación en lote usa dos pasos: selección con bloques plegables y revisión
+  con advertencias y nombres editables.
+- Elementos y requisitos se añaden con un compositor único: desde catálogo o por
+  nombre propio, con selección acumulada y lista de añadidos.
 - Los requisitos se administran por objetivo mientras no exista primer envío.
   Se pueden añadir varios desde catálogo o escribir nombres libres.
 - Cambiar el modo abre el asistente de reasignación, solo si nunca hubo envío.

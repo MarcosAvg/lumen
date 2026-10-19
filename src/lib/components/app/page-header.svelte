@@ -23,7 +23,7 @@
 	<div class="min-w-0 space-y-2.5">{@render children()}</div>
 	{#if actions}
 		<div
-			class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end lg:w-auto lg:shrink-0"
+			class="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end lg:w-auto lg:max-w-[65%] lg:shrink-0"
 		>
 			{@render actions()}
 		</div>

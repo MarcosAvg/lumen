@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { chooseCatalog, ensureAdmin } from './helpers';
+import { ensureAdmin } from './helpers';
 
-test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }, testInfo) => {
+test('catálogo: búsqueda de ítems y selección en dos pasos @mobile', async ({ page }, testInfo) => {
 	test.setTimeout(60_000);
 	const unique = `${testInfo.project.name}-cat-${Date.now()}`;
 	const catalogName = `Catálogo ${unique}`;
 	const itemName = `UMA ${unique}`;
 	const serviceName = `Servicio ${unique}`;
+	const areasCatalog = `Áreas ${unique}`;
 
 	await ensureAdmin(page);
 
@@ -14,6 +15,7 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await page.goto('/admin/catalogs');
 	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(catalogName);
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: 'Otros' });
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 
@@ -35,6 +37,14 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await page.getByRole('button', { name: 'Buscar' }).click();
 	await expect(page.getByText('Sin ítems que coincidan con la búsqueda.')).toBeVisible();
 
+	// Segundo catálogo de otro tipo para comprobar el filtro.
+	await page.goto('/admin/catalogs');
+	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
+	await page.getByLabel('Nombre', { exact: true }).fill(areasCatalog);
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: 'Áreas' });
+	await page.getByRole('button', { name: 'Crear catálogo' }).click();
+	await expect(page.getByText('Catálogo creado.')).toBeVisible();
+
 	// Crear servicio y trabajo eligiendo el ítem con el combobox.
 	await page.goto('/admin/services');
 	await page.getByRole('button', { name: 'Nuevo servicio' }).click();
@@ -54,8 +64,18 @@ test('catálogo: búsqueda de ítems y selección en dos pasos', async ({ page }
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByText('Directo', { exact: true }).click();
-	// Paso 1: catálogo. Paso 2: ítem del catálogo (con búsqueda).
-	await chooseCatalog(page, dialog, catalogName);
+	// Tipo y catálogo en selects inline; después, el ítem con búsqueda.
+	const picker = dialog.locator('[data-slot="catalog-picker"]').first();
+	const typeSelect = picker.locator('[data-slot="catalog-type-select"]');
+	const catalogSelect = picker.locator('[data-slot="catalog-select"]');
+	await expect(typeSelect).toBeVisible();
+	await typeSelect.selectOption({ label: 'Áreas' });
+	await expect(catalogSelect.getByRole('option', { name: areasCatalog })).toHaveCount(1);
+	await expect(catalogSelect.getByRole('option', { name: catalogName })).toHaveCount(0);
+	await typeSelect.selectOption({ label: 'Otros' });
+	await expect(catalogSelect.getByRole('option', { name: catalogName })).toHaveCount(1);
+	await expect(catalogSelect.getByRole('option', { name: areasCatalog })).toHaveCount(0);
+	await catalogSelect.selectOption({ label: catalogName });
 	await dialog.getByRole('button', { name: 'Elige ítem…' }).click();
 	await page.getByPlaceholder('Buscar ítem…').fill(itemName);
 	const option = page.locator('[data-slot="command-item"]').filter({ hasText: itemName });

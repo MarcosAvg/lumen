@@ -92,6 +92,13 @@
       "when": 1792284047570,
       "tag": "0012_hot_power_man",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792363877243,
+      "tag": "0013_sticky_nomad",
+      "breakpoints": true
     }
   ]
 }

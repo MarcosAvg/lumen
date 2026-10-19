@@ -14,11 +14,14 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	await page.goto('/admin/catalogs');
 	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(catalogName);
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: 'Otros' });
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 	// En cada proyecto hay una tarjeta (móvil) y una fila (escritorio) con el
 	// mismo texto; se elige solo el contenedor visible del breakpoint actual.
-	const listItem = testInfo.project.name === 'movil' ? page.locator('li') : page.locator('tr');
+	const listItem = testInfo.project.name.startsWith('movil')
+		? page.locator('li')
+		: page.locator('tr');
 	await listItem
 		.filter({ hasText: catalogName })
 		.getByRole('link', { name: catalogName })
@@ -44,7 +47,7 @@ test('generación en lote desde un modal', async ({ page }, testInfo) => {
 	// Generar en lote desde el modal.
 	await page.getByRole('button', { name: 'Generar en lote' }).click();
 	const dialog = page.getByRole('dialog');
-	await chooseCatalog(page, dialog, catalogName);
+	await chooseCatalog(dialog, catalogName);
 	await dialog.getByRole('button', { name: 'Elegir trabajos…' }).click();
 	const option = page.locator('[data-slot="command-item"]').filter({ hasText: itemName });
 	await expect(option).toBeVisible();

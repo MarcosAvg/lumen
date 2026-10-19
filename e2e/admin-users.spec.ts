@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { ensureAdmin } from './helpers';
 
-test('el administrador edita datos, rol y contraseña en el modal', async ({ page }, testInfo) => {
-	test.setTimeout(90_000);
+test('el administrador crea, edita, desactiva (cancelando) y elimina un usuario', async ({
+	page
+}, testInfo) => {
+	test.setTimeout(120_000);
 	const stamp = Date.now();
 	const username = `edit${testInfo.project.name}${stamp}`.replace(/[^a-z0-9]/gi, '');
 	const displayName = `Editar ${testInfo.project.name}-${stamp}`;
@@ -46,4 +48,19 @@ test('el administrador edita datos, rol y contraseña en el modal', async ({ pag
 	await dialog.locator('#edit-password').fill('otra-contrasena-segura');
 	await dialog.getByRole('button', { name: 'Restablecer contraseña' }).click();
 	await expect(page.getByText(/Contraseña restablecida/)).toBeVisible();
+
+	// La desactivación exige confirmación y se puede cancelar.
+	await row.getByRole('button', { name: 'Desactivar' }).click();
+	const deactivateDialog = page.getByRole('alertdialog');
+	await expect(deactivateDialog.getByText('se cerrarán sus sesiones')).toBeVisible();
+	await deactivateDialog.getByRole('button', { name: 'Cancelar' }).click();
+	await expect(deactivateDialog).toBeHidden();
+	await expect(row.getByText('Inactivo')).toHaveCount(0);
+
+	// Eliminar con confirmación.
+	await row.getByRole('button', { name: 'Eliminar' }).click();
+	const deleteDialog = page.getByRole('alertdialog');
+	await expect(deleteDialog.getByText(`¿Eliminar «${newName}»?`)).toBeVisible();
+	await deleteDialog.getByRole('button', { name: 'Confirmar eliminación' }).click();
+	await expect(page.locator('main tr, main li').filter({ hasText: newName })).toHaveCount(0);
 });

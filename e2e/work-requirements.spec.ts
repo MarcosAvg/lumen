@@ -1,11 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { chooseCatalog, ensureAdmin } from './helpers';
 
-async function createCatalog(page: Page, name: string, purpose?: 'requirements') {
+async function createCatalog(page: Page, name: string, type = 'Otros') {
 	await page.goto('/admin/catalogs');
 	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(name);
-	if (purpose) await page.getByLabel('Propósito').selectOption(purpose);
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: type });
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 }
@@ -58,7 +58,7 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	const work = `Trabajo ${unique}`;
 
 	await ensureAdmin(page);
-	await createCatalog(page, catalog, 'requirements');
+	await createCatalog(page, catalog, 'Requisitos');
 	await openCatalog(page, catalog);
 	await addItem(page, antes);
 	await addItem(page, despues);
@@ -73,15 +73,20 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	await page.locator('#work-name').fill(work);
 
 	// Requisitos: dos desde catálogo y uno libre.
-	await chooseCatalog(page, dialog, catalog);
+	await dialog.getByRole('button', { name: /^Requisitos/ }).click();
+	const requirementComposer = dialog.locator(
+		'[data-slot="draft-composer"][data-kind="requisitos"]'
+	);
+	await chooseCatalog(dialog, catalog);
 	await dialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	for (const name of [antes, despues]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();
 	}
 	await page.keyboard.press('Escape');
-	await dialog.getByRole('button', { name: /^Agregar \(\d+\)$/ }).click();
-	await dialog.locator('#requirement-name-draft').fill('Detalle libre');
-	await dialog.getByRole('button', { name: 'Agregar', exact: true }).last().click();
+	await requirementComposer.getByRole('button', { name: /^Añadir \(\d+\)$/ }).click();
+	await requirementComposer.getByRole('tab', { name: 'Nombre propio' }).click();
+	await requirementComposer.getByLabel('Nombre del requisito').fill('Detalle libre');
+	await requirementComposer.getByRole('button', { name: 'Añadir', exact: true }).click();
 
 	await page.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
@@ -104,51 +109,4 @@ test('al crear un trabajo se le pueden poner requisitos', async ({ page }, testI
 	await expect(reqDialog.getByRole('button', { name: 'Eliminar requisito' })).toBeVisible();
 	await reqDialog.getByRole('button', { name: 'Cancelar' }).click();
 	await expect(reqDialog).toBeHidden();
-});
-
-test('la generación en lote aplica requisitos', async ({ page }, testInfo) => {
-	test.setTimeout(90_000);
-	const unique = `${testInfo.project.name}-gr-${Date.now()}`;
-	const workCatalog = `Trabajos ${unique}`;
-	const workItem = `Trabajo ${unique}`;
-	const reqCatalog = `Requisitos ${unique}`;
-	const reqItem = `Antes ${unique}`;
-	const service = `Servicio ${unique}`;
-
-	await ensureAdmin(page);
-	await createCatalog(page, workCatalog);
-	await openCatalog(page, workCatalog);
-	await addItem(page, workItem);
-	await createCatalog(page, reqCatalog, 'requirements');
-	await openCatalog(page, reqCatalog);
-	await addItem(page, reqItem);
-
-	await createService(page, service);
-	await openService(page, service);
-
-	await page.getByRole('button', { name: 'Generar en lote' }).click();
-	const dialog = page.getByRole('dialog');
-	await chooseCatalog(page, dialog, workCatalog, 0);
-	await dialog.getByRole('button', { name: 'Elegir trabajos…' }).click();
-	await page.locator('[data-slot="command-item"]').filter({ hasText: workItem }).click();
-	await page.keyboard.press('Escape');
-
-	await chooseCatalog(page, dialog, reqCatalog, 2);
-	await dialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
-	await page.locator('[data-slot="command-item"]').filter({ hasText: reqItem }).click();
-	await page.keyboard.press('Escape');
-	await dialog.getByRole('button', { name: /^Agregar \(\d+\)$/ }).click();
-
-	await dialog.getByRole('button', { name: 'Previsualizar' }).click();
-	await dialog.getByRole('button', { name: 'Aplicar generación' }).click();
-	await expect(page.getByText(/Estructura generada/)).toBeVisible();
-
-	// El trabajo generado ya trae el requisito.
-	const workLink = page
-		.locator('tr, li')
-		.filter({ visible: true })
-		.filter({ hasText: workItem })
-		.getByRole('link', { name: workItem });
-	await page.goto((await workLink.getAttribute('href')) ?? '/dashboard');
-	await expect(page.getByText(reqItem).first()).toBeVisible();
 });

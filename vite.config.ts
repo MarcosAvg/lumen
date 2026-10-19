@@ -44,6 +44,8 @@ export default defineConfig(({ mode }) => {
 		],
 		test: {
 			expect: { requireAssertions: true },
+			// Evita abrir demasiadas bases de datos de integración a la vez.
+			maxWorkers: process.env.CI ? 2 : 4,
 			projects: [
 				{
 					extends: './vite.config.ts',
@@ -61,7 +63,7 @@ export default defineConfig(({ mode }) => {
 						name: 'integration',
 						environment: 'node',
 						include: ['tests/integration/**/*.{test,spec}.ts'],
-						fileParallelism: false,
+						fileParallelism: true,
 						testTimeout: 30000,
 						hookTimeout: 60000
 					}

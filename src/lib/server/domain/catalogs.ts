@@ -1,24 +1,38 @@
-import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
 import { getPgErrorCode } from '#lib/server/db/errors';
 import {
-	catalogItemRelations,
+	catalogBuildings,
 	catalogItems,
+	catalogTypes,
 	catalogs,
 	elements,
 	photoRequirements,
 	services,
 	works
 } from '#lib/server/db/schema';
-import type { CatalogPurpose } from '#lib/types';
 import { recordAudit } from './audit';
 import { DomainError } from './errors';
+
+export interface CatalogTypeSummary {
+	id: string;
+	name: string;
+	systemRole: 'building' | null;
+	sortOrder: number;
+	catalogCount: number;
+}
 
 export interface CatalogSummary {
 	id: string;
 	name: string;
 	description: string | null;
-	purpose: CatalogPurpose | null;
+	typeId: string;
+	typeName: string;
+	typeSystemRole: 'building' | null;
+	typeSortOrder: number;
+	allBuildings: boolean;
+	buildingIds: string[];
+	buildingNames: string[];
 	itemCount: number;
 }
 
@@ -35,16 +49,6 @@ export interface CatalogItemImpact {
 	requirements: number;
 }
 
-const VALID_PURPOSES: CatalogPurpose[] = ['general', 'buildings', 'requirements'];
-
-function normalizePurpose(purpose: string | null | undefined): CatalogPurpose | null {
-	if (!purpose) return null;
-	if (!VALID_PURPOSES.includes(purpose as CatalogPurpose)) {
-		throw new DomainError(400, 'Propósito de catálogo inválido.');
-	}
-	return purpose as CatalogPurpose;
-}
-
 function countInt() {
 	return sql<number>`cast(count(*) as int)`;
 }
@@ -53,27 +57,151 @@ function likePattern(raw: string): string {
 	return `%${raw.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
 }
 
+async function catalogScopes(
+	db: Database,
+	catalogIds: string[]
+): Promise<Map<string, { ids: string[]; names: string[] }>> {
+	const result = new Map<string, { ids: string[]; names: string[] }>();
+	if (catalogIds.length === 0) return result;
+	const rows = await db
+		.select({
+			catalogId: catalogBuildings.catalogId,
+			buildingId: catalogBuildings.buildingCatalogItemId,
+			buildingName: catalogItems.name
+		})
+		.from(catalogBuildings)
+		.innerJoin(catalogItems, eq(catalogItems.id, catalogBuildings.buildingCatalogItemId))
+		.where(inArray(catalogBuildings.catalogId, catalogIds))
+		.orderBy(asc(catalogItems.name));
+
+	for (const row of rows) {
+		const entry = result.get(row.catalogId) ?? { ids: [], names: [] };
+		entry.ids.push(row.buildingId);
+		entry.names.push(row.buildingName);
+		result.set(row.catalogId, entry);
+	}
+	return result;
+}
+
+export async function listCatalogTypes(db: Database): Promise<CatalogTypeSummary[]> {
+	const rows = await db
+		.select({
+			id: catalogTypes.id,
+			name: catalogTypes.name,
+			systemRole: catalogTypes.systemRole,
+			sortOrder: catalogTypes.sortOrder,
+			catalogCount: sql<number>`cast(count(${catalogs.id}) as int)`
+		})
+		.from(catalogTypes)
+		.leftJoin(catalogs, eq(catalogs.typeId, catalogTypes.id))
+		.groupBy(catalogTypes.id)
+		.orderBy(asc(catalogTypes.sortOrder), asc(catalogTypes.name));
+	return rows;
+}
+
 export async function listCatalogs(db: Database, query?: string): Promise<CatalogSummary[]> {
 	const q = query?.trim();
-	return db
+	const rows = await db
 		.select({
 			id: catalogs.id,
 			name: catalogs.name,
 			description: catalogs.description,
-			purpose: catalogs.purpose,
+			typeId: catalogs.typeId,
+			typeName: catalogTypes.name,
+			typeSystemRole: catalogTypes.systemRole,
+			typeSortOrder: catalogTypes.sortOrder,
+			allBuildings: catalogs.allBuildings,
 			itemCount: sql<number>`cast(count(${catalogItems.id}) as int)`
 		})
 		.from(catalogs)
+		.innerJoin(catalogTypes, eq(catalogTypes.id, catalogs.typeId))
 		.leftJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
 		.where(q ? sql`${catalogs.name} ilike ${likePattern(q)} escape '\\'` : undefined)
-		.groupBy(catalogs.id)
-		.orderBy(asc(catalogs.sortOrder), asc(catalogs.name));
+		.groupBy(catalogs.id, catalogTypes.id)
+		.orderBy(asc(catalogTypes.sortOrder), asc(catalogs.sortOrder), asc(catalogs.name));
+
+	const scopes = await catalogScopes(
+		db,
+		rows.map((row) => row.id)
+	);
+	return rows.map((row) => {
+		const scope = scopes.get(row.id);
+		return {
+			...row,
+			buildingIds: scope?.ids ?? [],
+			buildingNames: scope?.names ?? []
+		};
+	});
+}
+
+async function assertCatalogType(db: Database, typeId: string): Promise<void> {
+	const [type] = await db
+		.select({ id: catalogTypes.id })
+		.from(catalogTypes)
+		.where(eq(catalogTypes.id, typeId))
+		.limit(1);
+	if (!type) throw new DomainError(400, 'Tipo de catálogo inválido.');
+}
+
+async function defaultCatalogTypeId(db: Database): Promise<string> {
+	const [other] = await db
+		.select({ id: catalogTypes.id })
+		.from(catalogTypes)
+		.where(
+			and(isNull(catalogTypes.systemRole), sql`lower(${catalogTypes.name}) in ('otro', 'otros')`)
+		)
+		.limit(1);
+	if (other) return other.id;
+	const [first] = await db
+		.select({ id: catalogTypes.id })
+		.from(catalogTypes)
+		.where(isNull(catalogTypes.systemRole))
+		.orderBy(asc(catalogTypes.sortOrder), asc(catalogTypes.name))
+		.limit(1);
+	if (!first) throw new DomainError(500, 'No hay tipos de catálogo configurados.');
+	return first.id;
+}
+
+async function assertBuildingItems(db: Database, buildingIds: string[]): Promise<void> {
+	if (buildingIds.length === 0) return;
+	const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	if (buildingIds.some((id) => !uuid.test(id))) {
+		throw new DomainError(400, 'La selección de edificios contiene un identificador inválido.');
+	}
+	const rows = await db
+		.select({ id: catalogItems.id })
+		.from(catalogItems)
+		.innerJoin(catalogs, eq(catalogs.id, catalogItems.catalogId))
+		.innerJoin(catalogTypes, eq(catalogTypes.id, catalogs.typeId))
+		.where(and(inArray(catalogItems.id, buildingIds), eq(catalogTypes.systemRole, 'building')));
+	if (rows.length !== new Set(buildingIds).size) {
+		throw new DomainError(
+			400,
+			'Todos los edificios deben pertenecer a un catálogo de tipo Edificio.'
+		);
+	}
+}
+
+async function replaceCatalogBuildings(
+	tx: Database,
+	catalogId: string,
+	allBuildings: boolean,
+	buildingIds: string[]
+): Promise<void> {
+	await tx.delete(catalogBuildings).where(eq(catalogBuildings.catalogId, catalogId));
+	if (allBuildings || buildingIds.length === 0) return;
+	await tx
+		.insert(catalogBuildings)
+		.values([...new Set(buildingIds)].map((id) => ({ catalogId, buildingCatalogItemId: id })));
 }
 
 export interface CreateCatalogInput {
 	name: string;
 	description?: string | null;
-	purpose?: string | null;
+	/** Si se omite, se usa el tipo «Otro». */
+	typeId?: string;
+	allBuildings?: boolean;
+	buildingCatalogItemIds?: string[];
 	actorId: string;
 }
 
@@ -81,22 +209,33 @@ export async function createCatalog(
 	db: Database,
 	input: CreateCatalogInput
 ): Promise<{ id: string }> {
+	const typeId = input.typeId ?? (await defaultCatalogTypeId(db));
 	return db.transaction(async (tx) => {
+		await assertCatalogType(tx, typeId);
+		const allBuildings = input.allBuildings ?? true;
+		const buildingIds = input.buildingCatalogItemIds ?? [];
+		if (!allBuildings && buildingIds.length === 0) {
+			throw new DomainError(400, 'Selecciona al menos un edificio o marca «Todos los edificios».');
+		}
+		await assertBuildingItems(tx, buildingIds);
+
 		const [created] = await tx
 			.insert(catalogs)
 			.values({
 				name: input.name,
 				description: input.description?.trim() || null,
-				purpose: normalizePurpose(input.purpose)
+				typeId,
+				allBuildings
 			})
 			.returning({ id: catalogs.id });
 
+		await replaceCatalogBuildings(tx, created.id, allBuildings, buildingIds);
 		await recordAudit(tx, {
 			actorUserId: input.actorId,
 			entityType: 'catalog',
 			entityId: created.id,
 			action: 'catalog.created',
-			metadata: { name: input.name }
+			metadata: { name: input.name, typeId, allBuildings }
 		});
 
 		return { id: created.id };
@@ -107,30 +246,42 @@ export interface UpdateCatalogInput {
 	catalogId: string;
 	name: string;
 	description?: string | null;
-	purpose?: string | null;
+	typeId: string;
+	allBuildings?: boolean;
+	buildingCatalogItemIds?: string[];
 	actorId: string;
 }
 
 export async function updateCatalog(db: Database, input: UpdateCatalogInput): Promise<void> {
 	await db.transaction(async (tx) => {
+		await assertCatalogType(tx, input.typeId);
+		const allBuildings = input.allBuildings ?? true;
+		const buildingIds = input.buildingCatalogItemIds ?? [];
+		if (!allBuildings && buildingIds.length === 0) {
+			throw new DomainError(400, 'Selecciona al menos un edificio o marca «Todos los edificios».');
+		}
+		await assertBuildingItems(tx, buildingIds);
+
 		const [updated] = await tx
 			.update(catalogs)
 			.set({
 				name: input.name,
 				description: input.description?.trim() || null,
-				purpose: normalizePurpose(input.purpose),
+				typeId: input.typeId,
+				allBuildings,
 				updatedAt: new Date()
 			})
 			.where(eq(catalogs.id, input.catalogId))
 			.returning({ id: catalogs.id });
 		if (!updated) throw new DomainError(404, 'Catálogo no encontrado.');
 
+		await replaceCatalogBuildings(tx, input.catalogId, allBuildings, buildingIds);
 		await recordAudit(tx, {
 			actorUserId: input.actorId,
 			entityType: 'catalog',
 			entityId: input.catalogId,
 			action: 'catalog.updated',
-			metadata: { name: input.name }
+			metadata: { name: input.name, typeId: input.typeId, allBuildings }
 		});
 	});
 }
@@ -153,11 +304,6 @@ async function detachCatalogItem(tx: Database, itemId: string, itemName: string)
 		.update(photoRequirements)
 		.set({ customName: itemName, catalogItemId: null, updatedAt: new Date() })
 		.where(eq(photoRequirements.catalogItemId, itemId));
-	await tx
-		.delete(catalogItemRelations)
-		.where(
-			or(eq(catalogItemRelations.fromItemId, itemId), eq(catalogItemRelations.toItemId, itemId))
-		);
 }
 
 export async function getCatalogItemImpact(
@@ -224,6 +370,97 @@ export async function deleteCatalogItem(
 	});
 }
 
+export async function createCatalogType(
+	db: Database,
+	input: { name: string; sortOrder?: number; actorId: string }
+): Promise<{ id: string }> {
+	try {
+		return await db.transaction(async (tx) => {
+			const [created] = await tx
+				.insert(catalogTypes)
+				.values({ name: input.name, sortOrder: input.sortOrder ?? 0 })
+				.returning({ id: catalogTypes.id });
+			await recordAudit(tx, {
+				actorUserId: input.actorId,
+				entityType: 'catalog_type',
+				entityId: created.id,
+				action: 'catalog_type.created',
+				metadata: { name: input.name }
+			});
+			return { id: created.id };
+		});
+	} catch (error) {
+		if (getPgErrorCode(error) === '23505') {
+			throw new DomainError(409, 'Ya existe un tipo de catálogo con ese nombre.');
+		}
+		throw error;
+	}
+}
+
+export async function updateCatalogType(
+	db: Database,
+	input: { typeId: string; name: string; sortOrder?: number; actorId: string }
+): Promise<void> {
+	try {
+		await db.transaction(async (tx) => {
+			const [updated] = await tx
+				.update(catalogTypes)
+				.set({
+					name: input.name,
+					sortOrder: input.sortOrder ?? 0,
+					updatedAt: new Date()
+				})
+				.where(eq(catalogTypes.id, input.typeId))
+				.returning({ id: catalogTypes.id });
+			if (!updated) throw new DomainError(404, 'Tipo de catálogo no encontrado.');
+			await recordAudit(tx, {
+				actorUserId: input.actorId,
+				entityType: 'catalog_type',
+				entityId: input.typeId,
+				action: 'catalog_type.updated',
+				metadata: { name: input.name }
+			});
+		});
+	} catch (error) {
+		if (getPgErrorCode(error) === '23505') {
+			throw new DomainError(409, 'Ya existe un tipo de catálogo con ese nombre.');
+		}
+		throw error;
+	}
+}
+
+export async function deleteCatalogType(
+	db: Database,
+	input: { typeId: string; actorId: string }
+): Promise<void> {
+	await db.transaction(async (tx) => {
+		const [type] = await tx
+			.select({ id: catalogTypes.id, name: catalogTypes.name, systemRole: catalogTypes.systemRole })
+			.from(catalogTypes)
+			.where(eq(catalogTypes.id, input.typeId))
+			.limit(1);
+		if (!type) throw new DomainError(404, 'Tipo de catálogo no encontrado.');
+		if (type.systemRole === 'building') {
+			throw new DomainError(409, 'El tipo Edificio es necesario para los servicios.');
+		}
+		const [used] = await tx
+			.select({ value: countInt() })
+			.from(catalogs)
+			.where(eq(catalogs.typeId, input.typeId));
+		if ((used?.value ?? 0) > 0) {
+			throw new DomainError(409, 'No se puede eliminar un tipo que tiene catálogos.');
+		}
+		await tx.delete(catalogTypes).where(eq(catalogTypes.id, input.typeId));
+		await recordAudit(tx, {
+			actorUserId: input.actorId,
+			entityType: 'catalog_type',
+			entityId: input.typeId,
+			action: 'catalog_type.deleted',
+			metadata: { name: type.name }
+		});
+	});
+}
+
 export interface DeleteCatalogInput {
 	catalogId: string;
 	actorId: string;
@@ -260,44 +497,53 @@ export async function deleteCatalog(db: Database, input: DeleteCatalogInput): Pr
 	});
 }
 
+export interface CatalogMeta {
+	id: string;
+	name: string;
+	description: string | null;
+	typeId: string;
+	typeName: string;
+	typeSystemRole: 'building' | null;
+	allBuildings: boolean;
+	buildingIds: string[];
+	buildingNames: string[];
+}
+
 export interface GetCatalogResult {
-	catalog: { id: string; name: string; description: string | null; purpose: CatalogPurpose | null };
+	catalog: CatalogMeta;
 	items: CatalogItemRow[];
 }
 
 export async function getCatalog(db: Database, catalogId: string): Promise<GetCatalogResult> {
-	const [catalog] = await db
-		.select({
-			id: catalogs.id,
-			name: catalogs.name,
-			description: catalogs.description,
-			purpose: catalogs.purpose
-		})
-		.from(catalogs)
-		.where(eq(catalogs.id, catalogId))
-		.limit(1);
-	if (!catalog) throw new DomainError(404, 'Catálogo no encontrado.');
-
-	return { catalog, items: await listCatalogItemOptions(db, catalogId) };
+	return {
+		catalog: await getCatalogMeta(db, catalogId),
+		items: await listCatalogItemOptions(db, catalogId)
+	};
 }
 
 /** Metadatos del catálogo sin cargar todos sus ítems (para vistas paginadas). */
-export async function getCatalogMeta(
-	db: Database,
-	catalogId: string
-): Promise<GetCatalogResult['catalog']> {
+export async function getCatalogMeta(db: Database, catalogId: string): Promise<CatalogMeta> {
 	const [catalog] = await db
 		.select({
 			id: catalogs.id,
 			name: catalogs.name,
 			description: catalogs.description,
-			purpose: catalogs.purpose
+			typeId: catalogs.typeId,
+			typeName: catalogTypes.name,
+			typeSystemRole: catalogTypes.systemRole,
+			allBuildings: catalogs.allBuildings
 		})
 		.from(catalogs)
+		.innerJoin(catalogTypes, eq(catalogTypes.id, catalogs.typeId))
 		.where(eq(catalogs.id, catalogId))
 		.limit(1);
 	if (!catalog) throw new DomainError(404, 'Catálogo no encontrado.');
-	return catalog;
+	const scope = (await catalogScopes(db, [catalogId])).get(catalogId);
+	return {
+		...catalog,
+		buildingIds: scope?.ids ?? [],
+		buildingNames: scope?.names ?? []
+	};
 }
 
 export async function listCatalogItemOptions(
@@ -464,7 +710,12 @@ export interface CatalogWithItems {
 	id: string;
 	name: string;
 	description: string | null;
-	purpose: CatalogPurpose | null;
+	typeId: string;
+	typeName: string;
+	typeSystemRole: 'building' | null;
+	typeSortOrder: number;
+	allBuildings: boolean;
+	buildingIds: string[];
 	items: { id: string; name: string }[];
 }
 
@@ -475,14 +726,19 @@ export async function listCatalogsWithItems(db: Database): Promise<CatalogWithIt
 			catalogId: catalogs.id,
 			catalogName: catalogs.name,
 			catalogDescription: catalogs.description,
-			purpose: catalogs.purpose,
+			typeId: catalogs.typeId,
+			typeName: catalogTypes.name,
+			typeSystemRole: catalogTypes.systemRole,
+			typeSortOrder: catalogTypes.sortOrder,
+			allBuildings: catalogs.allBuildings,
 			itemId: catalogItems.id,
-			itemName: catalogItems.name,
-			itemSort: catalogItems.sortOrder
+			itemName: catalogItems.name
 		})
 		.from(catalogs)
+		.innerJoin(catalogTypes, eq(catalogTypes.id, catalogs.typeId))
 		.leftJoin(catalogItems, eq(catalogItems.catalogId, catalogs.id))
 		.orderBy(
+			asc(catalogTypes.sortOrder),
 			asc(catalogs.sortOrder),
 			asc(catalogs.name),
 			asc(catalogItems.sortOrder),
@@ -497,14 +753,51 @@ export async function listCatalogsWithItems(db: Database): Promise<CatalogWithIt
 				id: row.catalogId,
 				name: row.catalogName,
 				description: row.catalogDescription,
-				purpose: row.purpose,
+				typeId: row.typeId,
+				typeName: row.typeName,
+				typeSystemRole: row.typeSystemRole,
+				typeSortOrder: row.typeSortOrder,
+				allBuildings: row.allBuildings,
+				buildingIds: [],
 				items: []
 			};
 			map.set(row.catalogId, entry);
 		}
 		if (row.itemId && row.itemName) entry.items.push({ id: row.itemId, name: row.itemName });
 	}
+	const scopes = await catalogScopes(db, [...map.keys()]);
+	for (const [id, scope] of scopes) {
+		const entry = map.get(id);
+		if (entry) entry.buildingIds = scope.ids;
+	}
 	return [...map.values()];
+}
+
+/**
+ * Filtra catálogos visibles para un edificio: globales o limitados a él.
+ * Se usa en cargas de servicio y también en las escrituras.
+ */
+export function filterCatalogsAvailableForBuilding(
+	catalogs: CatalogWithItems[],
+	buildingId: string | null
+): CatalogWithItems[] {
+	return catalogs.filter(
+		(catalog) =>
+			catalog.allBuildings || (buildingId !== null && catalog.buildingIds.includes(buildingId))
+	);
+}
+
+export async function listCatalogsAvailableForService(
+	db: Database,
+	serviceId: string
+): Promise<CatalogWithItems[]> {
+	const [service] = await db
+		.select({ buildingId: services.buildingCatalogItemId })
+		.from(services)
+		.where(eq(services.id, serviceId))
+		.limit(1);
+	if (!service) throw new DomainError(404, 'Servicio no encontrado.');
+	return filterCatalogsAvailableForBuilding(await listCatalogsWithItems(db), service.buildingId);
 }
 
 export interface CreateCatalogItemInput {
@@ -589,17 +882,3 @@ export async function renameCatalogItem(
 		throw error;
 	}
 }
-
-// Relaciones de catálogo (extraídas a `catalog-relations.ts`; se re-exportan aquí).
-export {
-	createRelation,
-	createRelationsBatch,
-	deleteRelation,
-	listRelationsForCatalog
-} from './catalog-relations';
-export type {
-	CatalogRelationRow,
-	CreateRelationInput,
-	CreateRelationsBatchInput,
-	CreateRelationsBatchResult
-} from './catalog-relations';

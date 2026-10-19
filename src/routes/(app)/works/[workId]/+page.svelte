@@ -30,33 +30,31 @@
 	const action = $derived((form ?? null) as ActionData | null);
 
 	let elementOpen = $state(false);
-	let showElementRequirements = $state(false);
+	let elementRequirementsOpen = $state(false);
 	let newElements = $state<ElementDraft[]>([]);
 	let elementRequirements = $state<RequirementDraft[]>([]);
 	let elementRequirementsRequired = $state(true);
 
-	const catalogsForPicker = $derived<CatalogGroup[]>(
-		data.catalogs
-			.filter((catalog) => catalog.purpose !== 'buildings' && catalog.purpose !== 'requirements')
-			.map((catalog) => ({
-				id: catalog.id,
-				name: catalog.name,
-				description: catalog.description,
-				purpose: catalog.purpose,
-				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-			}))
-	);
+	function toCatalogGroup(catalog: (typeof data.catalogs)[number]): CatalogGroup {
+		return {
+			id: catalog.id,
+			name: catalog.name,
+			description: catalog.description,
+			typeId: catalog.typeId,
+			typeName: catalog.typeName,
+			typeSystemRole: catalog.typeSystemRole,
+			typeSortOrder: catalog.typeSortOrder,
+			allBuildings: catalog.allBuildings,
+			buildingIds: catalog.buildingIds,
+			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
+		};
+	}
 
+	const catalogsForPicker = $derived<CatalogGroup[]>(
+		data.catalogs.filter((catalog) => catalog.typeSystemRole !== 'building').map(toCatalogGroup)
+	);
 	const requirementCatalogs = $derived<CatalogGroup[]>(
-		data.catalogs
-			.filter((catalog) => catalog.purpose === 'requirements')
-			.map((catalog) => ({
-				id: catalog.id,
-				name: catalog.name,
-				description: catalog.description,
-				purpose: catalog.purpose,
-				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-			}))
+		data.catalogs.filter((catalog) => catalog.typeSystemRole !== 'building').map(toCatalogGroup)
 	);
 
 	const elementsJson = $derived(JSON.stringify(newElements));
@@ -65,17 +63,12 @@
 	$effect(() => {
 		if (action?.success) {
 			elementOpen = false;
-			showElementRequirements = false;
+			elementRequirementsOpen = false;
 			newElements = [];
 			elementRequirements = [];
 			elementRequirementsRequired = true;
 		}
 	});
-
-	function toggleElementRequirements() {
-		showElementRequirements = !showElementRequirements;
-		if (!showElementRequirements) elementRequirements = [];
-	}
 
 	// Edición del trabajo en modal.
 	let editOpen = $state(false);
@@ -149,7 +142,7 @@
 							<Button
 								size="sm"
 								onclick={() => {
-									showElementRequirements = false;
+									elementRequirementsOpen = false;
 									elementOpen = true;
 								}}>Añadir elementos</Button
 							>
@@ -263,7 +256,7 @@
 				</Card.Root>
 
 				<Dialog.Root bind:open={elementOpen}>
-					<Dialog.Content size="lg">
+					<Dialog.Content size="xl">
 						<form method="POST" action="?/createElements" class="flex min-h-0 flex-1 flex-col">
 							<input type="hidden" name="workId" value={data.work.id} />
 							<input type="hidden" name="elements" value={elementsJson} />
@@ -276,12 +269,17 @@
 							<Dialog.Header>
 								<Dialog.Title>Añadir elementos</Dialog.Title>
 								<Dialog.Description>
-									Añade varios ítems de un catálogo o escribe nombres propios.
+									Añade varios elementos y, si hace falta, requisitos iniciales.
 								</Dialog.Description>
 							</Dialog.Header>
+							<Dialog.Context
+								items={[
+									{ label: 'Elementos', value: String(newElements.length), strong: true },
+									{ label: 'Requisitos', value: String(elementRequirements.length) }
+								]}
+							/>
 							<Dialog.Body class="space-y-6">
 								<Dialog.Section
-									eyebrow="Paso 1"
 									title="Elementos"
 									description="Añade ítems de catálogo o nombres propios."
 								>
@@ -289,27 +287,18 @@
 								</Dialog.Section>
 
 								{#if requirementCatalogs.length > 0}
-									<Dialog.Section
-										eyebrow="Paso 2 · opcional"
+									<Dialog.CollapsibleSection
 										title="Requisitos iniciales"
 										description="Se aplicarán a cada elemento nuevo. Puedes añadirlos después."
+										count={elementRequirements.length}
+										bind:open={elementRequirementsOpen}
 									>
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											onclick={toggleElementRequirements}
-										>
-											{showElementRequirements ? 'Quitar requisitos' : 'Añadir requisitos'}
-										</Button>
-										{#if showElementRequirements}
-											<RequirementsEditor
-												catalogs={requirementCatalogs}
-												bind:value={elementRequirements}
-												bind:required={elementRequirementsRequired}
-											/>
-										{/if}
-									</Dialog.Section>
+										<RequirementsEditor
+											catalogs={requirementCatalogs}
+											bind:value={elementRequirements}
+											bind:required={elementRequirementsRequired}
+										/>
+									</Dialog.CollapsibleSection>
 								{/if}
 
 								{#if action?.elementErrors?._form}
@@ -317,10 +306,8 @@
 								{/if}
 							</Dialog.Body>
 							<Dialog.Footer>
-								<p class="mr-auto text-xs text-muted-foreground">
-									{newElements.length} elemento(s){#if showElementRequirements && elementRequirements.length > 0}
-										· {elementRequirements.length} requisito(s)
-									{/if}
+								<p class="mr-auto hidden text-xs text-muted-foreground sm:block">
+									{newElements.length} elemento(s) · {elementRequirements.length} requisito(s)
 								</p>
 								<Dialog.Close>Cancelar</Dialog.Close>
 								<Button type="submit" disabled={newElements.length === 0}>Añadir elementos</Button>

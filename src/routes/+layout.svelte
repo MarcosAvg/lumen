@@ -22,7 +22,7 @@
 
 	// La barra del sistema usa el mismo color que el canvas para integrarse con
 	// la app. Los valores hex son el equivalente sRGB de `--background`.
-	const themeColors = { light: '#edf2f6', dark: '#070a10' };
+	const themeColors = { light: '#edf2f6', dark: '#252930' };
 
 	$effect(() => {
 		const themeColor = document.querySelector('meta[name="theme-color"]');

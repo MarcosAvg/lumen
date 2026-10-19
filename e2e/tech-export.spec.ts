@@ -9,7 +9,7 @@ test('los técnicos no pueden exportar el ZIP', async ({ page }, testInfo) => {
 	const unique = `${testInfo.project.name}-exp-${Date.now()}`;
 	const serviceName = `Servicio ${unique}`;
 	const techName = `Técnico ${unique}`;
-	const techUsername = `tech${unique}`.replace(/[^a-z0-9]/gi, '');
+	const techUsername = `tech${Date.now().toString(36)}`;
 
 	await ensureAdmin(page);
 

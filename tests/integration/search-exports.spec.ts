@@ -5,7 +5,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { hashPassword } from '#lib/server/auth/password';
 import { appendPhoto } from '#lib/server/domain/photos';
-import { createCatalog, createCatalogItem } from '#lib/server/domain/catalogs';
+import { createCatalog, createCatalogItem, listCatalogTypes } from '#lib/server/domain/catalogs';
 import { createContract } from '#lib/server/domain/contracts';
 import { createRequirement, listRequirements } from '#lib/server/domain/requirements';
 import { createService, updateService } from '#lib/server/domain/services';
@@ -285,7 +285,15 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		const storage = await makeStorage();
 		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
 
-		const catalog = await createCatalog(db, { name: `Edificios-${Date.now()}`, actorId: admin });
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificios.');
+		const catalog = await createCatalog(db, {
+			name: `Edificios-${Date.now()}`,
+			typeId: buildingType.id,
+			actorId: admin
+		});
 		const torre = await createCatalogItem(db, {
 			catalogId: catalog.id,
 			name: 'Torre',
@@ -352,7 +360,15 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		const storage = await makeStorage();
 		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
 
-		const catalog = await createCatalog(db, { name: `Edificios-${Date.now()}`, actorId: admin });
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificios.');
+		const catalog = await createCatalog(db, {
+			name: `Edificios-${Date.now()}`,
+			typeId: buildingType.id,
+			actorId: admin
+		});
 		const torre = await createCatalogItem(db, {
 			catalogId: catalog.id,
 			name: 'Torre',

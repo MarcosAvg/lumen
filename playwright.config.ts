@@ -2,10 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = process.env.E2E_PORT ?? '4173';
 const baseURL = `http://127.0.0.1:${PORT}`;
+const adminStorageState = '.e2e/admin-storage.json';
 
 /**
- * Pruebas E2E de los flujos críticos en escritorio y móvil. El `webServer`
- * prepara la base de pruebas y arranca la app compilada.
+ * Pruebas E2E de los flujos críticos.
+ *
+ * Por defecto `pnpm test:e2e` ejecuta todo escritorio y una selección móvil
+ * marcada con `@mobile`. `pnpm test:e2e:all` ejecuta también el resto de móvil.
+ * La autenticación se prepara una sola vez en el proyecto `setup`.
  */
 export default defineConfig({
 	testDir: 'e2e',
@@ -21,8 +25,28 @@ export default defineConfig({
 		trace: 'on-first-retry'
 	},
 	projects: [
-		{ name: 'escritorio', use: { ...devices['Desktop Chrome'] } },
-		{ name: 'movil', use: { ...devices['Pixel 7'] } }
+		{
+			name: 'setup',
+			testMatch: /auth\.setup\.ts/,
+			use: { ...devices['Desktop Chrome'] }
+		},
+		{
+			name: 'escritorio',
+			use: { ...devices['Desktop Chrome'], storageState: adminStorageState },
+			dependencies: ['setup']
+		},
+		{
+			name: 'movil',
+			use: { ...devices['Pixel 7'], storageState: adminStorageState },
+			dependencies: ['setup'],
+			grep: /@mobile/
+		},
+		{
+			name: 'movil-completo',
+			use: { ...devices['Pixel 7'], storageState: adminStorageState },
+			dependencies: ['setup'],
+			grepInvert: /@mobile/
+		}
 	],
 	webServer: {
 		command: 'node scripts/e2e-server.mjs',

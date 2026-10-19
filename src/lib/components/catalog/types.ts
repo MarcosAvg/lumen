@@ -9,7 +9,12 @@ export interface CatalogGroup {
 	id: string;
 	name: string;
 	description?: string | null;
-	purpose?: 'general' | 'buildings' | 'requirements' | null;
+	typeId?: string;
+	typeName?: string;
+	typeSystemRole?: 'building' | null;
+	typeSortOrder?: number;
+	allBuildings?: boolean;
+	buildingIds?: string[];
 	items: CatalogItemRef[];
 }
 

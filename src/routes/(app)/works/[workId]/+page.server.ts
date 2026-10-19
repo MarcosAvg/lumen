@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireAdmin, requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
-import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
+import { listCatalogsAvailableForService } from '#lib/server/domain/catalogs';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getWorkForConversion } from '#lib/server/domain/structure';
@@ -41,7 +41,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			user.role === 'admin' ? getWorkForConversion(db, workId) : Promise.resolve(null)
 		]);
 		// Solo se usan para el selector de requisitos (trabajo directo).
-		const catalogs = user.role === 'admin' ? await listCatalogsWithItems(db) : [];
+		const catalogs =
+			user.role === 'admin' ? await listCatalogsAvailableForService(db, work.serviceId) : [];
 		return {
 			title: work.name,
 			back: { href: `/services/${work.serviceId}`, label: work.serviceName },
@@ -62,7 +63,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const elements = await listElementsDetailed(db, workId);
 	const [conversion, catalogs] = await Promise.all([
 		user.role === 'admin' ? getWorkForConversion(db, workId) : Promise.resolve(null),
-		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
+		user.role === 'admin'
+			? listCatalogsAvailableForService(db, work.serviceId)
+			: Promise.resolve([])
 	]);
 	return {
 		title: work.name,

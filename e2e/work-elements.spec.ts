@@ -31,23 +31,17 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const dialog = page.getByRole('dialog');
 	await dialog.getByText('Dividido', { exact: true }).click();
-	await dialog.getByRole('tab', { name: 'Nombre propio' }).click();
+	const sourceTab = dialog.getByRole('tab', { name: 'Nombre propio' });
+	if ((await sourceTab.count()) > 0) await sourceTab.first().click();
 	await dialog.locator('#work-name').fill(workName);
 
-	await dialog.locator('#element-name-draft').fill('UMA 1');
-	await dialog
-		.locator('#element-name-draft')
-		.locator('xpath=../..')
-		.getByRole('button', { name: 'Agregar', exact: true })
-		.last()
-		.click();
-	await dialog.locator('#element-name-draft').fill('UMA 2');
-	await dialog
-		.locator('#element-name-draft')
-		.locator('xpath=../..')
-		.getByRole('button', { name: 'Agregar', exact: true })
-		.last()
-		.click();
+	const elementsComposer = dialog.locator('[data-slot="draft-composer"][data-kind="elementos"]');
+	const elementsTab = elementsComposer.getByRole('tab', { name: 'Nombre propio' });
+	if ((await elementsTab.count()) > 0) await elementsTab.click();
+	await elementsComposer.getByLabel('Nombre del elemento').fill('UMA 1');
+	await elementsComposer.getByRole('button', { name: 'Añadir', exact: true }).click();
+	await elementsComposer.getByLabel('Nombre del elemento').fill('UMA 2');
+	await elementsComposer.getByRole('button', { name: 'Añadir', exact: true }).click();
 	await dialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
@@ -65,13 +59,13 @@ test('trabajo dividido: crear con elementos y añadir desde el trabajo', async (
 	// Añadir un elemento desde el propio trabajo.
 	await page.getByRole('button', { name: 'Añadir elementos' }).click();
 	const elementDialog = page.getByRole('dialog');
-	await elementDialog.locator('#element-name-draft').fill('UMA 3');
-	await elementDialog
-		.locator('#element-name-draft')
-		.locator('xpath=../..')
-		.getByRole('button', { name: 'Agregar', exact: true })
-		.last()
-		.click();
+	const addElementsComposer = elementDialog.locator(
+		'[data-slot="draft-composer"][data-kind="elementos"]'
+	);
+	const addElementsTab = addElementsComposer.getByRole('tab', { name: 'Nombre propio' });
+	if ((await addElementsTab.count()) > 0) await addElementsTab.click();
+	await addElementsComposer.getByLabel('Nombre del elemento').fill('UMA 3');
+	await addElementsComposer.getByRole('button', { name: 'Añadir', exact: true }).click();
 	await elementDialog.getByRole('button', { name: 'Añadir elementos' }).click();
 
 	await expect(page.getByText('Elementos añadidos.')).toBeVisible();

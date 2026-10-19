@@ -5,7 +5,7 @@
 // Migra la base de pruebas, la deja vacía, construye la app con el ORIGIN de
 // E2E y arranca el servidor compilado. Playwright lo gestiona como `webServer`.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 
@@ -25,9 +25,10 @@ const TABLES = [
 	'services',
 	'contracts',
 	'users',
+	'catalog_buildings',
 	'catalogs',
 	'catalog_items',
-	'catalog_item_relations',
+	'catalog_types',
 	'works',
 	'elements',
 	'photos',
@@ -55,12 +56,27 @@ const env = { ...process.env, DATABASE_URL: TEST_DATABASE_URL, ORIGIN };
 run('node', ['scripts/migrate.mjs'], env);
 const sql = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} });
 await sql.unsafe(`truncate table ${TABLES.join(', ')} restart identity cascade`);
+await sql.unsafe(`insert into catalog_types (name, system_role, sort_order) values
+	('Edificios', 'building', 0),
+	('Áreas', null, 10),
+	('Equipos', null, 20),
+	('Tipos de trabajo', null, 30),
+	('Periodos', null, 40),
+	('Requisitos', null, 50),
+	('Otros', null, 90)`);
 // Contrato por defecto: los E2E crean servicios sin pasar por «Contratos».
 await sql`insert into contracts (name, description) values ('General', 'Contrato por defecto de las pruebas E2E')`;
 await sql.end();
 
 // Construye con el ORIGIN de E2E (CSRF/URLs absolutas) y arranca el servidor.
-run('pnpm', ['build'], { ...env, ORIGIN });
+// `E2E_SKIP_BUILD=1` permite reutilizar un build reciente en ejecuciones locales.
+if (process.env.E2E_SKIP_BUILD === '1') {
+	if (!existsSync('build/index.js')) {
+		throw new Error('E2E_SKIP_BUILD=1 pero no existe build/index.js. Ejecuta pnpm build una vez.');
+	}
+} else {
+	run('pnpm', ['build'], { ...env, ORIGIN });
+}
 
 const server = spawn('node', ['build/index.js'], {
 	stdio: 'inherit',

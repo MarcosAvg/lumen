@@ -13,7 +13,10 @@ import {
 	listServiceAssignments,
 	revokeAssignment
 } from '#lib/server/domain/assignments';
-import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
+import {
+	filterCatalogsAvailableForBuilding,
+	listCatalogsWithItems
+} from '#lib/server/domain/catalogs';
 import { listContractMembers, listContractsForUser } from '#lib/server/domain/contracts';
 import {
 	getServiceContractId,
@@ -53,7 +56,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const isAdmin = user.role === 'admin';
 	const canManageAssignments = isAdmin || access === 'supervisor';
-	const [participants, works, progress, catalogs, assignments, members, contracts] =
+	const [participants, works, progress, allCatalogs, assignments, members, contracts] =
 		await Promise.all([
 			listParticipants(db, serviceId),
 			listWorksDetailed(db, serviceId),
@@ -72,7 +75,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		participants,
 		works,
 		progress,
-		catalogs,
+		catalogs: filterCatalogsAvailableForBuilding(allCatalogs, service.buildingCatalogItemId),
+		buildingCatalogs: allCatalogs.filter((catalog) => catalog.typeSystemRole === 'building'),
 		assignments,
 		members,
 		contracts,

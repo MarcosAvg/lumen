@@ -7,6 +7,7 @@ import {
 	jsonb,
 	pgEnum,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -40,7 +41,7 @@ export const serviceLifecycle = pgEnum('service_lifecycle', [
 	'archived'
 ]);
 
-export const catalogPurpose = pgEnum('catalog_purpose', ['general', 'buildings', 'requirements']);
+export const catalogSystemRole = pgEnum('catalog_system_role', ['building']);
 
 export const workMode = pgEnum('work_mode', ['direct', 'divided']);
 
@@ -98,15 +99,40 @@ export const sessions = pgTable(
 	]
 );
 
-export const catalogs = pgTable('catalogs', {
-	id: uuid('id').primaryKey().defaultRandom(),
-	name: text('name').notNull(),
-	description: text('description'),
-	purpose: catalogPurpose('purpose'),
-	sortOrder: integer('sort_order').notNull().default(0),
-	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
-});
+export const catalogTypes = pgTable(
+	'catalog_types',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		name: text('name').notNull(),
+		/** El tipo de edificio alimenta el selector de edificio del servicio. */
+		systemRole: catalogSystemRole('system_role'),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [
+		uniqueIndex('catalog_types_name_lower_idx').on(sql`lower(${table.name})`),
+		index('catalog_types_sort_idx').on(table.sortOrder)
+	]
+);
+
+export const catalogs = pgTable(
+	'catalogs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		name: text('name').notNull(),
+		description: text('description'),
+		typeId: uuid('type_id')
+			.notNull()
+			.references(() => catalogTypes.id, { onDelete: 'restrict' }),
+		/** `true` = disponible en todos los edificios; `false` = solo en catalog_buildings. */
+		allBuildings: boolean('all_buildings').notNull().default(true),
+		sortOrder: integer('sort_order').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(table) => [index('catalogs_type_idx').on(table.typeId)]
+);
 
 export const catalogItems = pgTable(
 	'catalog_items',
@@ -129,32 +155,20 @@ export const catalogItems = pgTable(
 	]
 );
 
-export const catalogItemRelations = pgTable(
-	'catalog_item_relations',
+export const catalogBuildings = pgTable(
+	'catalog_buildings',
 	{
-		id: uuid('id').primaryKey().defaultRandom(),
-		fromItemId: uuid('from_item_id')
+		catalogId: uuid('catalog_id')
+			.notNull()
+			.references(() => catalogs.id, { onDelete: 'cascade' }),
+		buildingCatalogItemId: uuid('building_catalog_item_id')
 			.notNull()
 			.references(() => catalogItems.id, { onDelete: 'cascade' }),
-		toItemId: uuid('to_item_id')
-			.notNull()
-			.references(() => catalogItems.id, { onDelete: 'cascade' }),
-		relationType: text('relation_type'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
 	},
 	(table) => [
-		uniqueIndex('catalog_item_relations_unique').on(
-			table.fromItemId,
-			table.toItemId,
-			table.relationType
-		),
-		// `relationType` es nullable y en Postgres los NULL se consideran distintos,
-		// así que el índice de arriba no evita el mismo par sin tipo. Este índice
-		// parcial sí lo hace.
-		uniqueIndex('catalog_item_relations_unique_null_type')
-			.on(table.fromItemId, table.toItemId)
-			.where(sql`${table.relationType} is null`),
-		check('catalog_item_relations_not_self', sql`${table.fromItemId} <> ${table.toItemId}`)
+		primaryKey({ columns: [table.catalogId, table.buildingCatalogItemId] }),
+		index('catalog_buildings_building_idx').on(table.buildingCatalogItemId)
 	]
 );
 

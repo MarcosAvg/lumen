@@ -49,17 +49,23 @@
 {#if name}
 	<input type="hidden" {name} {value} />
 {/if}
-<div class="space-y-2">
-	<div class="space-y-1">
-		<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
-			Catálogo
-		</span>
-		<CatalogPicker {catalogs} bind:value={catalogId} disabled={disabled || catalogs.length === 0} />
-	</div>
-	<CatalogItemCombobox
-		items={currentItems}
-		bind:value
-		disabled={disabled || !catalogId}
-		placeholder={catalogId ? itemPlaceholder : 'Selecciona un catálogo primero'}
-	/>
+<div class="space-y-3" data-slot="catalog-item-picker">
+	{#if catalogs.length > 0}
+		<CatalogPicker {catalogs} bind:value={catalogId} {disabled} />
+		<div class="space-y-1.5">
+			<span class="text-[11px] font-medium tracking-[0.06em] text-muted-foreground uppercase">
+				Ítem
+			</span>
+			<CatalogItemCombobox
+				items={currentItems}
+				bind:value
+				disabled={disabled || !catalogId}
+				placeholder={catalogId ? itemPlaceholder : 'Selecciona un catálogo primero'}
+			/>
+		</div>
+	{:else}
+		<p class="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
+			No hay catálogos disponibles.
+		</p>
+	{/if}
 </div>

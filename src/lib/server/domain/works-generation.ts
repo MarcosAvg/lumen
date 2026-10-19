@@ -1,22 +1,16 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { Database } from '#lib/server/db';
-import {
-	catalogItemRelations,
-	catalogItems,
-	elements,
-	evidenceTargets,
-	services,
-	works
-} from '#lib/server/db/schema';
+import { catalogItems, elements, evidenceTargets, services, works } from '#lib/server/db/schema';
 import type { WorkMode } from '#lib/types';
 import { recordAudit } from './audit';
+import { assertCatalogItemAvailableForService } from './catalog-scope';
 import { DomainError } from './errors';
 import { insertRequirements, type RequirementInput } from './requirements';
 import { visibleWorkName } from './works-shared';
 
 /**
  * Generación masiva de estructura (trabajos/elementos/requisitos) a partir de
- * relaciones de catálogo. Extraído de `works.ts`; se re-exporta desde allí.
+ * catálogos. Extraído de `works.ts`; se re-exporta desde allí.
  */
 
 // --- Generación masiva -------------------------------------------------------
@@ -85,12 +79,8 @@ export async function planGeneration(
 	workItems.sort((a, b) => (workOrder.get(a.id) ?? 0) - (workOrder.get(b.id) ?? 0));
 	elementItems.sort((a, b) => (elementOrder.get(a.id) ?? 0) - (elementOrder.get(b.id) ?? 0));
 
-	const relations = await listItemRelations(db, input.workItemIds, input.elementItemIds);
-	const elementsForWork = new Map<string, Set<string>>();
-	for (const relation of relations) {
-		const set = elementsForWork.get(relation.fromItemId) ?? new Set<string>();
-		set.add(relation.toItemId);
-		elementsForWork.set(relation.fromItemId, set);
+	for (const item of [...workItems, ...elementItems]) {
+		await assertCatalogItemAvailableForService(db, input.serviceId, item.id);
 	}
 
 	const existingNames = new Set(
@@ -107,10 +97,14 @@ export async function planGeneration(
 	const seen = new Set<string>();
 	let totalElements = 0;
 
+	if (workItems.length > 1 && elementItems.length > 1) {
+		warnings.push(
+			'Los elementos seleccionados se aplicarán a todos los trabajos. Revisa la vista previa y quita los que no correspondan.'
+		);
+	}
+
 	const planWorks: GenerationWork[] = workItems.map((workItem) => {
-		const linked = elementsForWork.get(workItem.id);
-		const chosen = linked ? elementItems.filter((item) => linked.has(item.id)) : elementItems;
-		const elementList = chosen.map((item) => ({
+		const elementList = elementItems.map((item) => ({
 			catalogItemId: item.id,
 			name: item.name,
 			include: true
@@ -134,26 +128,6 @@ export async function planGeneration(
 	});
 
 	return { works: planWorks, totalWorks: planWorks.length, totalElements, warnings };
-}
-
-async function listItemRelations(
-	db: Database,
-	fromItemIds: string[],
-	toItemIds: string[]
-): Promise<{ fromItemId: string; toItemId: string }[]> {
-	if (fromItemIds.length === 0 || toItemIds.length === 0) return [];
-	return db
-		.select({
-			fromItemId: catalogItemRelations.fromItemId,
-			toItemId: catalogItemRelations.toItemId
-		})
-		.from(catalogItemRelations)
-		.where(
-			and(
-				inArray(catalogItemRelations.fromItemId, fromItemIds),
-				inArray(catalogItemRelations.toItemId, toItemIds)
-			)
-		);
 }
 
 export interface ApplyGenerationInput {
@@ -204,7 +178,7 @@ export async function applyGeneration(
 		for (const work of includedWorks) {
 			const includedElements = work.elements.filter((el) => el.include && el.name.trim());
 			const mode: WorkMode = includedElements.length > 0 ? 'divided' : 'direct';
-			const name = await resolvePlannedName(tx, work.catalogItemId, work.name);
+			const name = await resolvePlannedName(tx, work.catalogItemId, work.name, input.serviceId);
 
 			const [createdWork] = await tx
 				.insert(works)
@@ -227,6 +201,7 @@ export async function applyGeneration(
 				if (requirements.length > 0) {
 					await insertRequirements(tx, {
 						targetId: target.id,
+						serviceId: input.serviceId,
 						requirements,
 						isRequired: requirementIsRequired
 					});
@@ -235,7 +210,12 @@ export async function applyGeneration(
 
 			let elementSort = 0;
 			for (const element of includedElements) {
-				const elementName = await resolvePlannedName(tx, element.catalogItemId, element.name);
+				const elementName = await resolvePlannedName(
+					tx,
+					element.catalogItemId,
+					element.name,
+					input.serviceId
+				);
 				const [createdElement] = await tx
 					.insert(elements)
 					.values({
@@ -254,6 +234,7 @@ export async function applyGeneration(
 				if (requirements.length > 0) {
 					await insertRequirements(tx, {
 						targetId: target.id,
+						serviceId: input.serviceId,
 						requirements,
 						isRequired: requirementIsRequired
 					});
@@ -277,7 +258,8 @@ export async function applyGeneration(
 async function resolvePlannedName(
 	tx: Database,
 	catalogItemId: string | null,
-	name: string
+	name: string,
+	serviceId: string
 ): Promise<{ catalogItemId: string | null; customName: string | null }> {
 	const trimmed = name.trim();
 	if (!catalogItemId) return { catalogItemId: null, customName: trimmed };
@@ -287,6 +269,7 @@ async function resolvePlannedName(
 		.where(eq(catalogItems.id, catalogItemId))
 		.limit(1);
 	if (!item) throw new DomainError(404, 'Ítem de catálogo no encontrado.');
+	await assertCatalogItemAvailableForService(tx, serviceId, item.id);
 	if (item.name === trimmed) return { catalogItemId: item.id, customName: null };
 	return { catalogItemId: null, customName: trimmed };
 }

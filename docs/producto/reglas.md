@@ -26,7 +26,7 @@ Para los términos del dominio, véase el [`glosario`](glosario.md).
 | Administrar usuarios, roles y activación | Sí | No | No |
 | Crear, editar o eliminar contratos | Sí | No | No |
 | Gestionar participantes del contrato | Sí | Sí, en sus contratos | No |
-| Administrar catálogos, ítems y relaciones | Sí | No | No |
+| Administrar tipos, catálogos, ámbitos e ítems | Sí | No | No |
 | Crear, editar o borrar servicios, trabajos, elementos y requisitos | Sí | No | No |
 | Asignar servicios a participantes | Sí | Sí, solo miembros existentes de su contrato | No |
 | Subir, retirar y reordenar fotos de evidencia vigente | Sí | No | Sí |
@@ -144,13 +144,21 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
 
 ## 6. Catálogos
 
-- Un catálogo tiene nombre, descripción opcional, orden y un **propósito**:
-  - `general`: nombres de trabajos y elementos.
-  - `buildings`: edificios de servicio.
-  - `requirements`: requisitos fotográficos.
+- Los **tipos de catálogo** son administrables (nombre y orden). El tipo
+  `Edificios` es de sistema y no puede eliminarse; identifica los ítems que
+  pueden usarse como edificio de un servicio.
+- Un catálogo tiene nombre, descripción opcional, tipo, orden y **ámbito de
+  edificios**:
+  - global: disponible en todos los servicios;
+  - limitado: disponible solo en los edificios seleccionados.
+- El ámbito se valida en servidor al construir los selectores del servicio y en
+  cada escritura. No basta con ocultarlo en la interfaz.
 - Los ítems tienen nombre, orden y pertenecen a un catálogo. No se permiten
   duplicados de nombre dentro del mismo catálogo.
-- Los selectores ofrecen solo el propósito que corresponde al contexto.
+- No existen propósitos fijos ni relaciones entre ítems de catálogos distintos.
+- Al crear un trabajo, elemento o requisito se elige el **tipo de catálogo** que
+  se quiere examinar. Es un filtro de navegación: el vínculo guardado sigue
+  siendo el ítem de catálogo elegido.
 - Un trabajo, elemento o requisito puede estar **vinculado** a un ítem de
   catálogo o tener un **nombre propio**. Nunca ambos.
 - Renombrar el ítem global actualiza los registros aún vinculados.
@@ -158,10 +166,10 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
 - Al eliminar un ítem, los registros vinculados copian el último nombre, se
   desvinculan y conservan fotos, entregas y revisiones. La operación es
   transaccional.
-- Las relaciones entre ítems de catálogos distintos son opcionales y tienen
-  sentido explícito. No imponen una jerarquía universal.
 - El administrador puede generar varios trabajos o elementos desde catálogos,
-  con vista previa de resultados, duplicados y excepciones.
+  con vista previa de resultados, duplicados y excepciones. Sin relaciones, los
+  elementos seleccionados se aplican a todos los trabajos seleccionados; la
+  vista previa lo advierte y permite ajustar antes de confirmar.
 
 ## 7. Trabajos y elementos
 

@@ -13,6 +13,7 @@ import {
 } from '#lib/server/db/schema';
 import type { AssignmentRole, ServiceLifecycle, SessionUser } from '#lib/types';
 import { recordAudit } from './audit';
+import { assertBuildingCatalogItem } from './catalog-scope';
 import { DomainError } from './errors';
 
 const visibleBuildingName = sql<
@@ -122,6 +123,7 @@ export async function updateService(db: Database, input: UpdateServiceInput): Pr
 					.where(eq(catalogItems.id, input.buildingCatalogItemId))
 					.limit(1);
 				if (!item) throw new DomainError(404, 'Ítem de edificio no encontrado.');
+				await assertBuildingCatalogItem(tx, item.id);
 				values.buildingCatalogItemId = item.id;
 				values.buildingNameSnapshot = item.name;
 			}

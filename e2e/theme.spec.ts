@@ -11,9 +11,10 @@ test('el tema claro/oscuro/sistema persiste y actualiza la interfaz', async ({ p
 	const oscuro = page.getByRole('button', { name: 'Oscuro' });
 	await oscuro.click();
 	await expect(page.locator('html')).toHaveClass(/dark/);
-	await expect(page.locator('html')).toHaveCSS('background-color', 'oklch(0.145 0.014 258)');
+	await expect(page.locator('html')).toHaveCSS('background-color', 'oklch(0.28 0.014 258)');
+	await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
 	await expect(oscuro).toHaveAttribute('aria-pressed', 'true');
-	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#070a10');
+	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#252930');
 
 	await page.reload();
 	await expect(page.locator('html')).toHaveClass(/dark/);
@@ -32,5 +33,6 @@ test('el tema claro/oscuro/sistema persiste y actualiza la interfaz', async ({ p
 	await page.getByRole('button', { name: 'Claro' }).click();
 	await expect(page.locator('html')).not.toHaveClass(/dark/);
 	await expect(page.locator('html')).toHaveCSS('background-color', 'oklch(0.958 0.008 250)');
+	await expect(page.locator('html')).toHaveCSS('color-scheme', 'light');
 	await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#edf2f6');
 });

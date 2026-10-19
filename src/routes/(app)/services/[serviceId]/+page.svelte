@@ -48,6 +48,8 @@
 	let workElements = $state<ElementDraft[]>([]);
 	let workRequirements = $state<RequirementDraft[]>([]);
 	let workRequirementsRequired = $state(true);
+	let elementsOpen = $state(true);
+	let requirementsOpen = $state(false);
 	let sourceSeeded = false;
 	$effect(() => {
 		// Origen por defecto: catálogo si hay alguno, si no nombre propio.
@@ -62,8 +64,16 @@
 			workElements = [];
 			workRequirements = [];
 			workRequirementsRequired = true;
+			elementsOpen = true;
+			requirementsOpen = false;
 		}
 	});
+
+	const workModeLabel = $derived(
+		workMode === 'direct' ? 'Directo' : workMode === 'divided' ? 'Dividido' : 'Sin elegir'
+	);
+	const workElementCount = $derived(workMode === 'divided' ? workElements.length : 0);
+	const workRequirementCount = $derived(workRequirements.length);
 
 	const elementsJson = $derived(JSON.stringify(workElements));
 	const requirementsJson = $derived(JSON.stringify(workRequirements));
@@ -92,46 +102,30 @@
 	} as const;
 	const participantLabel = { technician: 'Técnico', supervisor: 'Supervisor' } as const;
 
-	// Catálogos ofrecidos en los pickers: generales (ni edificios ni requisitos).
-	const catalogsForPicker = $derived<CatalogGroup[]>(
-		data.catalogs
-			.filter((catalog) => catalog.purpose !== 'buildings' && catalog.purpose !== 'requirements')
-			.map((catalog) => ({
-				id: catalog.id,
-				name: catalog.name,
-				description: catalog.description,
-				purpose: catalog.purpose,
-				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-			}))
-	);
-	// Requisitos: solo catálogos marcados como tales.
-	const requirementCatalogs = $derived<CatalogGroup[]>(
-		data.catalogs
-			.filter((catalog) => catalog.purpose === 'requirements')
-			.map((catalog) => ({
-				id: catalog.id,
-				name: catalog.name,
-				description: catalog.description,
-				purpose: catalog.purpose,
-				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-			}))
-	);
-	// Edificios: solo catálogos marcados como tales (si no hay ninguno, todos).
-	const buildingCatalogs = $derived.by<CatalogGroup[]>(() => {
-		const buildings = data.catalogs.filter((catalog) => catalog.purpose === 'buildings');
-		// Respaldo: cualquier catálogo que no sea de requisitos.
-		const source =
-			buildings.length > 0
-				? buildings
-				: data.catalogs.filter((catalog) => catalog.purpose !== 'requirements');
-		return source.map((catalog) => ({
+	function toCatalogGroup(catalog: (typeof data.catalogs)[number]): CatalogGroup {
+		return {
 			id: catalog.id,
 			name: catalog.name,
 			description: catalog.description,
-			purpose: catalog.purpose,
+			typeId: catalog.typeId,
+			typeName: catalog.typeName,
+			typeSystemRole: catalog.typeSystemRole,
+			typeSortOrder: catalog.typeSortOrder,
+			allBuildings: catalog.allBuildings,
+			buildingIds: catalog.buildingIds,
 			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-		}));
-	});
+		};
+	}
+
+	// Los catálogos de edificio se usan solo en el campo Edificio.
+	const catalogsForPicker = $derived<CatalogGroup[]>(
+		data.catalogs.filter((catalog) => catalog.typeSystemRole !== 'building').map(toCatalogGroup)
+	);
+	// Cualquier catálogo no-edificio puede nombrar requisitos.
+	const requirementCatalogs = $derived<CatalogGroup[]>(
+		data.catalogs.filter((catalog) => catalog.typeSystemRole !== 'building').map(toCatalogGroup)
+	);
+	const buildingCatalogs = $derived<CatalogGroup[]>(data.buildingCatalogs.map(toCatalogGroup));
 
 	let buildingItemId = $state('');
 	let buildingSeeded = false;
@@ -631,23 +625,29 @@
 		</Dialog.Root>
 
 		<Dialog.Root bind:open={workOpen}>
-			<Dialog.Content size="lg">
+			<Dialog.Content size="xl">
 				<form method="POST" action="?/createWork" class="flex min-h-0 flex-1 flex-col">
 					<input type="hidden" name="serviceId" value={data.service.id} />
 					<Dialog.Header>
 						<Dialog.Title>Nuevo trabajo</Dialog.Title>
 						<Dialog.Description>
-							Los trabajos directos tienen su propia evidencia; los divididos se componen de
-							elementos.
+							Define el tipo, el nombre y la estructura de evidencia.
 						</Dialog.Description>
 					</Dialog.Header>
-					<Dialog.Body class="space-y-5">
+					<Dialog.Context
+						items={[
+							{ label: 'Modo', value: workModeLabel, strong: true },
+							{ label: 'Elementos', value: String(workElementCount) },
+							{ label: 'Requisitos', value: String(workRequirementCount) }
+						]}
+					/>
+					<Dialog.Body class="space-y-6">
 						<Dialog.Section eyebrow="Paso 1" title="Tipo de trabajo">
 							<fieldset class="space-y-2">
 								<legend class="sr-only">Tipo de trabajo</legend>
 								<div class="grid gap-2 sm:grid-cols-2">
 									<label
-										class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
+										class="relative cursor-pointer rounded-xl border p-4 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
 										'direct'
 											? 'border-primary bg-primary/5'
 											: 'border-border hover:bg-muted/40'}"
@@ -666,7 +666,7 @@
 										</span>
 									</label>
 									<label
-										class="relative cursor-pointer rounded-xl border p-3 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
+										class="relative cursor-pointer rounded-xl border p-4 transition-colors has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 {workMode ===
 										'divided'
 											? 'border-primary bg-primary/5'
 											: 'border-border hover:bg-muted/40'}"
@@ -687,20 +687,25 @@
 								</div>
 							</fieldset>
 						</Dialog.Section>
-						<Dialog.Section eyebrow="Paso 2" title="Datos y estructura">
-							<div class="space-y-2">
-								<p class="text-xs text-muted-foreground">
-									Elige un ítem del catálogo o escribe un nombre propio.
-								</p>
-								<Tabs.Root bind:value={workSource}>
-									<Tabs.List class="grid w-full grid-cols-2">
-										<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
-										<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
-									</Tabs.List>
-								</Tabs.Root>
-								{#if workSource === 'catalog'}
-									<div class="space-y-1 pt-2">
-										<Label for="work-catalog">Ítem del catálogo</Label>
+						<Dialog.Section eyebrow="Paso 2" title="Nombre">
+							<div class="space-y-3">
+								{#if catalogsForPicker.length > 0}
+									<Tabs.Root bind:value={workSource}>
+										<Tabs.List class="grid w-full grid-cols-2">
+											<Tabs.Trigger value="catalog">Desde catálogo</Tabs.Trigger>
+											<Tabs.Trigger value="custom">Nombre propio</Tabs.Trigger>
+										</Tabs.List>
+									</Tabs.Root>
+								{:else}
+									<p
+										class="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground"
+									>
+										No hay catálogos disponibles para este servicio. Escribe un nombre propio.
+									</p>
+								{/if}
+
+								{#if workSource === 'catalog' && catalogsForPicker.length > 0}
+									<div class="space-y-1.5">
 										<CatalogItemPicker
 											name="catalogItemId"
 											catalogs={catalogsForPicker}
@@ -708,7 +713,7 @@
 										/>
 									</div>
 								{:else}
-									<div class="space-y-1 pt-2">
+									<div class="space-y-1.5">
 										<Label for="work-name">Nombre propio</Label>
 										<Input
 											id="work-name"
@@ -725,30 +730,44 @@
 									</div>
 								{/if}
 							</div>
-							{#if workMode === 'divided'}
-								<div class="space-y-3 rounded-xl border border-border p-3">
-									<Label>Elementos</Label>
-									<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
-								</div>
-							{/if}
-							{#if requirementCatalogs.length > 0}
-								<div class="space-y-3 rounded-xl border border-border p-3">
-									<Label>Requisitos</Label>
-									<p class="text-xs text-muted-foreground">
-										{#if workMode === 'divided'}
-											Se aplicarán a cada elemento creado.
-										{:else}
-											Se aplicarán al trabajo.
-										{/if}
-									</p>
-									<RequirementsEditor
-										catalogs={requirementCatalogs}
-										bind:value={workRequirements}
-										bind:required={workRequirementsRequired}
-									/>
-								</div>
-							{/if}
 						</Dialog.Section>
+
+						{#if workMode === 'divided' || requirementCatalogs.length > 0}
+							<div
+								class="grid gap-4 {workMode === 'divided' && requirementCatalogs.length > 0
+									? 'lg:grid-cols-2'
+									: ''}"
+							>
+								{#if workMode === 'divided'}
+									<Dialog.CollapsibleSection
+										title="Elementos"
+										description="La evidencia de este trabajo se organizará por cada elemento."
+										count={workElements.length}
+										bind:open={elementsOpen}
+									>
+										<ElementsEditor catalogs={catalogsForPicker} bind:value={workElements} />
+									</Dialog.CollapsibleSection>
+								{/if}
+
+								{#if requirementCatalogs.length > 0}
+									<Dialog.CollapsibleSection
+										title="Requisitos"
+										description={workMode === 'divided'
+											? 'Se aplicarán a cada elemento creado.'
+											: 'Se aplicarán al trabajo.'}
+										count={workRequirements.length}
+										bind:open={requirementsOpen}
+									>
+										<RequirementsEditor
+											catalogs={requirementCatalogs}
+											bind:value={workRequirements}
+											bind:required={workRequirementsRequired}
+										/>
+									</Dialog.CollapsibleSection>
+								{/if}
+							</div>
+						{/if}
+
 						<input type="hidden" name="elements" value={elementsJson} />
 						<input type="hidden" name="requirements" value={requirementsJson} />
 						<input
@@ -758,13 +777,15 @@
 						/>
 					</Dialog.Body>
 					<Dialog.Footer>
+						<p class="mr-auto hidden text-xs text-muted-foreground sm:block">
+							{workModeLabel} · {workElementCount} elemento(s) · {workRequirementCount} requisito(s)
+						</p>
 						<Dialog.Close>Cancelar</Dialog.Close>
 						<Button type="submit" disabled={!workMode}>Crear trabajo</Button>
 					</Dialog.Footer>
 				</form>
 			</Dialog.Content>
 		</Dialog.Root>
-
 		<GenerateStructureDialog
 			serviceId={data.service.id}
 			catalogs={catalogsForPicker}

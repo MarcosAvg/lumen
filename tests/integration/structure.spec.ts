@@ -4,13 +4,11 @@ import { hashPassword } from '#lib/server/auth/password';
 import {
 	createCatalog,
 	createCatalogItem,
-	createRelation,
-	createRelationsBatch,
 	deleteCatalogItem,
 	getCatalogItemImpact,
+	listCatalogTypes,
 	renameCatalogItem
 } from '#lib/server/domain/catalogs';
-import { DomainError } from '#lib/server/domain/errors';
 import { createService, getServiceForUser, updateService } from '#lib/server/domain/services';
 import { createFirstAdmin } from '#lib/server/domain/users';
 import {
@@ -181,8 +179,18 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 
 	it('CAT-03: eliminar el ítem preserva nombres de trabajos, elementos y edificio', async () => {
 		const admin = await seedAdmin();
-		const catalog = await createCatalog(db, { name: 'Edificios', actorId: admin });
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificios.');
+		const catalog = await createCatalog(db, {
+			name: 'Edificios',
+			typeId: buildingType.id,
+			actorId: admin
+		});
 		const building = await seedItem(catalog.id, 'Edificio A', admin);
+		const workCatalog = await createCatalog(db, { name: 'Pisos', actorId: admin });
+		const workItem = await seedItem(workCatalog.id, 'Piso 34', admin);
 
 		const service = await createService(db, {
 			contractId: await seedContract(db, admin),
@@ -202,102 +210,21 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 		const work = await createWork(db, {
 			serviceId: service.id,
 			mode: 'direct',
-			catalogItemId: building.id,
+			catalogItemId: workItem.id,
 			actorId: admin
 		});
 
-		const impact = await getCatalogItemImpact(db, building.id);
-		expect(impact.works).toBe(1);
-		expect(impact.services).toBe(1);
+		expect((await getCatalogItemImpact(db, workItem.id)).works).toBe(1);
+		expect((await getCatalogItemImpact(db, building.id)).services).toBe(1);
 
+		await deleteCatalogItem(db, { itemId: workItem.id, actorId: admin });
 		await deleteCatalogItem(db, { itemId: building.id, actorId: admin });
 
 		const works = await listWorksDetailed(db, service.id);
-		expect(works.find((row) => row.id === work.id)?.name).toBe('Edificio A');
+		expect(works.find((row) => row.id === work.id)?.name).toBe('Piso 34');
 		expect((await getServiceForUser(db, adminUser(admin), service.id)).service.buildingName).toBe(
 			'Edificio A'
 		);
-	});
-
-	it('las relaciones solo enlazan catálogos distintos', async () => {
-		const admin = await seedAdmin();
-		const catalogA = await createCatalog(db, { name: 'Pisos', actorId: admin });
-		const catalogB = await createCatalog(db, { name: 'UMAs', actorId: admin });
-		const a1 = await seedItem(catalogA.id, 'Piso 34', admin);
-		const a2 = await seedItem(catalogA.id, 'Piso 35', admin);
-		const b1 = await seedItem(catalogB.id, 'UMA 03', admin);
-
-		const relation = await createRelation(db, {
-			fromItemId: a1.id,
-			toItemId: b1.id,
-			actorId: admin
-		});
-		expect(relation.id).toBeTruthy();
-
-		await expect(
-			createRelation(db, { fromItemId: a1.id, toItemId: a2.id, actorId: admin })
-		).rejects.toBeInstanceOf(DomainError);
-	});
-
-	it('no se repite una relación sin tipo', async () => {
-		const admin = await seedAdmin();
-		const catalogA = await createCatalog(db, { name: 'Pisos', actorId: admin });
-		const catalogB = await createCatalog(db, { name: 'UMAs', actorId: admin });
-		const a1 = await seedItem(catalogA.id, 'Piso 34', admin);
-		const b1 = await seedItem(catalogB.id, 'UMA 03', admin);
-
-		await createRelation(db, { fromItemId: a1.id, toItemId: b1.id, actorId: admin });
-		await expect(
-			createRelation(db, { fromItemId: a1.id, toItemId: b1.id, actorId: admin })
-		).rejects.toBeInstanceOf(DomainError);
-	});
-
-	it('la relación en lote crea el producto y omite las existentes', async () => {
-		const admin = await seedAdmin();
-		const pisos = await createCatalog(db, { name: 'Pisos', actorId: admin });
-		const edificios = await createCatalog(db, { name: 'Edificios', actorId: admin });
-		const pisoA = await seedItem(pisos.id, 'Piso 1', admin);
-		const pisoB = await seedItem(pisos.id, 'Piso 2', admin);
-		const pisoC = await seedItem(pisos.id, 'Piso 3', admin);
-		const edificio = await seedItem(edificios.id, 'Edificio A', admin);
-
-		const first = await createRelationsBatch(db, {
-			fromItemIds: [pisoA.id, pisoB.id, pisoC.id],
-			toItemIds: [edificio.id],
-			actorId: admin
-		});
-		expect(first).toEqual({ created: 3, skipped: 0 });
-
-		const second = await createRelationsBatch(db, {
-			fromItemIds: [pisoA.id, pisoB.id, pisoC.id],
-			toItemIds: [edificio.id],
-			actorId: admin
-		});
-		expect(second).toEqual({ created: 0, skipped: 3 });
-	});
-
-	it('la relación en lote rechaza ítems del mismo catálogo y deduplica la entrada', async () => {
-		const admin = await seedAdmin();
-		const pisos = await createCatalog(db, { name: 'Pisos', actorId: admin });
-		const edificios = await createCatalog(db, { name: 'Edificios', actorId: admin });
-		const pisoA = await seedItem(pisos.id, 'Piso 1', admin);
-		const pisoB = await seedItem(pisos.id, 'Piso 2', admin);
-		const edificio = await seedItem(edificios.id, 'Edificio A', admin);
-
-		await expect(
-			createRelationsBatch(db, {
-				fromItemIds: [pisoA.id, pisoB.id],
-				toItemIds: [pisoA.id],
-				actorId: admin
-			})
-		).rejects.toBeInstanceOf(DomainError);
-
-		const result = await createRelationsBatch(db, {
-			fromItemIds: [pisoA.id, pisoA.id, pisoB.id],
-			toItemIds: [edificio.id, edificio.id],
-			actorId: admin
-		});
-		expect(result).toEqual({ created: 2, skipped: 0 });
 	});
 
 	it('generación 34×4 crea la estructura esperada', async () => {
@@ -393,7 +320,15 @@ await describeWithDatabase('Estructura · catálogos, trabajos y objetivos', ({ 
 			name: 'Servicio',
 			actorId: admin
 		});
-		const catalog = await createCatalog(db, { name: 'Edificios', actorId: admin });
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificios.');
+		const catalog = await createCatalog(db, {
+			name: 'Edificios',
+			typeId: buildingType.id,
+			actorId: admin
+		});
 		const building = await seedItem(catalog.id, 'Edificio A', admin);
 		const work = await createWork(db, {
 			serviceId: service.id,

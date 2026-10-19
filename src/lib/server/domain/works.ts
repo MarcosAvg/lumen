@@ -4,6 +4,7 @@ import type { Database } from '#lib/server/db';
 import { catalogItems, elements, evidenceTargets, services, works } from '#lib/server/db/schema';
 import type { TargetStatus, WorkMode } from '#lib/types';
 import { recordAudit } from './audit';
+import { assertCatalogItemAvailableForService } from './catalog-scope';
 import { DomainError } from './errors';
 import { insertRequirements, type RequirementInput } from './requirements';
 import { visibleElementName, visibleWorkName } from './works-shared';
@@ -19,7 +20,8 @@ export interface NameSource {
 
 async function resolveNameSource(
 	db: Database,
-	source: NameSource
+	source: NameSource,
+	serviceId: string
 ): Promise<{ catalogItemId: string | null; customName: string | null }> {
 	const hasCatalog = Boolean(source.catalogItemId);
 	const custom = source.name?.trim() ?? '';
@@ -39,6 +41,7 @@ async function resolveNameSource(
 			.where(eq(catalogItems.id, source.catalogItemId as string))
 			.limit(1);
 		if (!item) throw new DomainError(404, 'Ítem de catálogo no encontrado.');
+		await assertCatalogItemAvailableForService(db, serviceId, item.id);
 		return { catalogItemId: item.id, customName: null };
 	}
 
@@ -86,7 +89,7 @@ export async function createWork(
 		const requirements = input.requirements ?? [];
 		const requirementIsRequired = input.requirementIsRequired ?? true;
 
-		const name = await resolveNameSource(tx, input);
+		const name = await resolveNameSource(tx, input, input.serviceId);
 		const [next] = await tx
 			.select({ value: sql<number>`coalesce(max(${works.sortOrder}), -1) + 1` })
 			.from(works)
@@ -115,6 +118,7 @@ export async function createWork(
 			if (requirements.length > 0) {
 				await insertRequirements(tx, {
 					targetId: target.id,
+					serviceId: input.serviceId,
 					requirements,
 					isRequired: requirementIsRequired
 				});
@@ -125,7 +129,7 @@ export async function createWork(
 		const elementIds: string[] = [];
 		let elementSort = 0;
 		for (const element of elementInputs) {
-			const elementName = await resolveNameSource(tx, element);
+			const elementName = await resolveNameSource(tx, element, input.serviceId);
 			const [createdElement] = await tx
 				.insert(elements)
 				.values({
@@ -142,6 +146,7 @@ export async function createWork(
 			if (requirements.length > 0) {
 				await insertRequirements(tx, {
 					targetId: target.id,
+					serviceId: input.serviceId,
 					requirements,
 					isRequired: requirementIsRequired
 				});
@@ -195,7 +200,7 @@ export async function createElement(
 			throw new DomainError(409, 'Solo los trabajos divididos pueden tener elementos.');
 		}
 
-		const name = await resolveNameSource(tx, input);
+		const name = await resolveNameSource(tx, input, work.serviceId);
 		const [next] = await tx
 			.select({ value: sql<number>`coalesce(max(${elements.sortOrder}), -1) + 1` })
 			.from(elements)
@@ -276,7 +281,7 @@ export async function addElements(
 
 		const elementIds: string[] = [];
 		for (const element of input.elements) {
-			const name = await resolveNameSource(tx, element);
+			const name = await resolveNameSource(tx, element, work.serviceId);
 			const [created] = await tx
 				.insert(elements)
 				.values({
@@ -293,6 +298,7 @@ export async function addElements(
 			if (requirements.length > 0) {
 				await insertRequirements(tx, {
 					targetId: target.id,
+					serviceId: work.serviceId,
 					requirements,
 					isRequired: requirementIsRequired
 				});

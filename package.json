@@ -20,13 +20,20 @@
 		"test": "vitest --run --project unit",
 		"test:watch": "vitest --project unit",
 		"test:integration": "vitest --run --project integration",
-		"test:e2e": "playwright test",
+		"test:e2e": "playwright test --project=escritorio --project=movil",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
 		"db:studio": "drizzle-kit studio",
 		"maintenance:cleanup": "node --env-file-if-exists=.env scripts/cleanup.mjs",
 		"vapid:generate": "node scripts/generate-vapid.mjs",
-		"icons:generate": "node scripts/generate-icons.mjs"
+		"icons:generate": "node scripts/generate-icons.mjs",
+		"test:e2e:desktop": "playwright test --project=escritorio",
+		"test:e2e:mobile": "playwright test --project=movil --project=movil-completo",
+		"test:e2e:all": "playwright test --project=escritorio --project=movil --project=movil-completo",
+		"test:e2e:fast": "E2E_SKIP_BUILD=1 playwright test --project=escritorio --project=movil",
+		"test:theme": "playwright test e2e/theme.spec.ts --project=escritorio",
+		"test:smoke": "playwright test e2e/theme.spec.ts e2e/security.spec.ts --project=escritorio",
+		"verify:visual": "pnpm lint && pnpm test:theme"
 	},
 	"dependencies": {
 		"@node-rs/argon2": "^2.2.2",

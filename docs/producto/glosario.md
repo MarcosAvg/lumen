@@ -20,7 +20,8 @@ Términos del dominio y convenciones de lenguaje. En prosa se usa la columna
 | **Borrador** | — | La evidencia vigente cuando todavía es editable |
 | **Entrega** | `submission` / `evidence_submission` | Instantánea inmutable de la evidencia |
 | **Revisión** | `review` | Decisión de aprobar o rechazar una entrega |
-| **Catálogo** | `catalog` | Lista reutilizable de nombres con un propósito |
+| **Tipo de catálogo** | `catalog_type` | Clasificación administrable que filtra catálogos; `Edificios` es de sistema |
+| **Catálogo** | `catalog` | Lista reutilizable de nombres con un tipo y ámbito de edificios |
 | **Ítem de catálogo** | `catalog_item` | Entrada de un catálogo |
 | **Nombre vinculado** | `catalog_item_id` | Nombre que se resuelve dinámicamente desde el catálogo |
 | **Nombre propio** | `custom_name` | Nombre independiente del catálogo |

@@ -61,8 +61,9 @@ No se usa `push` destructivo contra producción. Las migraciones se versionan en
 pnpm check             # svelte-check
 pnpm lint              # Prettier + ESLint
 pnpm test              # unitarias
-pnpm test:integration  # PostgreSQL real
-pnpm test:e2e          # Playwright escritorio y móvil
+pnpm test:integration  # PostgreSQL real, en paralelo por worker
+pnpm test:e2e          # E2E rápido: escritorio + móvil smoke
+pnpm test:e2e:all      # E2E completo antes de publicar
 pnpm build             # build de producción
 ```
 
@@ -72,6 +73,17 @@ Para E2E, instalar el navegador una vez:
 pnpm exec playwright install --with-deps chromium
 ```
 
+`test:integration` crea bases `lumen_test_1`, `lumen_test_2`… para aislar
+workers. El usuario de PostgreSQL debe poder crear bases. `test:e2e` ejecuta
+todo escritorio y una selección móvil marcada con `@mobile`; `test:e2e:all`
+ejecuta también el resto de móvil. `test:e2e:fast` requiere un build E2E previo
+(por ejemplo, tras ejecutar `pnpm test:e2e` una vez).
+
+Para cambios puramente visuales de tokens o paleta, el flujo recomendado es
+`pnpm verify:visual`: lint, build y prueba de tema. No hace falta ejecutar
+unitarias, integración ni el E2E completo. La suite completa queda para CI o
+antes de publicar.
+
 ## 5. Scripts
 
 | Script | Descripción |
@@ -80,7 +92,12 @@ pnpm exec playwright install --with-deps chromium
 | `check` / `check:watch` | Comprobación de tipos |
 | `lint` / `format` | Prettier + ESLint y formateo |
 | `test` / `test:watch` | Unitarias con Vitest |
-| `test:integration` / `test:e2e` | PostgreSQL real y Playwright |
+| `test:integration` | PostgreSQL real; una base por worker |
+| `test:e2e` / `test:e2e:all` | Playwright rápido y completo |
+| `test:e2e:desktop` / `test:e2e:mobile` | Ejecutar solo una plataforma |
+| `test:e2e:fast` | Reutiliza el último build local de E2E |
+| `test:theme` / `test:smoke` | Tema y smoke rápido de UI |
+| `verify:visual` | Lint + build + prueba de tema |
 | `db:generate` / `db:migrate` / `db:studio` | Migraciones y explorador |
 | `maintenance:cleanup` | Temporales, huérfanos y push revocado |
 | `vapid:generate` | Par de claves VAPID |

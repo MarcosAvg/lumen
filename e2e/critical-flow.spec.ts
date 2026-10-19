@@ -80,7 +80,7 @@ async function createPendingSubmission(page: Page, unique: string) {
 	return workName;
 }
 
-test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }, testInfo) => {
+test('flujo crítico: captura, envío, aprobación y búsqueda @mobile', async ({ page }, testInfo) => {
 	test.setTimeout(60_000);
 	const unique = `${testInfo.project.name}-aprobar-${Date.now()}`;
 
@@ -133,7 +133,7 @@ test('flujo crítico: captura, envío, aprobación y búsqueda', async ({ page }
 	});
 });
 
-test('flujo crítico: rechazo con motivo y corrección', async ({ page }, testInfo) => {
+test('flujo crítico: rechazo con motivo y corrección @mobile', async ({ page }, testInfo) => {
 	test.setTimeout(60_000);
 	const unique = `${testInfo.project.name}-rechazar-${Date.now()}`;
 	const reason = 'Falta la foto de después';

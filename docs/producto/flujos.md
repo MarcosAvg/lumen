@@ -78,20 +78,30 @@ ese contrato quedan revocadas y la siguiente lectura o subida responde
 
 ## 3. Catálogos y generación de estructura
 
-1. El administrador crea catálogos globales con propósito general, edificios o
-   requisitos.
-2. Crea ítems y, opcionalmente, relaciones entre ítems de catálogos distintos.
-3. Crea el servicio, asigna edificio opcional y participantes.
-4. Elige crear trabajo manual o desde catálogo. Puede generar varios trabajos y
-   elementos a la vez.
-5. Antes de aplicar la generación se muestra una vista previa con conteos,
-   jerarquía, nombres, duplicados y excepciones editables.
-6. Confirmar crea la estructura en una transacción. Los nombres quedan
+1. El administrador mantiene los **tipos de catálogo** (crear, renombrar,
+   reordenar y eliminar los que no tengan catálogos). El tipo `Edificios` es de
+   sistema.
+2. Crea catálogos eligiendo tipo y ámbito: global o solo ciertos edificios. El
+   ámbito limitado exige al menos un edificio.
+3. Crea ítems dentro de cada catálogo. No hay relaciones entre ítems.
+4. Crea el servicio, asigna edificio opcional y participantes. Al elegir un
+   edificio, solo se ofrecen ítems de catálogos de tipo `Edificios`.
+5. Elige crear trabajo manual o desde catálogo. Puede generar varios trabajos y
+   elementos a la vez; los selectores agrupan por tipo y solo muestran catálogos
+   globales o del edificio del servicio.
+6. Antes de aplicar la generación se muestra una vista previa con conteos,
+   jerarquía, nombres, duplicados y excepciones editables. Si hay varios
+   trabajos y elementos, se advierte que los elementos se aplicarán a todos los
+   trabajos.
+7. Confirmar crea la estructura en una transacción. Los nombres quedan
    vinculados al catálogo salvo que se personalicen.
-7. Cambiar el nombre de un ítem actualiza las instancias vinculadas. Cambiar el
+8. Cambiar el nombre de un ítem actualiza las instancias vinculadas. Cambiar el
    nombre de una sola instancia la desvincula.
-8. Eliminar un ítem muestra sus usos, copia el último nombre a las instancias,
+9. Eliminar un ítem muestra sus usos, copia el último nombre a las instancias,
    las desvincula y no toca fotos ni revisiones.
+10. Reducir o ampliar el ámbito de un catálogo no reescribe el historial; solo
+    cambia las nuevas selecciones. El servidor rechaza vínculos nuevos fuera del
+    ámbito del servicio.
 
 **No asumir** que un ítem global solo puede existir una vez en un servicio. El
 contexto del trabajo determina la identidad de cada elemento. La vista previa

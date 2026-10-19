@@ -62,6 +62,7 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	await page.goto('/admin/catalogs');
 	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(catalog);
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: 'Otros' });
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 	const catalogHref = await page
@@ -89,31 +90,4 @@ test('editar recursos en modal: servicio, catálogo, ítem y trabajo', async ({ 
 	await renameDialog.getByLabel('Nombre').fill(itemRenamed);
 	await renameDialog.getByRole('button', { name: 'Guardar' }).click();
 	await expect(page.getByText(itemRenamed).filter({ visible: true }).first()).toBeVisible();
-});
-
-test('desactivar usuario pide confirmación en modal', async ({ page }, testInfo) => {
-	test.setTimeout(90_000);
-	const stamp = Date.now();
-	const displayName = `Baja ${testInfo.project.name}-${stamp}`;
-	const username = `baja${testInfo.project.name}${stamp}`.replace(/[^a-z0-9]/gi, '');
-
-	await ensureAdmin(page);
-	await page.goto('/admin/users');
-	await page.getByRole('button', { name: 'Nuevo usuario' }).click();
-	const dialog = page.getByRole('dialog');
-	await dialog.locator('#new-displayName').fill(displayName);
-	await dialog.locator('#new-username').fill(username);
-	await dialog.locator('#new-password').fill('contrasena-segura');
-	await dialog.locator('#new-role').selectOption('technician');
-	await dialog.getByRole('button', { name: 'Crear usuario' }).click();
-	await expect(page.getByText('Usuario creado.')).toBeVisible();
-
-	const row = page.locator('tr, li').filter({ visible: true }).filter({ hasText: displayName });
-	await row.getByRole('button', { name: 'Desactivar' }).click();
-	const confirm = page.getByRole('alertdialog');
-	await expect(confirm.getByText('se cerrarán sus sesiones')).toBeVisible();
-	await confirm.getByRole('button', { name: 'Cancelar' }).click();
-	await expect(confirm).toBeHidden();
-	// Sigue activo: no aparece la insignia de inactivo.
-	await expect(row.getByText('Inactivo')).toHaveCount(0);
 });

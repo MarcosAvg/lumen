@@ -22,8 +22,6 @@ export type ContractLifecycle = 'active' | 'inactive' | 'archived';
 
 export type ServiceLifecycle = 'planned' | 'active' | 'inactive' | 'archived';
 
-export type CatalogPurpose = 'general' | 'buildings' | 'requirements';
-
 export type WorkMode = 'direct' | 'divided';
 
 export type TargetStatus = 'pending' | 'in_progress' | 'in_review' | 'rejected' | 'approved';

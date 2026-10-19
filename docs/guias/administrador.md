@@ -41,18 +41,23 @@
 
 ## 4. Catálogos
 
-Propósitos:
+Tipos y ámbito:
 
-- **General:** trabajos y elementos.
-- **Edificios:** edificio del servicio.
-- **Requisitos:** requisitos fotográficos.
+- Los **tipos de catálogo** se administran desde **Catálogos → Tipos de
+  catálogo**. El tipo **Edificios** es de sistema.
+- Cada catálogo pertenece a un tipo y puede ser global o limitarse a ciertos
+  edificios. Un catálogo limitado solo se ofrece en servicios cuyo edificio
+  esté entre los seleccionados.
+- El ámbito y los vínculos se validan en servidor; no dependen solo de la
+  interfaz.
+- Al crear trabajos, elementos o requisitos se elige primero el tipo de catálogo
+  que se quiere examinar.
 
 Buenas prácticas:
 
-- Usa un catálogo por propósito; los selectores solo muestran el tipo que
-  corresponde.
+- Usa tipos estables y significativos (Áreas, Equipos, Periodos, Requisitos…).
+- Usa catálogos globales para lo común y limita a edificios solo lo específico.
 - Evita duplicados de nombre dentro del mismo catálogo.
-- Las relaciones entre catálogos son opcionales y tienen sentido explícito.
 - Renombrar un ítem actualiza las instancias vinculadas.
 - Renombrar una instancia concreta la desvincula.
 - Borrar un ítem copia el último nombre a las instancias y no borra evidencias.

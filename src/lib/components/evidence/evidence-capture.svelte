@@ -120,6 +120,17 @@
 	let newRequired = $state(true);
 	let catalogRequirementIds = $state<string[]>([]);
 	let catalogRequired = $state(true);
+	const requirementContextItems = $derived([
+		{
+			label: 'Modo',
+			value: requirementTab === 'custom' ? 'Nombre propio' : 'Desde catálogo',
+			strong: true
+		},
+		{
+			label: 'Obligatorio',
+			value: (requirementTab === 'custom' ? newRequired : catalogRequired) ? 'Sí' : 'No'
+		}
+	]);
 	let busy = $state(false);
 	let tab = $state('current');
 	let showSubmit = $state(false);
@@ -655,13 +666,14 @@
 					<Dialog.Header>
 						<Dialog.Title>Añadir requisitos</Dialog.Title>
 						<Dialog.Description>
-							Los requisitos se congelan tras el primer envío.
+							Crea uno nuevo o elige varios de un catálogo. Se congelan tras el primer envío.
 						</Dialog.Description>
 					</Dialog.Header>
+					<Dialog.Context items={requirementContextItems} />
 					<Dialog.Body class="space-y-5">
 						<Dialog.Section
-							title="Datos del requisito"
-							description="Crea uno nuevo o elige varios de un catálogo."
+							title="Requisito"
+							description="Puedes añadirlo por nombre propio o desde catálogo."
 						>
 							<Tabs.Root bind:value={requirementTab}>
 								<Tabs.List class="grid w-full grid-cols-2">

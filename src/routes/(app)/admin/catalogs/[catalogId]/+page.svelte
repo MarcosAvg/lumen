@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { SvelteMap } from 'svelte/reactivity';
-	import { toast } from 'svelte-sonner';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
@@ -11,14 +8,13 @@
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { Textarea } from '#lib/components/ui/textarea';
 	import * as Table from '#lib/components/ui/table';
 	import AppBreadcrumbs from '#lib/components/app/app-breadcrumbs.svelte';
 	import DataTable from '#lib/components/app/data-table.svelte';
 	import TableActions from '#lib/components/app/table-actions.svelte';
 	import RenameDialog from '#lib/components/app/rename-dialog.svelte';
-	import CatalogItemRelationsDialog from '#lib/components/catalog/catalog-item-relations-dialog.svelte';
-	import CatalogRelationsBatchDialog from '#lib/components/catalog/catalog-relations-batch-dialog.svelte';
-	import type { CatalogGroup } from '#lib/components/catalog/types';
+	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
 	import type { PageProps } from './$types';
 	import { NativeSelect } from '#lib/components/ui/native-select';
 
@@ -44,40 +40,29 @@
 
 	const totalPages = $derived(Math.max(Math.ceil(data.total / data.pageSize), 1));
 
-	const currentCatalog = $derived<CatalogGroup>({
-		id: data.catalog.id,
-		name: data.catalog.name,
-		description: data.catalog.description,
-		purpose: data.catalog.purpose,
-		items: data.fromItems.map((item) => ({ id: item.id, name: item.name }))
-	});
-	const otherCatalogs = $derived<CatalogGroup[]>(
-		data.otherCatalogs.map((catalog) => ({
-			id: catalog.id,
-			name: catalog.name,
-			description: catalog.description,
-			purpose: catalog.purpose,
-			items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
-		}))
-	);
-
-	const relationCountByItem = $derived.by(() => {
-		const counts = new SvelteMap<string, number>();
-		for (const relation of data.relations) {
-			counts.set(relation.fromItemId, (counts.get(relation.fromItemId) ?? 0) + 1);
-			counts.set(relation.toItemId, (counts.get(relation.toItemId) ?? 0) + 1);
-		}
-		return counts;
-	});
-
-	let itemRelationsOpen = $state(false);
-	let itemRelationsTarget = $state<{ id: string; name: string } | null>(null);
-	let batchOpen = $state(false);
-	let removingRelationId = $state<string | null>(null);
-
-	// Diálogos de edición y alta de ítem; cierran solo al confirmarse el éxito.
 	let editOpen = $state(false);
 	let itemOpen = $state(false);
+	let editTypeId = $state('');
+	let editAllBuildings = $state(true);
+	let editBuildingIds = $state<string[]>([]);
+	const editType = $derived(data.types.find((type) => type.id === editTypeId) ?? null);
+	const editIsBuildingType = $derived(editType?.systemRole === 'building');
+	const editScopeLabel = $derived(
+		editIsBuildingType
+			? 'No aplica al tipo Edificios'
+			: editAllBuildings
+				? 'Todos los edificios'
+				: editBuildingIds.length === 0
+					? 'Sin edificios'
+					: `${editBuildingIds.length} edificio(s)`
+	);
+
+	function openEdit() {
+		editTypeId = data.catalog.typeId;
+		editAllBuildings = data.catalog.allBuildings;
+		editBuildingIds = [...data.catalog.buildingIds];
+		editOpen = true;
+	}
 	const submitCatalog: NonNullable<Parameters<typeof enhance>[1]> =
 		() =>
 		async ({ result, update }) => {
@@ -90,28 +75,6 @@
 			await update({ reset: false });
 			if (result.type === 'success') itemOpen = false;
 		};
-
-	function openItemRelations(item: { id: string; name: string }) {
-		itemRelationsTarget = { id: item.id, name: item.name };
-		itemRelationsOpen = true;
-	}
-
-	async function removeRelation(relationId: string) {
-		removingRelationId = relationId;
-		try {
-			const response = await fetch(`/api/catalogs/${data.catalog.id}/relations/${relationId}`, {
-				method: 'DELETE'
-			});
-			const body = (await response.json().catch(() => ({}))) as { message?: string };
-			if (!response.ok) throw new Error(body.message ?? 'No se pudo quitar la relación.');
-			toast.success('Relación eliminada.');
-			await invalidateAll();
-		} catch (cause) {
-			toast.error((cause as Error).message);
-		} finally {
-			removingRelationId = null;
-		}
-	}
 
 	function pageHref(page: number): string {
 		const parts: string[] = [];
@@ -131,13 +94,21 @@
 	/>
 
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-		<div>
+		<div class="space-y-2">
 			{#if data.catalog.description}
 				<p class="text-sm text-muted-foreground">{data.catalog.description}</p>
 			{/if}
+			<div class="flex flex-wrap items-center gap-2">
+				<Badge variant="secondary">{data.catalog.typeName}</Badge>
+				<span class="text-xs text-muted-foreground">
+					{data.catalog.allBuildings
+						? 'Todos los edificios'
+						: data.catalog.buildingNames.join(', ') || 'Sin edificios'}
+				</span>
+			</div>
 		</div>
 		<div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-			<Button variant="outline" size="sm" onclick={() => (editOpen = true)}>Editar catálogo</Button>
+			<Button variant="outline" size="sm" onclick={openEdit}>Editar catálogo</Button>
 			<form method="POST" action="?/deleteCatalog">
 				<input type="hidden" name="confirm" value="false" />
 				<Button type="submit" variant="destructive" size="sm">Eliminar catálogo</Button>
@@ -203,7 +174,7 @@
 	</AlertDialog.Root>
 
 	<Dialog.Root bind:open={editOpen}>
-		<Dialog.Content>
+		<Dialog.Content size="lg">
 			<form
 				method="POST"
 				action="?/updateCatalog"
@@ -213,27 +184,107 @@
 				<input type="hidden" name="catalogId" value={data.catalog.id} />
 				<Dialog.Header>
 					<Dialog.Title>Editar catálogo</Dialog.Title>
-					<Dialog.Description>Nombre, descripción y propósito de la lista.</Dialog.Description>
+					<Dialog.Description>Nombre, tipo y ámbito de edificios.</Dialog.Description>
 				</Dialog.Header>
-				<Dialog.Body class="space-y-5">
-					<div class="space-y-2">
-						<Label for="cat-name">Nombre</Label>
-						<Input id="cat-name" name="name" value={data.catalog.name} required />
-					</div>
-					<div class="space-y-2">
-						<Label for="cat-desc">Descripción</Label>
-						<Input id="cat-desc" name="description" value={data.catalog.description ?? ''} />
-					</div>
-					<div class="space-y-2">
-						<Label for="cat-purpose">Propósito</Label>
-						<NativeSelect id="cat-purpose" name="purpose" value={data.catalog.purpose ?? ''}>
-							<option value="">General</option>
-							<option value="buildings">Edificios</option>
-							<option value="requirements">Requisitos</option>
-						</NativeSelect>
-					</div>
+				<Dialog.Context
+					items={[
+						{ label: 'Tipo', value: editType?.name ?? 'Sin tipo' },
+						{ label: 'Ámbito', value: editScopeLabel, strong: true }
+					]}
+				/>
+				<Dialog.Body class="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+					<Dialog.Section title="Identidad">
+						<div class="space-y-2">
+							<Label for="cat-name">Nombre</Label>
+							<Input id="cat-name" name="name" value={data.catalog.name} required />
+						</div>
+						<div class="space-y-2">
+							<Label for="cat-desc">Descripción</Label>
+							<Textarea
+								id="cat-desc"
+								name="description"
+								rows={2}
+								value={data.catalog.description ?? ''}
+							/>
+						</div>
+					</Dialog.Section>
+					<Dialog.Section
+						title="Dónde aparece"
+						description="El tipo filtra la búsqueda y el ámbito decide en qué servicios se ofrece."
+					>
+						<div class="space-y-2">
+							<Label for="cat-type">Tipo de catálogo</Label>
+							<NativeSelect id="cat-type" name="typeId" bind:value={editTypeId} required>
+								{#each data.types as type (type.id)}
+									<option value={type.id}>{type.name}</option>
+								{/each}
+							</NativeSelect>
+						</div>
+						{#if !editIsBuildingType}
+							<input
+								type="hidden"
+								name="allBuildings"
+								value={editAllBuildings ? 'true' : 'false'}
+							/>
+							<div class="space-y-2">
+								<Label>Ámbito de edificios</Label>
+								<div
+									class="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
+									role="group"
+									aria-label="Ámbito de edificios"
+								>
+									<button
+										type="button"
+										aria-pressed={editAllBuildings}
+										class="rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 {editAllBuildings
+											? 'bg-card text-foreground shadow-sm ring-1 ring-border/70'
+											: 'text-muted-foreground hover:text-foreground'}"
+										onclick={() => (editAllBuildings = true)}
+									>
+										Todos
+									</button>
+									<button
+										type="button"
+										aria-pressed={!editAllBuildings}
+										class="rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 {!editAllBuildings
+											? 'bg-card text-foreground shadow-sm ring-1 ring-border/70'
+											: 'text-muted-foreground hover:text-foreground'}"
+										onclick={() => (editAllBuildings = false)}
+									>
+										Edificios concretos
+									</button>
+								</div>
+								<p class="text-xs text-muted-foreground">
+									{#if editAllBuildings}
+										Disponible en todos los servicios.
+									{:else}
+										Solo se ofrecerá en los servicios de los edificios elegidos.
+									{/if}
+								</p>
+							</div>
+							{#if !editAllBuildings}
+								<div class="space-y-2">
+									<Label>Edificios donde aparece</Label>
+									<CatalogItemMultiPicker
+										name="buildingIds"
+										catalogs={data.buildingCatalogs}
+										bind:value={editBuildingIds}
+										itemPlaceholder="Añadir edificios…"
+									/>
+								</div>
+							{/if}
+						{:else}
+							<input type="hidden" name="allBuildings" value="true" />
+							<p
+								class="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground"
+							>
+								El tipo Edificios se usa para el campo edificio del servicio; no tiene ámbito de
+								catálogo.
+							</p>
+						{/if}
+					</Dialog.Section>
 					{#if action?.message}
-						<p class="text-sm text-destructive">{action.message}</p>
+						<p class="text-sm text-destructive lg:col-span-2">{action.message}</p>
 					{/if}
 				</Dialog.Body>
 				<Dialog.Footer>
@@ -321,14 +372,6 @@
 										</Badge>
 									</div>
 									<div class="flex flex-wrap items-center gap-2">
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											onclick={() => openItemRelations(item)}
-										>
-											Relaciones ({relationCountByItem.get(item.id) ?? 0})
-										</Button>
 										<RenameDialog
 											action="?/renameItem"
 											hiddenName="itemId"
@@ -409,14 +452,6 @@
 									</Table.Cell>
 									<Table.Cell class="text-right">
 										<TableActions>
-											<Button
-												type="button"
-												variant="outline"
-												size="sm"
-												onclick={() => openItemRelations(item)}
-											>
-												Relaciones ({relationCountByItem.get(item.id) ?? 0})
-											</Button>
 											<form method="POST" action="?/deleteItem">
 												<input type="hidden" name="itemId" value={item.id} />
 												<input type="hidden" name="confirm" value="false" />
@@ -449,71 +484,4 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
-
-	<Card.Root>
-		<Card.Header class="flex flex-wrap items-center justify-between gap-2">
-			<Card.Title class="text-base">Relaciones</Card.Title>
-			<Button
-				type="button"
-				variant="outline"
-				size="sm"
-				disabled={data.otherCatalogs.length === 0}
-				onclick={() => (batchOpen = true)}>Relacionar en lote</Button
-			>
-		</Card.Header>
-		<Card.Content class="space-y-4">
-			{#if data.otherCatalogs.length === 0}
-				<p class="text-sm text-muted-foreground">
-					No hay otros catálogos para relacionar. Crea otro catálogo primero.
-				</p>
-			{:else}
-				<p class="text-sm text-muted-foreground">
-					Añade o quita las relaciones de cada ítem desde «Relaciones» en la lista de ítems, o crea
-					varias a la vez con «Relacionar en lote».
-				</p>
-			{/if}
-
-			{#if data.relations.length === 0}
-				<p class="text-sm text-muted-foreground">Sin relaciones.</p>
-			{:else}
-				<ul class="divide-y">
-					{#each data.relations as relation (relation.id)}
-						<li class="flex items-center justify-between gap-2 py-2 text-sm">
-							<span class="flex flex-wrap items-center gap-2">
-								{relation.fromName}
-								<span class="text-muted-foreground">→</span>
-								{relation.toName}
-								{#if relation.relationType}
-									<Badge variant="secondary">{relation.relationType}</Badge>
-								{/if}
-							</span>
-							<Button
-								type="button"
-								variant="destructive"
-								size="sm"
-								disabled={removingRelationId === relation.id}
-								onclick={() => removeRelation(relation.id)}>Quitar</Button
-							>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<CatalogItemRelationsDialog
-		bind:open={itemRelationsOpen}
-		catalogId={data.catalog.id}
-		item={itemRelationsTarget}
-		relations={data.relations}
-		{otherCatalogs}
-	/>
-
-	<CatalogRelationsBatchDialog
-		bind:open={batchOpen}
-		catalogId={data.catalog.id}
-		{currentCatalog}
-		relations={data.relations}
-		{otherCatalogs}
-	/>
 </div>

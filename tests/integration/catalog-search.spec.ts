@@ -4,6 +4,7 @@ import {
 	createCatalog,
 	createCatalogItem,
 	listCatalogs,
+	listCatalogTypes,
 	moveCatalogItem,
 	searchCatalogItems
 } from '#lib/server/domain/catalogs';
@@ -87,7 +88,11 @@ await describeWithDatabase('Catálogos · búsqueda, usos y orden', ({ db, clien
 
 	it('lista catálogos filtrando por nombre', async () => {
 		const admin = await seedAdmin();
-		await createCatalog(db, { name: 'Edificios', purpose: 'buildings', actorId: admin });
+		const buildingType = (await listCatalogTypes(db)).find(
+			(type) => type.systemRole === 'building'
+		);
+		if (!buildingType) throw new Error('Falta el tipo Edificio.');
+		await createCatalog(db, { name: 'Edificios', typeId: buildingType.id, actorId: admin });
 		await createCatalog(db, { name: 'Pisos', actorId: admin });
 
 		expect(await listCatalogs(db)).toHaveLength(2);

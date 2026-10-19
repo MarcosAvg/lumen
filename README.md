@@ -85,7 +85,7 @@ de negocio. El PDF de evidencia por trabajo sí forma parte de la v1.
 Antes de abrir un pull request:
 
 1. Ejecutar `pnpm check`, `pnpm lint`, `pnpm test`, `pnpm test:integration` y
-   `pnpm test:e2e`.
+   `pnpm test:e2e`. Antes de publicar, ejecutar `pnpm test:e2e:all`.
 2. Mantener la coherencia con la documentación canónica y actualizar el
    documento afectado en el mismo cambio.
 3. Añadir pruebas de regresión al corregir un incidente.

@@ -14,7 +14,7 @@
 
 <div data-slot="command-input-wrapper" class="p-1.5 pb-1">
 	<InputGroup.Root
-		class="h-10! rounded-lg! border-input bg-card shadow-none! *:data-[slot=input-group-addon]:pl-2.5!"
+		class="h-10! rounded-lg! border-input bg-card shadow-none! *:data-[slot=input-group-addon]:pl-2.5! dark:bg-surface-inset"
 	>
 		<CommandPrimitive.Input
 			{value}

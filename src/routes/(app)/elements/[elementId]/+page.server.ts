@@ -1,7 +1,7 @@
 import { requireServiceAccess, requireUser } from '#lib/server/auth/guards';
 import { getDatabase } from '#lib/server/db';
 import { orHttp } from '#lib/server/http';
-import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
+import { listCatalogsAvailableForService } from '#lib/server/domain/catalogs';
 import { loadEvidence } from '#lib/server/domain/photos';
 import { getHistory, getLatestRejection } from '#lib/server/domain/submissions';
 import { getTargetForElement, isEditableStatus } from '#lib/server/domain/targets';
@@ -24,7 +24,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		getHistory(db, target.id),
 		getLatestRejection(db, target.id),
 		// Solo se usan para el selector de requisitos.
-		user.role === 'admin' ? listCatalogsWithItems(db) : Promise.resolve([])
+		user.role === 'admin'
+			? listCatalogsAvailableForService(db, element.serviceId)
+			: Promise.resolve([])
 	]);
 
 	return {

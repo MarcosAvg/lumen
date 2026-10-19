@@ -3,9 +3,9 @@
 
 	const sizeClasses: Record<DialogSize, string> = {
 		sm: 'sm:max-w-[420px]',
-		default: 'sm:max-w-[560px]',
-		lg: 'sm:max-w-[720px]',
-		xl: 'sm:max-w-[880px]'
+		default: 'sm:max-w-[640px]',
+		lg: 'sm:max-w-[840px]',
+		xl: 'sm:max-w-[1000px]'
 	};
 </script>
 

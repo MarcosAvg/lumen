@@ -25,7 +25,7 @@ const LIST_ROUTES = [
 	'/search'
 ];
 
-test('ninguna página de listado desborda horizontalmente', async ({ page }) => {
+test('ninguna página de listado desborda horizontalmente @mobile', async ({ page }) => {
 	test.setTimeout(90_000);
 	await ensureAdmin(page);
 
@@ -36,7 +36,7 @@ test('ninguna página de listado desborda horizontalmente', async ({ page }) => 
 	}
 });
 
-test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
+test('las fichas (servicio, trabajo, elemento y entrega) no desbordan @mobile', async ({
 	page
 }, testInfo) => {
 	test.setTimeout(150_000);
@@ -74,15 +74,16 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const workDialog = page.getByRole('dialog');
 	await workDialog.getByText('Dividido', { exact: true }).click();
-	await workDialog.getByRole('tab', { name: 'Nombre propio' }).click();
+	const dividedSourceTab = workDialog.getByRole('tab', { name: 'Nombre propio' });
+	if ((await dividedSourceTab.count()) > 0) await dividedSourceTab.first().click();
 	await workDialog.locator('#work-name').fill(workName);
-	await workDialog.locator('#element-name-draft').fill('UMA 1');
-	await workDialog
-		.locator('#element-name-draft')
-		.locator('xpath=../..')
-		.getByRole('button', { name: 'Agregar', exact: true })
-		.last()
-		.click();
+	const elementsComposer = workDialog.locator(
+		'[data-slot="draft-composer"][data-kind="elementos"]'
+	);
+	const elementsTab = elementsComposer.getByRole('tab', { name: 'Nombre propio' });
+	if ((await elementsTab.count()) > 0) await elementsTab.click();
+	await elementsComposer.getByLabel('Nombre del elemento').fill('UMA 1');
+	await elementsComposer.getByRole('button', { name: 'Añadir', exact: true }).click();
 	await workDialog.getByRole('button', { name: 'Crear trabajo' }).click();
 	await expect(page.getByText('Trabajo creado.')).toBeVisible();
 
@@ -106,7 +107,8 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 	await page.goto(servicePath);
 	await page.getByRole('button', { name: 'Nuevo trabajo' }).click();
 	const directDialog = page.getByRole('dialog');
-	await directDialog.getByRole('tab', { name: 'Nombre propio' }).click();
+	const directSourceTab = directDialog.getByRole('tab', { name: 'Nombre propio' });
+	if ((await directSourceTab.count()) > 0) await directSourceTab.first().click();
 	await directDialog.getByText('Directo', { exact: true }).click();
 	await directDialog.locator('#work-name').fill(`${workName} directo`);
 	await directDialog.getByRole('button', { name: 'Crear trabajo' }).click();
@@ -141,36 +143,4 @@ test('las fichas (servicio, trabajo, elemento y entrega) no desbordan', async ({
 			await expectNoOverflow(page, route, width);
 		}
 	}
-});
-
-test('las acciones del catálogo son alcanzables en móvil', async ({ page }, testInfo) => {
-	test.setTimeout(90_000);
-	const catalogName = `Sin desborde ${testInfo.project.name}-${Date.now()}`;
-
-	await ensureAdmin(page);
-	await page.setViewportSize({ width: 390, height: 844 });
-
-	await page.goto('/admin/catalogs');
-	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
-	await page.getByLabel('Nombre', { exact: true }).fill(catalogName);
-	await page.getByRole('button', { name: 'Crear catálogo' }).click();
-	await expect(page.getByText('Catálogo creado.')).toBeVisible();
-
-	const catalogHref = await page
-		.locator('tr, li')
-		.filter({ visible: true })
-		.filter({ hasText: catalogName })
-		.getByRole('link', { name: catalogName })
-		.first()
-		.getAttribute('href');
-	await page.goto(catalogHref ?? '/admin/catalogs');
-
-	await page.getByRole('button', { name: 'Nuevo ítem' }).click();
-	await page.locator('#item-name').fill('Ítem móvil');
-	await page.getByRole('button', { name: 'Añadir' }).click();
-
-	const item = page.locator('li').filter({ visible: true }).filter({ hasText: 'Ítem móvil' });
-	await expect(item.getByRole('button', { name: /Relaciones/ })).toBeVisible();
-	await expect(item.getByRole('button', { name: 'Renombrar' })).toBeVisible();
-	await expect(item.getByRole('button', { name: 'Eliminar' })).toBeVisible();
 });

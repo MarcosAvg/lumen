@@ -22,11 +22,14 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   a mano en las vistas.
 - **Tema:** claro, oscuro y sistema. La preferencia se guarda en el dispositivo
   y «Sistema» sigue `prefers-color-scheme`.
+- **Modo oscuro:** grafito suave (`background` ≈ `#252930`), no negro OLED.
+  `color-scheme: dark` está activo para que selects, date/time pickers y
+  scrollbars nativos usen superficies oscuras.
 - **Barra del sistema (PWA):** `theme-color` usa el mismo color que el canvas,
-  `#edf2f6` en claro y `#070a10` en oscuro, tanto en el manifiesto como en el
-  meta dinámico. La barra se integra con el fondo en vez de crear una banda de
-  color de marca. La barra de gestos de Android la controla el sistema y no se
-  intenta forzar desde la PWA.
+  `#edf2f6` en claro y `#252930` en oscuro en el meta dinámico; el manifiesto
+  conserva el color claro de instalación. La barra se integra con el fondo en
+  vez de crear una banda de color de marca. La barra de gestos de Android la
+  controla el sistema y no se intenta forzar desde la PWA.
 
 ## 2. Forma, espacio y controles
 
@@ -81,9 +84,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 
 - `Dialog`:
   - `sm`: 420 px.
-  - `default`: 560 px.
-  - `lg`: 720 px.
-  - `xl`: 880 px.
+  - `default`: 640 px.
+  - `lg`: 840 px.
+  - `xl`: 1000 px.
 - `AlertDialog`: 440 px (`default`) o 400 px (`sm`).
 - Escritorio: máximo 88vh, centrado, cabecera fija, cuerpo desplazable y footer
   fijo.
@@ -91,7 +94,13 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   desde abajo.
 - `Dialog.Body` es el cuerpo desplazable; `Dialog.Section` agrupa campos con
   título y descripción.
-- El footer móvil ordena Cancelar antes de la acción primaria.
+- `Dialog.Context` muestra una cinta de contexto bajo la cabecera (tipo, ámbito,
+  modo, elementos o requisitos) que se actualiza sin abrir otro panel.
+- `Dialog.CollapsibleSection` pliega bloques opcionales con un contador. Lo
+  obligatorio permanece visible.
+- Cabecera y footer tienen separación visual sutil; el footer móvil ordena
+  Cancelar antes de la acción primaria y resume la operación a la izquierda en
+  escritorio.
 - Las confirmaciones destructivas usan `AlertDialog`, no avisos inline.
 - El panel «Más» móvil es un bottom sheet con cuenta, accesos y cierre de sesión.
 
@@ -108,19 +117,28 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 - Las ediciones mantienen el valor guardado.
 - Las acciones primarias se deshabilitan hasta completar lo mínimo cuando el
   coste de un envío inválido es alto.
-- Los modales de alta agrupan el contenido en secciones: datos, ubicación,
-  estructura, requisitos o resumen.
-- El footer resume la operación cuando ayuda: elementos, requisitos, impacto o
-  número de fotos.
+- Los modales de alta agrupan el contenido en secciones: identidad, ubicación o
+  ámbito, estructura, requisitos y resumen.
+- Los bloques opcionales (elementos adicionales, requisitos, edificios) se
+  pliegan con un contador; los obligatorios no.
+- El footer resume la operación cuando ayuda: tipo, modo, elementos, requisitos,
+  impacto o número de fotos.
+- Elementos y requisitos usan un compositor único: segmentado «Desde catálogo /
+  Nombre propio», selección acumulada y lista de añadidos con su origen.
 
 ## 7. Selectores de catálogo
 
 `CatalogPicker` es el selector de catálogo compartido:
 
-- Agrupa por propósito: **Generales**, **Edificios**, **Requisitos**.
-- Muestra nombre, descripción y número de ítems.
-- Permite buscar por nombre o descripción.
+- Dos selects inline: **Tipo de catálogo** y **Catálogo**. El tipo filtra las
+  opciones del catálogo; «Todos los tipos» es el valor inicial.
+- Los catálogos se agrupan por tipo con `optgroup` cuando el filtro es «Todos».
+- Los catálogos limitados por edificio se excluyen antes de llegar al selector
+  cuando no corresponden al servicio.
+- Debajo se resume el tipo, el número de ítems y la descripción del catálogo
+  seleccionado.
 - El selector de ítems permanece deshabilitado hasta elegir catálogo.
+- Si no hay catálogos disponibles, se muestra un aviso en lugar de los controles.
 - No preselecciona el primer catálogo ni el primer ítem.
 - `CatalogItemPicker` y `CatalogItemMultiPicker` combinan `CatalogPicker` con un
   combobox de ítems.

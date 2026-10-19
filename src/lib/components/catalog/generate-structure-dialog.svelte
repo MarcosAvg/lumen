@@ -3,9 +3,9 @@
 	import { toast } from 'svelte-sonner';
 	import * as Dialog from '#lib/components/ui/dialog';
 	import { Alert, AlertDescription } from '#lib/components/ui/alert';
+	import { Badge } from '#lib/components/ui/badge';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
-	import { Label } from '#lib/components/ui/label';
 	import { LabeledCheckbox } from '#lib/components/ui/labeled-checkbox';
 	import CatalogItemMultiPicker from '#lib/components/catalog/catalog-item-multi-picker.svelte';
 	import RequirementsEditor from '#lib/components/catalog/requirements-editor.svelte';
@@ -46,6 +46,8 @@
 	let elementItemIds = $state<string[]>([]);
 	let requirements = $state<RequirementDraft[]>([]);
 	let requirementsRequired = $state(true);
+	let elementsOpen = $state(true);
+	let requirementsOpen = $state(false);
 	let plan = $state<Plan | null>(null);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
@@ -57,10 +59,32 @@
 			elementItemIds = [];
 			requirements = [];
 			requirementsRequired = true;
+			elementsOpen = true;
+			requirementsOpen = false;
 			plan = null;
 			error = null;
 		}
 	});
+
+	const includedWorkCount = $derived(
+		plan ? plan.works.filter((work) => work.include).length : workItemIds.length
+	);
+	const includedElementCount = $derived(
+		plan
+			? plan.works
+					.filter((work) => work.include)
+					.reduce(
+						(total, work) => total + work.elements.filter((element) => element.include).length,
+						0
+					)
+			: elementItemIds.length
+	);
+	const contextItems = $derived([
+		{ label: 'Paso', value: step === 'select' ? 'Selección' : 'Revisión', strong: true },
+		{ label: 'Trabajos', value: String(includedWorkCount) },
+		{ label: 'Elementos', value: String(includedElementCount) },
+		{ label: 'Requisitos', value: String(requirements.length) }
+	]);
 
 	async function preview() {
 		busy = true;
@@ -116,7 +140,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Content size="lg">
+	<Dialog.Content size="xl">
 		<Dialog.Header>
 			<Dialog.Title>Generar estructura en lote</Dialog.Title>
 			<Dialog.Description>
@@ -124,6 +148,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
+		<Dialog.Context items={contextItems} />
 		<Dialog.Body class="space-y-5">
 			{#if error}
 				<Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
@@ -136,9 +161,17 @@
 					: 'Revisa y ajusta los nombres antes de aplicar.'}
 			>
 				{#if step === 'select'}
-					<div class="space-y-4">
-						<div class="space-y-1">
-							<Label>Trabajos (ítems de catálogo)</Label>
+					<div class="grid gap-4 lg:grid-cols-2">
+						<div class="space-y-2 rounded-xl border border-border bg-card p-4">
+							<div class="flex flex-wrap items-center justify-between gap-2">
+								<div class="space-y-1">
+									<p class="text-sm font-semibold">Trabajos</p>
+									<p class="text-xs text-muted-foreground">
+										Elige los ítems que se convertirán en trabajos.
+									</p>
+								</div>
+								<Badge variant="secondary" class="font-normal">Obligatorio</Badge>
+							</div>
 							<CatalogItemMultiPicker
 								{catalogs}
 								bind:value={workItemIds}
@@ -146,27 +179,36 @@
 								disabled={busy}
 							/>
 						</div>
-						<div class="space-y-1">
-							<Label>Elementos por trabajo (opcional)</Label>
+
+						<Dialog.CollapsibleSection
+							title="Elementos"
+							description="Opcional. Se aplicarán a los trabajos seleccionados."
+							count={elementItemIds.length}
+							bind:open={elementsOpen}
+						>
 							<CatalogItemMultiPicker
 								{catalogs}
 								bind:value={elementItemIds}
 								itemPlaceholder="Elegir elementos…"
 								disabled={busy}
 							/>
-						</div>
+						</Dialog.CollapsibleSection>
+
 						{#if requirementCatalogs.length > 0}
-							<div class="space-y-2 rounded-xl border border-border p-3">
-								<Label>Requisitos (opcional)</Label>
-								<p class="text-xs text-muted-foreground">
-									Se aplicarán a cada objetivo generado (trabajos directos y elementos).
-								</p>
-								<RequirementsEditor
-									catalogs={requirementCatalogs}
-									bind:value={requirements}
-									bind:required={requirementsRequired}
-									disabled={busy}
-								/>
+							<div class="lg:col-span-2">
+								<Dialog.CollapsibleSection
+									title="Requisitos"
+									description="Se aplicarán a cada objetivo generado."
+									count={requirements.length}
+									bind:open={requirementsOpen}
+								>
+									<RequirementsEditor
+										catalogs={requirementCatalogs}
+										bind:value={requirements}
+										bind:required={requirementsRequired}
+										disabled={busy}
+									/>
+								</Dialog.CollapsibleSection>
 							</div>
 						{/if}
 					</div>
@@ -184,13 +226,22 @@
 							</Alert>
 						{/if}
 						<p class="text-sm text-muted-foreground">
-							{plan.totalWorks} trabajo(s), {plan.totalElements} elemento(s).
+							{includedWorkCount} trabajo(s), {includedElementCount} elemento(s) incluidos.
 						</p>
 						{#each plan.works as work, index (index)}
 							<div class="space-y-2 rounded-xl border border-border p-3">
 								<div class="flex flex-wrap items-center gap-3">
 									<LabeledCheckbox bind:checked={work.include} label="Incluir trabajo" />
-									<Input bind:value={work.name} class="max-w-xs" aria-label="Nombre del trabajo" />
+									<Input
+										bind:value={work.name}
+										class="min-w-0 flex-1"
+										aria-label="Nombre del trabajo"
+									/>
+									<Badge variant="secondary" class="font-normal">
+										{work.elements.filter((element) => element.include).length}/{work.elements
+											.length}
+										elemento(s)
+									</Badge>
 								</div>
 								{#if work.elements.length > 0}
 									<ul class="ml-4 space-y-2 pl-4">

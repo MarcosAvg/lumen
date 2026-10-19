@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { chooseCatalog, ensureAdmin } from './helpers';
 
-test('catálogo de requisitos: separación por tipo y alta en la evidencia', async ({
+test('catálogo de requisitos: separación por tipo y alta en la evidencia @mobile', async ({
 	page
 }, testInfo) => {
 	test.setTimeout(90_000);
@@ -18,7 +18,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await page.goto('/admin/catalogs');
 	await page.getByRole('button', { name: 'Nuevo catálogo' }).click();
 	await page.getByLabel('Nombre', { exact: true }).fill(catalogName);
-	await page.getByLabel('Propósito').selectOption('requirements');
+	await page.getByLabel('Tipo de catálogo').selectOption({ label: 'Requisitos' });
 	await page.getByRole('button', { name: 'Crear catálogo' }).click();
 	await expect(page.getByText('Catálogo creado.')).toBeVisible();
 
@@ -76,7 +76,7 @@ test('catálogo de requisitos: separación por tipo y alta en la evidencia', asy
 	await page.getByRole('button', { name: 'Nuevo requisito' }).click();
 	const reqDialog = page.getByRole('dialog');
 	await reqDialog.getByRole('tab', { name: 'Desde catálogo' }).click();
-	await chooseCatalog(page, reqDialog, catalogName);
+	await chooseCatalog(reqDialog, catalogName);
 	await reqDialog.getByRole('button', { name: 'Elegir requisitos…' }).click();
 	for (const name of [antes, despues]) {
 		await page.locator('[data-slot="command-item"]').filter({ hasText: name }).click();

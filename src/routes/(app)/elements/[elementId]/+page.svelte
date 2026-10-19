@@ -24,12 +24,17 @@
 
 	const requirementCatalogs = $derived<CatalogGroup[]>(
 		data.catalogs
-			.filter((catalog) => catalog.purpose === 'requirements')
+			.filter((catalog) => catalog.typeSystemRole !== 'building')
 			.map((catalog) => ({
 				id: catalog.id,
 				name: catalog.name,
 				description: catalog.description,
-				purpose: catalog.purpose,
+				typeId: catalog.typeId,
+				typeName: catalog.typeName,
+				typeSystemRole: catalog.typeSystemRole,
+				typeSortOrder: catalog.typeSortOrder,
+				allBuildings: catalog.allBuildings,
+				buildingIds: catalog.buildingIds,
 				items: catalog.items.map((item) => ({ id: item.id, name: item.name }))
 			}))
 	);

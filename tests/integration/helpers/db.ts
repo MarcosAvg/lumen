@@ -8,8 +8,24 @@ import * as schema from '../../../src/lib/server/db/schema';
  * Base de datos de pruebas. Por defecto apunta al PostgreSQL de `compose.yaml`
  * (publicado en 127.0.0.1:5432). Puede sobreescribirse con `TEST_DATABASE_URL`.
  */
-const TEST_DATABASE_URL =
+const BASE_TEST_DATABASE_URL =
 	process.env.TEST_DATABASE_URL ?? 'postgres://lumen:cambia-esta-clave@127.0.0.1:5432/lumen_test';
+
+/**
+ * Cada worker usa su propia base para poder ejecutar archivos en paralelo sin
+ * que los truncados de un test afecten a otro. Fuera de Vitest se conserva la
+ * URL original.
+ */
+function workerDatabaseUrl(): string {
+	if (!process.env.VITEST) return BASE_TEST_DATABASE_URL;
+	const workerId = process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? '1';
+	const url = new URL(BASE_TEST_DATABASE_URL);
+	const name = url.pathname.replace(/^\//, '');
+	if (!name.endsWith(`_${workerId}`)) url.pathname = `/${name}_${workerId}`;
+	return url.toString();
+}
+
+const TEST_DATABASE_URL = workerDatabaseUrl();
 
 export { TEST_DATABASE_URL };
 
@@ -52,7 +68,19 @@ export async function createTestDatabase(): Promise<TestContext> {
 /** Vacía todas las tablas de dominio entre pruebas. */
 export async function truncateAll(client: TestClient): Promise<void> {
 	await client.unsafe(
-		'truncate table notifications, push_subscriptions, service_assignments, audit_events, sessions, services, users, catalogs, catalog_items, catalog_item_relations, works, elements, photos, photo_requirements, reviews, submission_photos, evidence_submissions, evidence_targets restart identity cascade'
+		'truncate table notifications, push_subscriptions, service_assignments, audit_events, sessions, services, users, catalog_buildings, catalogs, catalog_items, catalog_types, works, elements, photos, photo_requirements, reviews, submission_photos, evidence_submissions, evidence_targets restart identity cascade'
+	);
+	// Los tipos base son datos de sistema; las pruebas parten siempre de ellos.
+	await client.unsafe(
+		`insert into catalog_types (name, system_role, sort_order) values
+			('Edificios', 'building', 0),
+			('Áreas', null, 10),
+			('Equipos', null, 20),
+			('Tipos de trabajo', null, 30),
+			('Periodos', null, 40),
+			('Requisitos', null, 50),
+			('Otros', null, 90)
+		on conflict do nothing`
 	);
 }
 
