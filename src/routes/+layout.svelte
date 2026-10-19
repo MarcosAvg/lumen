@@ -41,7 +41,12 @@
 <OfflineBanner />
 {@render children()}
 <Toaster
-	position="bottom-right"
-	mobileOffset={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
+	position="top-right"
+	offset={{ top: 'calc(env(titlebar-area-height, 0px) + 4.5rem)', right: '1rem' }}
+	mobileOffset={{
+		top: 'calc(env(safe-area-inset-top, 0px) + 4.5rem)',
+		left: '1rem',
+		right: '1rem'
+	}}
 	closeButton
 />

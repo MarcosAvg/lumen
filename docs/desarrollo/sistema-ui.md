@@ -31,9 +31,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   vez de crear una banda de color de marca. La barra de gestos de Android la
   controla el sistema y no se intenta forzar desde la PWA.
 - **Window Controls Overlay (escritorio):** la PWA instalada declara
-  `window-controls-overlay`; una tira arrastrable ocupa el área de la barra de
-  título y los controles nativos quedan superpuestos. En móvil se ignora y se
-  mantiene `standalone`.
+  `window-controls-overlay`; el área de la barra de título continúa los fondos
+  del sidebar y de la cabecera, y los controles nativos quedan superpuestos. En
+  móvil se ignora y se mantiene `standalone`.
 
 ## 2. Forma, espacio y controles
 
@@ -190,9 +190,9 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
 - `EmptyState` usa icono tintado, fondo inset y borde discontinuo; no es una caja
   blanca vacía.
 - El estado no se comunica solo por color.
-- Los éxitos de acciones usan `toast` de Sonner, con posición inferior derecha
-  y, en móvil, por encima de la barra de navegación. Los errores permanecen
-  inline para conservar el contexto del formulario.
+- Los éxitos de acciones usan `toast` de Sonner, arriba a la derecha y debajo
+  de la cabecera; en móvil ocupan el ancho disponible en la parte superior. Los
+  errores permanecen inline para conservar el contexto del formulario.
 
 ## 10. Accesibilidad
 

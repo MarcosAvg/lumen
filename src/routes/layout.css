@@ -264,6 +264,8 @@
 @media (display-mode: window-controls-overlay) {
 	:root {
 		--wco-titlebar-height: env(titlebar-area-height, 0px);
+		--wco-sidebar-width: 15rem;
+		--wco-sidebar-width-icon: 3rem;
 	}
 
 	.wco-titlebar {
@@ -272,16 +274,28 @@
 		z-index: 40;
 		display: flex;
 		height: var(--wco-titlebar-height);
-		align-items: center;
-		padding-inline: calc(1rem + env(titlebar-area-x, 0px)) 1rem;
-		border-bottom: 1px solid var(--border);
-		background: var(--background);
-		color: var(--foreground);
-		font-size: 0.8125rem;
-		font-weight: 500;
 		user-select: none;
 		-webkit-app-region: drag;
 		app-region: drag;
+	}
+
+	.wco-titlebar-sidebar {
+		width: 0;
+		background: var(--sidebar);
+	}
+
+	.wco-titlebar-content {
+		flex: 1;
+		background: var(--background);
+	}
+
+	body:has([data-slot='sidebar']) .wco-titlebar-sidebar {
+		width: var(--wco-sidebar-width);
+		border-inline-end: 1px solid var(--border);
+	}
+
+	body:has([data-slot='sidebar'][data-state='collapsed']) .wco-titlebar-sidebar {
+		width: var(--wco-sidebar-width-icon);
 	}
 
 	body {
