@@ -159,7 +159,7 @@ docker compose exec app node -e "fetch('http://127.0.0.1:3000/health').then(r =>
 | La app no responde | `docker compose logs app`; comprobar que `db` está sana y `migrate` terminó |
 | `500` con `column ... does not exist` | La app es nueva pero falta una migración. Ejecutar `./deploy/update.sh`; `/health` debe devolver `200` y `migrations: applied` |
 | `/health` devuelve `503` con `migrations: pending` | Hay migraciones sin aplicar; ejecutar `./deploy/update.sh` (migra desde la imagen de `app`) y revisar los logs del comando |
-| `EACCES` al subir fotos o fondos | El volumen o bind mount no es escribible por `node`; revisar propietario y permisos |
+| `EACCES` al subir fotos o fondos | El volumen o bind mount no es escribible por `node`. En bind mount: `sudo chown -R 1000:1000 <fotos>`; para PostgreSQL: `sudo chown -R 70:70 <db>` |
 | `502` con el túnel | `cloudflared` no alcanza el origen; comprobar red `proxy` y destino `http://lumen:3000` |
 | El dominio no abre | Revisar que el túnel apunta a `lumen:3000` y que `cloudflared` está activo |
 | No se abre `http://127.0.0.1:8090` | La app no publica puertos; usar el túnel o añadir `ports` en un override local |

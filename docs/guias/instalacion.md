@@ -62,7 +62,10 @@ no impone límites de CPU/RAM: Docker usa los recursos del host.
 Por defecto se usan volúmenes nombrados (`postgres_data` y `lumen_photos`).
 Docker los gestiona e inicializa con el propietario de la imagen.
 
-Para guardar los datos en una ruta del host:
+### Bind mounts
+
+Si usas bind mounts, los directorios del host deben pertenecer a los UID de los
+contenedores. Ejemplo:
 
 ```yaml
 services:
