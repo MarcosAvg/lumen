@@ -173,6 +173,7 @@
 
 <a
 	href="#contenido"
+	data-slot="skip-link"
 	class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-3 focus:py-1 focus:text-primary-foreground"
 	>Saltar al contenido</a
 >
@@ -306,6 +307,7 @@
 
 	<Sidebar.Inset class="min-w-0">
 		<header
+			data-slot="app-header"
 			class="sticky top-0 z-20 flex min-h-14 items-center gap-3 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur lg:min-h-16 lg:px-8"
 		>
 			<div class="max-md:hidden">

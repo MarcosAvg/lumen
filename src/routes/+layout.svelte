@@ -4,6 +4,7 @@
 	import { ModeWatcher, mode } from 'mode-watcher';
 	import { toast } from 'svelte-sonner';
 	import OfflineBanner from '#lib/components/offline-banner.svelte';
+	import WcoTitlebar from '#lib/components/app/wco-titlebar.svelte';
 	import { Toaster } from '#lib/components/ui/sonner';
 	import type { LayoutProps } from './$types';
 
@@ -36,6 +37,7 @@
 </script>
 
 <ModeWatcher disableHeadScriptInjection />
+<WcoTitlebar />
 <OfflineBanner />
 {@render children()}
 <Toaster

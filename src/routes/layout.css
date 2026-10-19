@@ -255,3 +255,57 @@
 		touch-action: manipulation;
 	}
 }
+
+/* Window Controls Overlay: solo en la PWA instalada de escritorio. */
+.wco-titlebar {
+	display: none;
+}
+
+@media (display-mode: window-controls-overlay) {
+	:root {
+		--wco-titlebar-height: env(titlebar-area-height, 0px);
+	}
+
+	.wco-titlebar {
+		position: fixed;
+		inset: 0 0 auto;
+		z-index: 40;
+		display: flex;
+		height: var(--wco-titlebar-height);
+		align-items: center;
+		padding-inline: calc(1rem + env(titlebar-area-x, 0px)) 1rem;
+		border-bottom: 1px solid var(--border);
+		background: var(--background);
+		color: var(--foreground);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		user-select: none;
+		-webkit-app-region: drag;
+		app-region: drag;
+	}
+
+	body {
+		padding-top: var(--wco-titlebar-height);
+	}
+
+	.min-h-svh {
+		min-height: calc(100svh - var(--wco-titlebar-height));
+	}
+
+	main.min-h-dvh {
+		min-height: calc(100dvh - var(--wco-titlebar-height));
+	}
+
+	[data-slot='sidebar-container'] {
+		top: var(--wco-titlebar-height);
+		height: auto;
+	}
+
+	[data-slot='app-header'] {
+		top: var(--wco-titlebar-height);
+	}
+
+	[data-slot='skip-link'] {
+		top: calc(var(--wco-titlebar-height) + 0.5rem);
+	}
+}

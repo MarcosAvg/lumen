@@ -4,6 +4,8 @@ import { ensureAdmin } from './helpers';
 test('el tema claro/oscuro/sistema persiste y actualiza la interfaz', async ({ page }) => {
 	await ensureAdmin(page);
 	const manifest = await (await page.request.get('/manifest.webmanifest')).json();
+	expect(manifest.display).toBe('standalone');
+	expect(manifest.display_override).toEqual(['window-controls-overlay', 'standalone']);
 	expect(manifest.theme_color).toBe('#edf2f6');
 	expect(manifest.background_color).toBe('#edf2f6');
 	await page.goto('/settings');

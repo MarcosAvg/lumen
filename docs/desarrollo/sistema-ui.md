@@ -30,6 +30,10 @@ describe cómo se implementa esa experiencia con los componentes compartidos.
   conserva el color claro de instalación. La barra se integra con el fondo en
   vez de crear una banda de color de marca. La barra de gestos de Android la
   controla el sistema y no se intenta forzar desde la PWA.
+- **Window Controls Overlay (escritorio):** la PWA instalada declara
+  `window-controls-overlay`; una tira arrastrable ocupa el área de la barra de
+  título y los controles nativos quedan superpuestos. En móvil se ignora y se
+  mantiene `standalone`.
 
 ## 2. Forma, espacio y controles
 
