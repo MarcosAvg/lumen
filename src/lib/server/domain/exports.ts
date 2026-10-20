@@ -486,6 +486,8 @@ export interface ExportPlanOptions {
 	 * los PDF caen directamente en la carpeta del servicio.
 	 */
 	photos?: boolean;
+	/** En el ámbito contrato, incluir servicios no activos. */
+	includeNonActive?: boolean;
 }
 
 export async function buildExportPlan(
@@ -512,7 +514,11 @@ export async function buildExportPlan(
 			.select({ id: services.id, name: services.name, buildingName: visibleBuildingName })
 			.from(services)
 			.leftJoin(catalogItems, eq(catalogItems.id, services.buildingCatalogItemId))
-			.where(eq(services.contractId, scope.contractId))
+			.where(
+				options.includeNonActive
+					? eq(services.contractId, scope.contractId)
+					: and(eq(services.contractId, scope.contractId), eq(services.lifecycle, 'active'))
+			)
 			.orderBy(asc(services.createdAt));
 	} else if (scope.kind === 'service') {
 		const [service] = await db

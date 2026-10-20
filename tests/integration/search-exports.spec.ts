@@ -8,7 +8,7 @@ import { appendPhoto } from '#lib/server/domain/photos';
 import { createCatalog, createCatalogItem, listCatalogTypes } from '#lib/server/domain/catalogs';
 import { createContract } from '#lib/server/domain/contracts';
 import { createRequirement, listRequirements } from '#lib/server/domain/requirements';
-import { createService, updateService } from '#lib/server/domain/services';
+import { createService, setServiceLifecycle, updateService } from '#lib/server/domain/services';
 import {
 	getContractArchive,
 	getServiceArchive,
@@ -352,6 +352,39 @@ await describeWithDatabase('Búsqueda, exportaciones y paginación', ({ db, clie
 		expect(archive.files.map((file) => file.path)).toEqual([
 			'Contrato/Nave/Bombas Nave/Trabajo/Fotografías/01.jpg',
 			'Contrato/Torre/UMAs Torre/Trabajo/Fotografías/01.jpg'
+		]);
+	});
+
+	it('EXP-04b: el contrato excluye servicios no activos salvo que se pidan', async () => {
+		const admin = await seedAdmin();
+		const contractId = (await createContract(db, { name: 'Contrato', actorId: admin })).id;
+
+		await createService(db, { contractId, name: 'Activo', actorId: admin });
+		await createService(db, {
+			contractId,
+			name: 'En espera',
+			lifecycle: 'planned',
+			actorId: admin
+		});
+		const inactive = await createService(db, {
+			contractId,
+			name: 'Inactivo',
+			actorId: admin
+		});
+		await setServiceLifecycle(db, {
+			serviceId: inactive.id,
+			lifecycle: 'inactive',
+			actorId: admin
+		});
+
+		const onlyActive = await getContractArchive(db, contractId);
+		expect(onlyActive.plan.services.map((service) => service.name)).toEqual(['Activo']);
+
+		const all = await getContractArchive(db, contractId, { includeNonActive: true });
+		expect(all.plan.services.map((service) => service.name).sort()).toEqual([
+			'Activo',
+			'En espera',
+			'Inactivo'
 		]);
 	});
 

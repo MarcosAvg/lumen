@@ -13,13 +13,16 @@
 		href,
 		label = 'Exportar ZIP',
 		class: className = '',
-		allowCompiledPdf = false
+		allowCompiledPdf = false,
+		allowNonActiveServices = false
 	}: {
 		href: string;
 		label?: string;
 		class?: string;
 		/** Servicio y contrato permiten añadir PDFs recopilados por servicio. */
 		allowCompiledPdf?: boolean;
+		/** Contrato: permite incluir servicios en espera, inactivos y archivados. */
+		allowNonActiveServices?: boolean;
 	} = $props();
 
 	type Variant = 'simple' | 'extended';
@@ -32,6 +35,7 @@
 	let includePhotos = $state(true);
 	let includePdf = $state(true);
 	let includeCompiledPdf = $state(false);
+	let includeNonActive = $state(false);
 
 	onMount(() => {
 		try {
@@ -43,12 +47,16 @@
 				photos: boolean;
 				pdf: boolean;
 				compiledPdf: boolean;
+				nonActive: boolean;
 			}>;
 			if (saved.variant === 'simple' || saved.variant === 'extended') variant = saved.variant;
 			if (typeof saved.xlsx === 'boolean') includeXlsx = saved.xlsx;
 			if (typeof saved.photos === 'boolean') includePhotos = saved.photos;
 			if (typeof saved.pdf === 'boolean') includePdf = saved.pdf;
 			if (typeof saved.compiledPdf === 'boolean') includeCompiledPdf = saved.compiledPdf;
+			if (allowNonActiveServices && typeof saved.nonActive === 'boolean') {
+				includeNonActive = saved.nonActive;
+			}
 		} catch {
 			// Preferencias no críticas: se ignora cualquier fallo.
 		}
@@ -70,6 +78,9 @@
 		url.searchParams.set('photos', includePhotos ? '1' : '0');
 		url.searchParams.set('pdf', includePdf ? '1' : '0');
 		url.searchParams.set('compiledPdf', allowCompiledPdf && includeCompiledPdf ? '1' : '0');
+		if (allowNonActiveServices) {
+			url.searchParams.set('includeNonActive', includeNonActive ? '1' : '0');
+		}
 		try {
 			localStorage.setItem(
 				STORAGE_KEY,
@@ -78,7 +89,8 @@
 					xlsx: includeXlsx,
 					photos: includePhotos,
 					pdf: includePdf,
-					compiledPdf: allowCompiledPdf && includeCompiledPdf
+					compiledPdf: allowCompiledPdf && includeCompiledPdf,
+					...(allowNonActiveServices ? { nonActive: includeNonActive } : {})
 				})
 			);
 		} catch {
@@ -136,6 +148,15 @@
 					<p class="text-xs text-muted-foreground">
 						El recopilado incluye solo trabajos con evidencia aprobada. Es un archivo adicional y no
 						modifica el registro XLSX.
+					</p>
+				{/if}
+				{#if allowNonActiveServices}
+					<LabeledCheckbox
+						bind:checked={includeNonActive}
+						label="Incluir servicios en espera, inactivos o archivados"
+					/>
+					<p class="text-xs text-muted-foreground">
+						Por defecto solo se exportan servicios activos.
 					</p>
 				{/if}
 				<p class="text-xs text-muted-foreground">

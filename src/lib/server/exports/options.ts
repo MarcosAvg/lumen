@@ -11,6 +11,8 @@ export interface ExportRequestOptions {
 	pdf: boolean;
 	/** Incluir un PDF recopilado por servicio (independiente del XLSX). */
 	compiledPdf: boolean;
+	/** En el ZIP de contrato, incluir servicios en espera, inactivos y archivados. */
+	includeNonActive: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function parseExportRequest(url: URL): ExportRequestOptions {
 		xlsx: url.searchParams.get('xlsx') !== '0',
 		photos: url.searchParams.get('photos') !== '0',
 		pdf: url.searchParams.get('pdf') !== '0',
-		compiledPdf: url.searchParams.get('compiledPdf') === '1'
+		compiledPdf: url.searchParams.get('compiledPdf') === '1',
+		includeNonActive: url.searchParams.get('includeNonActive') === '1'
 	};
 }

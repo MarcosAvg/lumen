@@ -22,4 +22,11 @@ describe('parseExportRequest', () => {
 			parseExportRequest(new URL('https://lumen.test/export?pdf=0&compiledPdf=0'))
 		).toMatchObject({ pdf: false, compiledPdf: false });
 	});
+
+	it('incluye servicios no activos solo cuando se solicita', () => {
+		expect(parseExportRequest(new URL('https://lumen.test/export')).includeNonActive).toBe(false);
+		expect(
+			parseExportRequest(new URL('https://lumen.test/export?includeNonActive=1')).includeNonActive
+		).toBe(true);
+	});
 });

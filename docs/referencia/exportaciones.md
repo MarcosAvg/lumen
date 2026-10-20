@@ -45,6 +45,8 @@ antes de tocar el recurso si el rol no puede exportar. Después se revalida el
   trabajo; no se inventa un elemento hijo.
 - Los nombres de carpetas se sanean, se desambiguan y no dependen del sistema
   operativo del cliente.
+- En el ZIP de contrato, por defecto solo se incluyen servicios **activos**. La
+  opción **Incluir servicios en espera, inactivos o archivados** añade el resto.
 - Un ZIP puede generarse antes de completar el ámbito; solo incluye lo aprobado.
 
 ## 4. Registro XLSX
@@ -122,6 +124,7 @@ El modal de exportación permite:
 - incluir o no las carpetas de fotografías;
 - incluir o no los PDF por trabajo;
 - en servicio y contrato, incluir o no el PDF recopilado por servicio;
+- en contrato, incluir o no los servicios en espera, inactivos y archivados;
 - exigir al menos un contenido;
 - recordar la última elección en el dispositivo.
 

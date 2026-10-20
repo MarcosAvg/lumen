@@ -26,7 +26,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		const options = parseExportRequest(url);
 		const archive = await getContractArchive(db, params.contractId, {
 			aggregates: options.variant === 'extended',
-			photos: options.photos
+			photos: options.photos,
+			includeNonActive: options.includeNonActive
 		});
 		const extras = await buildExportExtras(db, storage, archive.plan, options);
 		return buildZipResponse(

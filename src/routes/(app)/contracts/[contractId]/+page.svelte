@@ -147,6 +147,7 @@
 					href={`/api/contracts/${data.contract.id}/export.zip`}
 					class="w-full sm:w-auto"
 					allowCompiledPdf
+					allowNonActiveServices
 				/>
 				{#if data.isAdmin}
 					{#if data.contract.lifecycle === 'active'}
