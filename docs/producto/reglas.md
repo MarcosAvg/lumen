@@ -12,8 +12,10 @@ mantenimiento predictivo. El **contrato** agrupa servicios y participantes; no
 contiene datos legales o comerciales.
 
 El producto se dirige a equipos internos de decenas de usuarios en una instancia
-autohospedada. La aplicación es **online-only**: no hay cola offline ni
-sincronización de trabajo en la v1.
+autohospedada. Las **escrituras requieren conexión**. Existe un modo consulta
+offline de solo lectura con la estructura y los estados de los servicios
+asignados; no incluye fotos, no permite modificar nada y no hay cola de
+sincronización.
 
 Para los términos del dominio, véase el [`glosario`](glosario.md).
 

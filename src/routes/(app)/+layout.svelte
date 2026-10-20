@@ -21,6 +21,7 @@
 	import InstallPrompt from '#lib/components/app/install-prompt.svelte';
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
 	import { isEvidencePage, LIVE_REFRESH_MS } from '#lib/live-refresh';
+	import { clearOfflineSnapshot, saveOfflineSnapshot } from '#lib/offline/snapshot';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -50,19 +51,45 @@
 	}
 
 	onMount(() => {
-		// El service worker es necesario para Web Push (notificaciones).
+		// El service worker es necesario para Web Push y para el modo consulta.
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/sw.js').catch(() => {});
 		}
 
+		// Snapshot de solo lectura para técnicos y supervisores. El admin no
+		// dispone de modo offline en esta fase.
+		const syncOfflineSnapshot = () => {
+			if (data.user.role === 'admin') {
+				void clearOfflineSnapshot();
+				return;
+			}
+			if (!navigator.onLine) return;
+			void fetch('/api/offline/snapshot', { headers: { accept: 'application/json' } })
+				.then(async (response) => {
+					if (response.status === 401 || response.status === 403) {
+						await clearOfflineSnapshot();
+						return;
+					}
+					if (!response.ok) throw new Error('Snapshot no disponible.');
+					await saveOfflineSnapshot(data.user.id, await response.json());
+				})
+				.catch(() => {
+					// Sin snapshot la app sigue funcionando online.
+				});
+		};
+
+		void syncOfflineSnapshot();
+
 		const interval = setInterval(refresh, LIVE_REFRESH_MS);
 		document.addEventListener('visibilitychange', refresh);
 		window.addEventListener('focus', refresh);
+		window.addEventListener('online', syncOfflineSnapshot);
 
 		return () => {
 			clearInterval(interval);
 			document.removeEventListener('visibilitychange', refresh);
 			window.removeEventListener('focus', refresh);
+			window.removeEventListener('online', syncOfflineSnapshot);
 		};
 	});
 
@@ -396,4 +423,13 @@
 	/>
 </Sidebar.Provider>
 
-<form bind:this={logoutForm} method="POST" action="/logout" class="hidden"></form>
+<form
+	bind:this={logoutForm}
+	method="POST"
+	action="/logout"
+	class="hidden"
+	onsubmit={(event) => {
+		event.preventDefault();
+		void clearOfflineSnapshot().finally(() => logoutForm?.submit());
+	}}
+></form>

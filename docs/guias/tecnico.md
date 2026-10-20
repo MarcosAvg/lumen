@@ -12,7 +12,7 @@
 3. Si no ves un servicio, no tienes asignación activa o el contrato te retiró
    como participante. Pide acceso a la administración.
 
-La aplicación necesita conexión. No hay modo offline ni cola de sincronización.
+La aplicación necesita conexión para capturar, subir, enviar o modificar. Sin red puedes abrir el **modo consulta offline**, que muestra la estructura y los estados de tus servicios asignados, sin fotos. No hay cola de sincronización.
 
 ## 2. Abrir un trabajo
 

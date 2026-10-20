@@ -116,6 +116,8 @@ mantiene deliberadamente pequeña: 21 escenarios.
 - Búsqueda filtrada por ámbito, permisos de exportación y cabeceras de seguridad.
 - Administración de usuarios y edición de recursos en modal.
 - Estados vacíos, 404 y vistas de error.
+- Modo consulta offline: snapshot de estructura y estados, caducidad, purge y
+  ausencia de fotos o escrituras.
 - Tema claro/oscuro, accesibilidad de formularios y responsive sin overflow.
 
 Quedan cubiertos por integración, sin E2E dedicado: ciclo de vida, contratos,

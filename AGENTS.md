@@ -31,7 +31,7 @@ Si hay una tensión entre documentos, **preservar los invariantes de negocio**, 
 - Tailwind CSS + shadcn-svelte; mobile-first para técnicos, cómodo en escritorio para administración.
 - PostgreSQL + Drizzle ORM/Drizzle Kit; migraciones versionadas.
 - Docker Compose **autosuficiente**: `docker compose up -d` (o `./install.sh`) levanta app + PostgreSQL + migraciones con valores por defecto; Fotos en volumen local persistente; datos SQL en volumen independiente.
-- PWA instalable, **en línea**, con Web Push estándar VAPID e inbox interno.
+- PWA instalable, con **modo consulta offline de solo lectura** (estructura y estados, sin fotos ni escrituras) y Web Push estándar VAPID e inbox interno. Las escrituras siguen requiriendo conexión.
 - Autenticación local por sesión segura en cookie; primera cuenta admin configurada en el primer arranque.
 - No añadir Redis, S3, Firebase, colas externas, microservicios, WebSockets ni servicios cloud obligatorios por defecto.
 - Imagen publicable en GHCR usada **por defecto** por Compose (o `--build` para compilar en local); **origen público en runtime** (no hornear `ORIGIN`); la app se une a la red externa `proxy` y se alcanza como `lumen:3000`, **sin publicar puertos en el host**. El dominio se expone con **Cloudflare Tunnel** (`cloudflared` en Docker); si corriera en el host, se añade un `compose.override.yaml` local con `ports`. El proxy inverso (p. ej. Nginx Proxy Manager) queda para otros servicios.

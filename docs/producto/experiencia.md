@@ -370,9 +370,12 @@ UMA 03                              [Rechazado]
 ## 18. PWA y red
 
 - Manifest e instalación correctos en Android, escritorio e iOS compatible.
-- La aplicación es online-only. Sin red se muestra un aviso; no se simula que
-  una foto quedó guardada en servidor.
-- El service worker no sirve evidencia privada cacheada a otra sesión.
+- Las escrituras requieren conexión. Sin red se muestra un aviso y las acciones
+  de captura, envío, revisión y administración quedan deshabilitadas; no se
+  simula que una foto quedó guardada en servidor.
+- El modo consulta offline muestra solo estructura y estados de los servicios
+  asignados, sin fotos. Indica la antigüedad del snapshot y no sirve evidencia
+  privada cacheada a otra sesión.
 - Si se pierde la red durante una carga, se muestra el fallo y se permite
   reintentar, sin dejar recursos `processing` indefinidos.
 

@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="color-scheme" content="light dark" />
+		<title>Lumen · Modo consulta</title>
+		<script>
+			(() => {
+				try {
+					const stored = localStorage.getItem('mode-watcher-mode');
+					const dark =
+						stored === 'dark' ||
+						(stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+				} catch {
+					document.documentElement.dataset.theme = 'light';
+				}
+			})();
+		</script>
+		<style>
+			:root {
+				color-scheme: light;
+				--bg: #edf2f6;
+				--surface: #ffffff;
+				--surface-muted: #e6edf3;
+				--text: #17202a;
+				--muted: #4b5563;
+				--border: #cbd5e1;
+				--primary: #1d4ed8;
+				--primary-soft: #dbeafe;
+				--ok: #166534;
+				--ok-soft: #dcfce7;
+				--warn: #92400e;
+				--warn-soft: #fef3c7;
+				--danger: #991b1b;
+				--danger-soft: #fee2e2;
+				--pending: #9a3412;
+				--pending-soft: #ffedd5;
+				--info: #1e40af;
+				--info-soft: #dbeafe;
+			}
+			html[data-theme='dark'] {
+				color-scheme: dark;
+				--bg: #252930;
+				--surface: #2b3139;
+				--surface-muted: #333841;
+				--text: #f1f5f9;
+				--muted: #b5bdc9;
+				--border: #474e58;
+				--primary: #8ab4ff;
+				--primary-soft: #263d63;
+				--ok: #86efac;
+				--ok-soft: #173b27;
+				--warn: #fcd34d;
+				--warn-soft: #463414;
+				--danger: #fca5a5;
+				--danger-soft: #4b1d1d;
+				--pending: #fdba74;
+				--pending-soft: #4a2a13;
+				--info: #93c5fd;
+				--info-soft: #1e3357;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--text);
+				font-family:
+					ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				line-height: 1.5;
+			}
+			a,
+			button {
+				font: inherit;
+			}
+			a,
+			button,
+			summary {
+				outline-offset: 3px;
+			}
+			:focus-visible {
+				outline: 2px solid var(--primary);
+			}
+			.page {
+				width: min(960px, 100% - 2rem);
+				margin: 0 auto;
+				padding: 1.25rem 0 3rem;
+			}
+			header {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: baseline;
+				justify-content: space-between;
+				gap: 0.5rem 1rem;
+				padding: 1rem 0 1.25rem;
+				border-bottom: 1px solid var(--border);
+			}
+			.brand {
+				margin: 0;
+				font-size: 1.25rem;
+				letter-spacing: -0.02em;
+			}
+			.badge-mode {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.35rem;
+				padding: 0.2rem 0.55rem;
+				border-radius: 999px;
+				background: var(--primary-soft);
+				color: var(--primary);
+				font-size: 0.75rem;
+				font-weight: 600;
+			}
+			.meta {
+				margin: 0.35rem 0 0;
+				color: var(--muted);
+				font-size: 0.875rem;
+			}
+			.warning {
+				margin: 1rem 0 0;
+				padding: 0.75rem 0.9rem;
+				border: 1px solid var(--warn);
+				border-radius: 0.5rem;
+				background: var(--warn-soft);
+				color: var(--warn);
+				font-size: 0.875rem;
+			}
+			.empty {
+				margin-top: 2rem;
+				padding: 1.5rem;
+				border: 1px dashed var(--border);
+				border-radius: 0.75rem;
+				background: var(--surface);
+			}
+			.empty h2 {
+				margin: 0 0 0.5rem;
+				font-size: 1.05rem;
+			}
+			.empty p {
+				margin: 0;
+				color: var(--muted);
+			}
+			.services {
+				margin-top: 1.5rem;
+				display: grid;
+				gap: 0.8rem;
+			}
+			details.service {
+				border: 1px solid var(--border);
+				border-radius: 0.75rem;
+				background: var(--surface);
+				box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+				overflow: clip;
+			}
+			details.service > summary {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 0.75rem;
+				padding: 0.9rem 1rem;
+				cursor: pointer;
+				list-style: none;
+			}
+			details.service > summary::-webkit-details-marker {
+				display: none;
+			}
+			details.service > summary::after {
+				content: '›';
+				color: var(--muted);
+				font-size: 1.2rem;
+				line-height: 1;
+				transform: rotate(90deg);
+			}
+			details.service[open] > summary::after {
+				transform: rotate(-90deg);
+			}
+			.summary-main {
+				min-width: 0;
+				flex: 1;
+			}
+			.service h2 {
+				margin: 0;
+				font-size: 1.05rem;
+				letter-spacing: -0.01em;
+			}
+			.service-meta {
+				margin: 0.2rem 0 0;
+				color: var(--muted);
+				font-size: 0.8rem;
+			}
+			.service-body {
+				padding: 0 1rem 1rem;
+				border-top: 1px solid var(--border);
+			}
+			.progress-line {
+				display: flex;
+				align-items: center;
+				gap: 0.65rem;
+				margin: 0.8rem 0 1rem;
+				color: var(--muted);
+				font-size: 0.78rem;
+			}
+			.bar {
+				flex: 1;
+				height: 0.35rem;
+				border-radius: 999px;
+				background: var(--surface-muted);
+				overflow: hidden;
+			}
+			.bar > span {
+				display: block;
+				height: 100%;
+				border-radius: inherit;
+				background: var(--primary);
+			}
+			.work {
+				padding: 0.8rem 0;
+				border-top: 1px solid var(--border);
+			}
+			.work:first-of-type {
+				border-top: 0;
+			}
+			.work-head {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 0.4rem 0.5rem;
+			}
+			.work h3 {
+				margin: 0;
+				font-size: 0.95rem;
+			}
+			.work-desc {
+				margin: 0.25rem 0 0;
+				color: var(--muted);
+				font-size: 0.82rem;
+			}
+			.chip {
+				display: inline-flex;
+				align-items: center;
+				padding: 0.12rem 0.45rem;
+				border-radius: 999px;
+				font-size: 0.7rem;
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			.chip.neutral {
+				background: var(--surface-muted);
+				color: var(--muted);
+			}
+			.chip.ok,
+			.chip.approved {
+				background: var(--ok-soft);
+				color: var(--ok);
+			}
+			.chip.warn,
+			.chip.in_review {
+				background: var(--warn-soft);
+				color: var(--warn);
+			}
+			.chip.danger,
+			.chip.rejected {
+				background: var(--danger-soft);
+				color: var(--danger);
+			}
+			.chip.pending {
+				background: var(--pending-soft);
+				color: var(--pending);
+			}
+			.chip.in_progress {
+				background: var(--info-soft);
+				color: var(--info);
+			}
+			.elements {
+				display: grid;
+				gap: 0.45rem;
+				margin: 0.65rem 0 0 0.75rem;
+			}
+			.element {
+				padding: 0.55rem 0.65rem;
+				border: 1px solid var(--border);
+				border-radius: 0.5rem;
+				background: var(--bg);
+			}
+			.element-head {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 0.35rem 0.5rem;
+			}
+			.element h4 {
+				margin: 0;
+				font-size: 0.86rem;
+			}
+			.req-list {
+				margin: 0.45rem 0 0;
+				padding-left: 1.1rem;
+				color: var(--muted);
+				font-size: 0.78rem;
+			}
+			.req-list li + li {
+				margin-top: 0.15rem;
+			}
+			.footer {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 0.75rem;
+				margin-top: 2rem;
+				padding-top: 1rem;
+				border-top: 1px solid var(--border);
+				color: var(--muted);
+				font-size: 0.82rem;
+			}
+			.footer a {
+				color: var(--primary);
+				font-weight: 600;
+			}
+			.footer button {
+				border: 1px solid var(--border);
+				border-radius: 0.45rem;
+				background: var(--surface);
+				color: var(--text);
+				padding: 0.35rem 0.65rem;
+				cursor: pointer;
+			}
+			@media (max-width: 520px) {
+				.page {
+					width: min(100% - 1.25rem, 960px);
+					padding-top: 0.75rem;
+				}
+				details.service > summary {
+					padding: 0.8rem;
+				}
+				.service-body {
+					padding: 0 0.8rem 0.8rem;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="page">
+			<header>
+				<div>
+					<h1 class="brand">Lumen</h1>
+					<p id="who" class="meta">Modo consulta sin conexión</p>
+				</div>
+				<span class="badge-mode">Sin conexión</span>
+			</header>
+			<div id="warning" hidden></div>
+			<main id="content" aria-live="polite">
+				<div class="empty">
+					<h2>Cargando datos…</h2>
+					<p>Se está leyendo la copia local de Lumen.</p>
+				</div>
+			</main>
+			<footer class="footer">
+				<span>Los datos son de solo lectura y pueden estar desactualizados.</span>
+				<button type="button" id="reload">Reintentar</button>
+				<a href="/">Volver a Lumen</a>
+			</footer>
+		</div>
+		<noscript>
+			<p class="page">Activa JavaScript para consultar la copia offline.</p>
+		</noscript>
+		<script>
+			const DB_NAME = 'lumen-offline';
+			const STORE_NAME = 'snapshot';
+			const RECORD_KEY = 'current';
+			const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+			const statusLabels = {
+				pending: 'Pendiente',
+				in_progress: 'En progreso',
+				in_review: 'En revisión',
+				rejected: 'Rechazado',
+				approved: 'Aprobado'
+			};
+			const lifecycleLabels = {
+				planned: 'En espera',
+				active: 'Activo',
+				inactive: 'Inactivo',
+				archived: 'Archivado'
+			};
+			const roleLabels = {
+				admin: 'Administrador',
+				supervisor: 'Supervisor',
+				technician: 'Técnico'
+			};
+
+			function node(tag, className, text) {
+				const element = document.createElement(tag);
+				if (className) element.className = className;
+				if (text !== undefined) element.textContent = text;
+				return element;
+			}
+
+			function chip(text, tone) {
+				return node('span', `chip ${tone || 'neutral'}`, text);
+			}
+
+			function openDatabase() {
+				return new Promise((resolve, reject) => {
+					const request = indexedDB.open(DB_NAME, 1);
+					request.onupgradeneeded = () => {
+						if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+							request.result.createObjectStore(STORE_NAME);
+						}
+					};
+					request.onsuccess = () => resolve(request.result);
+					request.onerror = () => reject(request.error || new Error('IndexedDB no disponible.'));
+				});
+			}
+
+			async function loadRecord() {
+				const db = await openDatabase();
+				try {
+					return await new Promise((resolve, reject) => {
+						const tx = db.transaction(STORE_NAME, 'readonly');
+						const request = tx.objectStore(STORE_NAME).get(RECORD_KEY);
+						request.onsuccess = () => resolve(request.result || null);
+						request.onerror = () => reject(request.error || new Error('Error de IndexedDB.'));
+					});
+				} finally {
+					db.close();
+				}
+			}
+
+			function renderRequirements(container, requirements) {
+				if (!requirements || requirements.length === 0) return;
+				const list = node('ul', 'req-list');
+				for (const requirement of requirements) {
+					list.append(
+						node(
+							'li',
+							'',
+							`${requirement.name}${requirement.isRequired ? ' · Obligatorio' : ' · Opcional'}`
+						)
+					);
+				}
+				container.append(list);
+			}
+
+			function renderElement(element) {
+				const box = node('div', 'element');
+				const head = node('div', 'element-head');
+				head.append(
+					node('h4', '', element.name),
+					chip(statusLabels[element.status] || element.status, element.status)
+				);
+				box.append(head);
+				if (element.description) box.append(node('p', 'work-desc', element.description));
+				renderRequirements(box, element.requirements);
+				return box;
+			}
+
+			function renderWork(work) {
+				const box = node('div', 'work');
+				const head = node('div', 'work-head');
+				head.append(
+					node('h3', '', work.name),
+					chip(work.mode === 'direct' ? 'Directo' : 'Dividido', 'neutral')
+				);
+				if (work.workStatus) {
+					head.append(
+						chip(statusLabels[work.workStatus] || work.workStatus, work.workStatus)
+					);
+				} else if (work.approved) {
+					head.append(chip('Aprobado', 'approved'));
+				}
+				box.append(head);
+				if (work.description) box.append(node('p', 'work-desc', work.description));
+				if (work.mode === 'divided' && work.elements.length > 0) {
+					const elements = node('div', 'elements');
+					for (const element of work.elements) elements.append(renderElement(element));
+					box.append(elements);
+				} else {
+					renderRequirements(box, work.requirements);
+				}
+				return box;
+			}
+
+			function renderService(service) {
+				const details = node('details', 'service');
+				details.open = true;
+				const summary = node('summary');
+				const main = node('div', 'summary-main');
+				main.append(node('h2', '', service.name));
+				const meta = [
+					service.contractName,
+					service.buildingName,
+					lifecycleLabels[service.lifecycle] || service.lifecycle
+				]
+					.filter(Boolean)
+					.join(' · ');
+				main.append(node('p', 'service-meta', meta));
+				summary.append(main);
+				details.append(summary);
+
+				const body = node('div', 'service-body');
+				const progressLine = node('div', 'progress-line');
+				const bar = node('div', 'bar');
+				const fill = node('span');
+				fill.style.width = `${Math.max(0, Math.min(100, service.progress.percent || 0))}%`;
+				bar.append(fill);
+				progressLine.append(
+					bar,
+					node(
+						'span',
+						'',
+						`${service.progress.approvedTargets}/${service.progress.totalTargets} · ${service.progress.percent}%`
+					)
+				);
+				body.append(progressLine);
+				if (!service.works || service.works.length === 0) {
+					body.append(node('p', 'service-meta', 'Sin trabajos.'));
+				} else {
+					for (const work of service.works) body.append(renderWork(work));
+				}
+				details.append(body);
+				return details;
+			}
+
+			function renderEmpty(message) {
+				const box = node('div', 'empty');
+				box.append(node('h2', '', 'Sin datos offline'), node('p', '', message));
+				return box;
+			}
+
+			async function render() {
+				const content = document.getElementById('content');
+				const who = document.getElementById('who');
+				const warning = document.getElementById('warning');
+				content.replaceChildren();
+				warning.hidden = true;
+				try {
+					const record = await loadRecord();
+					if (!record || !record.data || !Array.isArray(record.data.services)) {
+						content.append(
+							renderEmpty('Abre Lumen con conexión para sincronizar los servicios asignados.')
+						);
+						who.textContent = 'Modo consulta sin conexión';
+						return;
+					}
+					const data = record.data;
+					const savedAt = new Date(record.savedAt);
+					const age = Date.now() - record.savedAt;
+					who.textContent = `${data.user.displayName} · ${roleLabels[data.user.role] || data.user.role} · guardado ${savedAt.toLocaleString('es-ES')}`;
+					if (age > MAX_AGE_MS) {
+						warning.hidden = false;
+						warning.className = 'warning';
+						warning.textContent =
+							'La copia tiene más de 7 días. Conéctate para actualizarla antes de usarla.';
+					}
+					if (data.services.length === 0) {
+						content.append(renderEmpty('No tienes servicios asignados en la copia local.'));
+						return;
+					}
+					const services = node('div', 'services');
+					for (const service of data.services) services.append(renderService(service));
+					content.append(services);
+				} catch {
+					content.append(
+						renderEmpty('No se pudo leer la copia local. Abre Lumen con conexión para sincronizar.')
+					);
+				}
+			}
+
+			document.getElementById('reload').addEventListener('click', () => window.location.reload());
+			void render();
+		</script>
+	</body>
+</html>

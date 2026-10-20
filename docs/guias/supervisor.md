@@ -12,6 +12,8 @@
   aunque tengas un enlace guardado.
 - Puedes consultar y descargar fotos y ZIP dentro de tu ámbito.
 - No puedes capturar, subir ni modificar evidencia.
+- Sin conexión puedes usar el **modo consulta offline** para ver estructura y
+  estados de tus servicios, sin fotos ni decisiones.
 
 ## 2. Cola de revisión
 

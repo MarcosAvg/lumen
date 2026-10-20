@@ -1,14 +1,78 @@
-// Service worker de Lumen: Web Push y clic en notificación.
+// Service worker de Lumen: Web Push, clic en notificación y modo consulta.
 //
-// Deliberadamente NO cachea respuestas: Lumen es online-only y nunca debe servir
-// evidencia privada desde caché a otra sesión del mismo dispositivo.
+// No cachea respuestas privadas ni fotos. Solo precachea la página estática de
+// consulta y los assets de la aplicación. Los datos offline viven en IndexedDB.
+const CACHE_NAME = 'lumen-offline-v1';
+const OFFLINE_URL = '/offline.html';
 
-self.addEventListener('install', () => {
-	self.skipWaiting();
+self.addEventListener('install', (event) => {
+	event.waitUntil(
+		caches
+			.open(CACHE_NAME)
+			.then((cache) => cache.add(OFFLINE_URL))
+			.then(() => self.skipWaiting())
+	);
 });
 
 self.addEventListener('activate', (event) => {
-	event.waitUntil(self.clients.claim());
+	event.waitUntil(
+		caches
+			.keys()
+			.then((keys) =>
+				Promise.all(
+					keys
+						.filter((key) => key.startsWith('lumen-offline-') && key !== CACHE_NAME)
+						.map((key) => caches.delete(key))
+				)
+			)
+			.then(() => self.clients.claim())
+	);
+});
+
+self.addEventListener('fetch', (event) => {
+	const { request } = event;
+	if (request.method !== 'GET') return;
+
+	const url = new URL(request.url);
+	if (url.origin !== self.location.origin) return;
+
+	// Navegación: red primero; sin red, página de consulta offline.
+	if (request.mode === 'navigate') {
+		event.respondWith(
+			fetch(request).catch(async () => {
+				const cached = await caches.match(OFFLINE_URL);
+				return (
+					cached ??
+					new Response('Sin conexión. Abre Lumen con red para sincronizar datos.', {
+						status: 503,
+						headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+					})
+				);
+			})
+		);
+		return;
+	}
+
+	// Assets inmutables de SvelteKit y recursos de la PWA.
+	if (
+		url.pathname.startsWith('/_app/') ||
+		url.pathname.startsWith('/icons/') ||
+		url.pathname === '/manifest.webmanifest'
+	) {
+		event.respondWith(
+			caches.match(request).then(
+				(cached) =>
+					cached ??
+					fetch(request).then((response) => {
+						if (response.ok) {
+							const copy = response.clone();
+							void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+						}
+						return response;
+					})
+			)
+		);
+	}
 });
 
 self.addEventListener('push', (event) => {

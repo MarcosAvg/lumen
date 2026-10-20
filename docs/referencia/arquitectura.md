@@ -33,9 +33,9 @@ microservicios, Redis, S3, Firebase ni colas externas obligatorias.
    └── Web Push estándar ────────────────────► [ Servicio push del navegador ]
 ```
 
-La aplicación es **online-only**. El service worker cachea recursos estáticos
-para instalar la PWA, no para operar sin conexión. No hay cola offline ni
-sincronización de trabajos en la v1.
+Las **escrituras requieren conexión**. El service worker cachea recursos
+estáticos y una página de consulta offline; los datos de estructura y estado se
+guardan en IndexedDB. No hay cola offline ni sincronización de escrituras.
 
 ## 2. Estructura del proyecto
 
@@ -237,11 +237,13 @@ Ejemplo no accesible por HTTP directo:
   `standalone`.
 - Iconos PWA 192/512, maskable 512, apple-touch 180, monocromo 512 y badge 96.
 - Se regeneran con `pnpm icons:generate` desde los SVG de `static/icons`.
-- `static/sw.js` cachea recursos estáticos versionados y no cachea fotos
-  privadas, respuestas autenticadas ni formularios editables.
-- Sin conexión se muestra un aviso; las acciones que requieren servidor no
-  simulan éxito.
-- No se cachea evidencia privada entre sesiones del mismo dispositivo.
+- `static/sw.js` cachea recursos estáticos y la página `/offline.html`; no cachea
+  fotos privadas, respuestas autenticadas ni formularios editables.
+- El snapshot de consulta offline se guarda en IndexedDB, separado por usuario y
+  con caducidad de 7 días. Se borra al cerrar sesión.
+- Sin conexión se muestra un aviso; las acciones que requieren servidor quedan
+  deshabilitadas y no simulan éxito.
+- No se cachea evidencia privada ni el snapshot de otro usuario.
 
 ### Web Push
 

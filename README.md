@@ -7,7 +7,8 @@
 [![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL_17-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](compose.yaml)
 
-PWA autohospedada para equipos de servicios en campo. Los técnicos capturan
+PWA autohospedada para equipos de servicios en campo, con modo consulta offline
+de solo lectura. Los técnicos capturan
 **evidencia fotográfica compartida**, los supervisores asignados la **aprueban o
 rechazan por entrega** y la administración organiza contratos, servicios,
 trabajos, catálogos y usuarios.
@@ -75,7 +76,7 @@ PostgreSQL 17 + Drizzle ORM/Kit · Docker Compose + Cloudflare Tunnel · Web Pus
 VAPID con bandeja interna persistente · `sharp`, `archiver`, `exceljs` y
 `pdf-lib`.
 
-**Fuera de alcance de la v1:** trabajo offline con sincronización, mensajería
+**Fuera de alcance de la v1:** trabajo offline con sincronización de escrituras, mensajería
 entre usuarios, comentarios o revisión por fotografía individual, estados
 manuales de cierre, multi-tenant, ERP o facturación, firma digital e informes PDF
 de negocio. El PDF de evidencia por trabajo sí forma parte de la v1.

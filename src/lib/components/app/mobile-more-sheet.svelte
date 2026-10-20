@@ -11,6 +11,7 @@
 	import { Avatar, AvatarFallback } from '#lib/components/ui/avatar';
 	import { Button } from '#lib/components/ui/button';
 	import * as Sheet from '#lib/components/ui/sheet';
+	import { clearOfflineSnapshot } from '#lib/offline/snapshot';
 	import type { SessionUser } from '#lib/types';
 
 	let { user }: { user: SessionUser } = $props();
@@ -140,7 +141,15 @@
 		</div>
 
 		<div class="px-5 pt-5 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-			<form method="POST" action="/logout">
+			<form
+				method="POST"
+				action="/logout"
+				onsubmit={(event) => {
+					event.preventDefault();
+					const form = event.currentTarget;
+					void clearOfflineSnapshot().finally(() => form.submit());
+				}}
+			>
 				<Button type="submit" variant="destructive" class="w-full justify-start">
 					<LogOut aria-hidden="true" />
 					Cerrar sesión
