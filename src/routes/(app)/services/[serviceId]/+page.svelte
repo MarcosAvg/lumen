@@ -139,6 +139,7 @@
 	// Edición del servicio en modal: cierra solo al confirmarse el éxito.
 	let editServiceOpen = $state(false);
 	let archiveServiceOpen = $state(false);
+	let unarchiveServiceOpen = $state(false);
 	const isArchived = $derived(data.service.lifecycle === 'archived');
 	const submitService: NonNullable<Parameters<typeof enhance>[1]> =
 		() =>
@@ -151,6 +152,7 @@
 		async ({ update }) => {
 			await update({ reset: false });
 			archiveServiceOpen = false;
+			unarchiveServiceOpen = false;
 		};
 </script>
 
@@ -204,7 +206,14 @@
 			/>
 		</div>
 		{#snippet actions()}
-			{#if data.isAdmin && !isArchived}
+			{#if data.isAdmin && isArchived}
+				<Button
+					variant="outline"
+					size="sm"
+					class="w-full sm:w-auto"
+					onclick={() => (unarchiveServiceOpen = true)}>Desarchivar servicio</Button
+				>
+			{:else if data.isAdmin}
 				{#if data.service.lifecycle === 'planned'}
 					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
 						<input type="hidden" name="serviceId" value={data.service.id} />
@@ -489,8 +498,8 @@
 				<AlertDialog.Header>
 					<AlertDialog.Title>¿Archivar el servicio «{data.service.name}»?</AlertDialog.Title>
 					<AlertDialog.Description>
-						Quedará en solo lectura y no podrá reactivarse. Sus trabajos aprobados, entregas y fotos
-						se conservan.
+						Quedará en solo lectura; podrás desarchivarlo a Inactivo. Sus trabajos aprobados,
+						entregas y fotos se conservan.
 					</AlertDialog.Description>
 				</AlertDialog.Header>
 				<AlertDialog.Footer>
@@ -499,6 +508,27 @@
 						<input type="hidden" name="serviceId" value={data.service.id} />
 						<input type="hidden" name="lifecycle" value="archived" />
 						<Button type="submit" variant="destructive">Archivar servicio</Button>
+					</form>
+				</AlertDialog.Footer>
+			</AlertDialog.Content>
+		</AlertDialog.Root>
+	{/if}
+
+	{#if data.isAdmin && isArchived}
+		<AlertDialog.Root bind:open={unarchiveServiceOpen}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>¿Desarchivar el servicio «{data.service.name}»?</AlertDialog.Title>
+					<AlertDialog.Description>
+						Pasará a Inactivo. Podrás reactivarlo después; no se borra nada.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+					<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+						<input type="hidden" name="serviceId" value={data.service.id} />
+						<input type="hidden" name="lifecycle" value="inactive" />
+						<Button type="submit">Desarchivar servicio</Button>
 					</form>
 				</AlertDialog.Footer>
 			</AlertDialog.Content>

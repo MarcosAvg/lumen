@@ -9,29 +9,38 @@
 	import ProgressMeter from '#lib/components/app/progress-meter.svelte';
 	import LifecycleBadge from '#lib/components/app/lifecycle-badge.svelte';
 	import LifecycleFilter from '#lib/components/app/lifecycle-filter.svelte';
-	import type { ServiceLifecycle } from '#lib/types';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
+	import { matchesServiceFilter, type ServiceFilter } from '#lib/service-filters';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const isAdmin = $derived(data.user.role === 'admin');
-	const allowedLifecycles: ServiceLifecycle[] = ['active', 'planned', 'inactive', 'archived'];
-	let lifecycleFilter = $state<ServiceLifecycle>('active');
-	const labels: Record<ServiceLifecycle, string> = {
+	const allowedFilters: ServiceFilter[] = [
+		'active',
+		'completed',
+		'planned',
+		'inactive',
+		'archived'
+	];
+	let lifecycleFilter = $state<ServiceFilter>('active');
+	const labels: Record<ServiceFilter, string> = {
 		active: 'Activos',
+		completed: 'Completados',
 		planned: 'En espera',
 		inactive: 'Inactivos',
 		archived: 'Archivados'
 	};
+
 	const options = $derived(
-		allowedLifecycles.map((value) => ({
+		allowedFilters.map((value) => ({
 			value,
 			label: labels[value],
-			count: data.services.filter((service) => service.lifecycle === value).length
+			count: data.services.filter((service) => matchesServiceFilter(service, value)).length
 		}))
 	);
 	const visibleServices = $derived(
-		data.services.filter((service) => service.lifecycle === lifecycleFilter)
+		data.services.filter((service) => matchesServiceFilter(service, lifecycleFilter))
 	);
 </script>
 
@@ -81,7 +90,12 @@
 									>
 										{service.name}
 									</a>
-									<LifecycleBadge lifecycle={service.lifecycle} />
+									<div class="flex flex-wrap items-center gap-2">
+										<LifecycleBadge lifecycle={service.lifecycle} />
+										{#if service.completed}
+											<StatusBadge status="approved" label="Completado" />
+										{/if}
+									</div>
 								</div>
 								{#if service.buildingName}
 									<p class="text-xs text-muted-foreground">Edificio: {service.buildingName}</p>
@@ -90,8 +104,7 @@
 									approved={service.approvedTargets}
 									total={service.totalTargets}
 									percent={service.percent}
-									completed={service.totalTargets > 0 &&
-										service.approvedTargets === service.totalTargets}
+									completed={service.completed}
 								/>
 							</Card.Content>
 						</Card.Root>
@@ -120,6 +133,9 @@
 											{service.name}
 										</a>
 										<LifecycleBadge lifecycle={service.lifecycle} />
+										{#if service.completed}
+											<StatusBadge status="approved" label="Completado" />
+										{/if}
 									</div>
 									{#if service.description}
 										<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
@@ -135,8 +151,7 @@
 										approved={service.approvedTargets}
 										total={service.totalTargets}
 										percent={service.percent}
-										completed={service.totalTargets > 0 &&
-											service.approvedTargets === service.totalTargets}
+										completed={service.completed}
 									/>
 								</Table.Cell>
 							</Table.Row>

@@ -65,13 +65,16 @@ ese contrato quedan revocadas y la siguiente lectura o subida responde
    captura y la revisión sin borrar nada. `inactive → active` reanuda si el
    contrato sigue activo.
 4. `active|inactive → archived` exige que el servicio esté completado. El
-   archivado es terminal y deja el servicio en solo lectura.
+   archivado deja el servicio en solo lectura y puede desarchivarse a `inactive`.
+   Desarchivar un servicio exige que el contrato no esté archivado.
 5. Un contrato solo pasa a `inactive` si no tiene servicios `active` o
    `planned`. Solo pasa a `archived` cuando todos sus servicios están
-   archivados. El archivado del contrato es terminal.
-6. Las listas de contratos y servicios muestran por defecto el estado activo y
-   permiten consultar los demás estados. El tablero solo agrega servicios
-   activos.
+   archivados. Un contrato archivado puede desarchivarse a `inactive`; después
+   puede reactivarse.
+6. Las listas de servicios separan **Activos** y **Completados**; los
+   completados no aparecen en Activos. También permiten consultar En espera,
+   Inactivos y Archivados. El tablero solo agrega servicios activos no
+   completados en su pulso de servicios.
 7. Archivar nunca reescribe aprobaciones, entregas, fotos ni autoría. Si un
    administrador añade estructura después de una aprobación, el avance se
    recalcula según las reglas existentes.

@@ -94,7 +94,8 @@ actual; no se confía en permisos cacheados en la cookie.
 - Un servicio pertenece siempre a un contrato (`services.contract_id NOT NULL`).
 - No se elimina un contrato con servicios: la FK usa `RESTRICT`.
 - `inactive` exige que no existan servicios `planned` o `active`; `archived`
-  exige que todos los servicios estén archivados y es terminal.
+  exige que todos los servicios estén archivados. `archived` puede volver a
+  `inactive`.
 - Los márgenes se guardan en milímetros y el fondo es una ruta interna.
 
 ### `contract_assignments`
@@ -119,7 +120,7 @@ actual; no se confía en permisos cacheados en la cookie.
 
 - `lifecycle` es un enum con default `active`; índice por estado.
 - `planned` permite estructura sin captura; `inactive` bloquea captura y
-  revisión; `archived` es terminal y exige `completed(service)`.
+  revisión; `archived` exige `completed(service)` y puede desarchivarse a `inactive`.
 - Cambiar de contrato revoca las asignaciones de servicio incompatibles.
 - El administrador que asigna un servicio incorpora al usuario al contrato si
   falta; el supervisor del contrato solo puede asignar a miembros existentes.
@@ -440,7 +441,7 @@ anterior.
 El ciclo de vida es independiente: `archived` no sustituye a `completed` ni
 modifica aprobaciones. Las transiciones se validan en transacción con bloqueo de
 la fila y registro en `audit_events` (`*.lifecycle_changed`). Un recurso
-archivado no vuelve a `active`.
+archivado solo vuelve a `inactive`; desde ahí puede reactivarse.
 
 ## 11. Índices y constraints recomendados
 

@@ -19,6 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		title: 'Servicios',
 		services: services.map((service) => {
 			const entry = progress.get(service.id) ?? { totalTargets: 0, approvedTargets: 0 };
+			const completed = entry.totalTargets > 0 && entry.approvedTargets === entry.totalTargets;
 			return {
 				...service,
 				totalTargets: entry.totalTargets,
@@ -26,7 +27,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				percent:
 					entry.totalTargets === 0
 						? 0
-						: Math.round((entry.approvedTargets / entry.totalTargets) * 100)
+						: Math.round((entry.approvedTargets / entry.totalTargets) * 100),
+				completed
 			};
 		})
 	};

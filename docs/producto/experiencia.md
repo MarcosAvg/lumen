@@ -147,26 +147,28 @@ Las acciones rápidas permiten ir a Servicios, Usuarios, Catálogos y Contratos
   servicios, participantes, PDF de evidencia y zona de peligro.
 - Los participantes se gestionan en modal. Administradores y supervisores del
   contrato pueden añadir o revocar.
-- El administrador pausa, reactiva o archiva el contrato desde la cabecera. Las
-  acciones se deshabilitan con explicación si hay servicios activos/en espera o
-  sin archivar. Archivar pide confirmación y el contrato archivado no muestra
-  acciones de edición.
+- El administrador pausa, reactiva, archiva o desarchiva el contrato desde la
+  cabecera. Las acciones de archivo se deshabilitan con explicación si hay
+  servicios activos/en espera o sin archivar. Desarchivar lo deja Inactivo y no
+  reactiva sus servicios.
 
 ### Servicios
 
 - `/services` muestra los servicios asignados al técnico o supervisor;
   `/admin/services` es el listado de administración.
-- Ambos listados filtran por ciclo de vida (**Activos**, **En espera**,
-  **Inactivos**, **Archivados**) y empiezan en Activos. La creación permite
-  marcar «Crear en espera».
+- Ambos listados filtran por **Activos**, **Completados**, **En espera**,
+  **Inactivos** y **Archivados**, y empiezan en Activos. Los completados son un
+  estado derivado y no aparecen en Activos. La creación permite marcar «Crear en
+  espera».
 - La ficha muestra nombre, descripción, edificio, chip de ciclo de vida,
   participantes y trabajos.
 - El administrador edita los datos en modal y gestiona participantes en otro
   modal. Un supervisor del contrato puede gestionar las asignaciones de servicio
   de su contrato.
-- El administrador activa, pausa, reactiva o archiva el servicio desde la
-  cabecera. Archivar exige que esté completado y pide confirmación. Un servicio
-  no activo muestra un aviso y la evidencia queda en solo lectura.
+- El administrador activa, pausa, reactiva, archiva o desarchiva el servicio
+  desde la cabecera. Archivar exige que esté completado y pide confirmación;
+  desarchivar lo deja Inactivo. Un servicio no activo muestra un aviso y la
+  evidencia queda en solo lectura.
 - La lista de trabajos muestra modo, estado y avance. En móvil cada trabajo es
   una tarjeta clicable; en escritorio, una fila compacta.
 - La exportación ZIP está disponible también si el servicio no está completo;

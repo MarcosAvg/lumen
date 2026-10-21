@@ -86,7 +86,7 @@ await describeWithDatabase(
 			});
 		}
 
-		it('LIFE-01: planned no captura, inactive pausa y archived es terminal', async () => {
+		it('LIFE-01: planned no captura e inactive pausa', async () => {
 			const admin = await seedAdmin();
 			const contractId = await seedContract(db, admin.id);
 			const service = await createService(db, {
@@ -167,6 +167,7 @@ await describeWithDatabase(
 			const target = await getTargetForWork(db, work.id);
 			await expect(assertRequirementsEditable(db, target.id)).rejects.toBeInstanceOf(DomainError);
 
+			// No se permite saltar de archivado a activo.
 			await expect(
 				setServiceLifecycle(db, {
 					serviceId: service.id,
@@ -180,6 +181,17 @@ await describeWithDatabase(
 				lifecycle: 'archived',
 				actorId: admin.id
 			});
+
+			// El contrato archivado bloquea desarchivar el servicio.
+			await expect(
+				setServiceLifecycle(db, {
+					serviceId: service.id,
+					lifecycle: 'inactive',
+					actorId: admin.id
+				})
+			).rejects.toMatchObject({ status: 409 });
+
+			// No se permite saltar de archivado a activo.
 			await expect(
 				setContractLifecycle(db, {
 					contractId,
@@ -187,6 +199,28 @@ await describeWithDatabase(
 					actorId: admin.id
 				})
 			).rejects.toMatchObject({ status: 409 });
+
+			await setContractLifecycle(db, {
+				contractId,
+				lifecycle: 'inactive',
+				actorId: admin.id
+			});
+			await setServiceLifecycle(db, {
+				serviceId: service.id,
+				lifecycle: 'inactive',
+				actorId: admin.id
+			});
+			await setContractLifecycle(db, {
+				contractId,
+				lifecycle: 'active',
+				actorId: admin.id
+			});
+			await setServiceLifecycle(db, {
+				serviceId: service.id,
+				lifecycle: 'active',
+				actorId: admin.id
+			});
+			expect((await getServiceForUser(db, admin, service.id)).service.lifecycle).toBe('active');
 		});
 
 		it('LIFE-03: el tablero solo cuenta servicios activos', async () => {

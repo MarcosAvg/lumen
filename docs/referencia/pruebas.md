@@ -120,7 +120,8 @@ mantiene deliberadamente pequeña: 21 escenarios.
   ausencia de fotos o escrituras.
 - Tema claro/oscuro, accesibilidad de formularios y responsive sin overflow.
 
-Quedan cubiertos por integración, sin E2E dedicado: ciclo de vida, contratos,
+Quedan cubiertos por integración, sin E2E dedicado: ciclo de vida reversible,
+contratos,
 tablero y agregados, asignaciones/revocaciones, borrado destructivo de servicio
 y variantes de exportación ZIP/XLSX/PDF.
 

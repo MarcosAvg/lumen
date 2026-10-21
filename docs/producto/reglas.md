@@ -96,8 +96,8 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
 - Estados: `active`, `inactive` y `archived`. Todo contrato nace `active`.
 - `inactive` es una pausa temporal y exige que no queden servicios `active` ni
   `planned`. Se puede reactivar.
-- `archived` es terminal y exige que todos sus servicios estén archivados. No se
-  reactiva.
+- `archived` exige que todos sus servicios estén archivados. Puede volver a
+  `inactive`; después se reactiva con la transición normal.
 - Archivar no reescribe aprobaciones, entregas, fotos ni participantes. El
   contrato y sus recursos quedan visibles en solo lectura.
 - Un contrato `inactive` o `archived` no admite servicios nuevos.
@@ -114,8 +114,8 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
   evidencia ni enviar**. Pasar a `active` exige que el contrato esté activo.
 - `inactive` es una pausa temporal: la evidencia y las revisiones son de solo
   lectura. Se puede reactivar si el contrato está activo.
-- `archived` es terminal y solo se permite cuando el servicio está completado.
-  No se reactiva.
+- `archived` solo se permite cuando el servicio está completado. Puede volver a
+  `inactive`; después se reactiva con la transición normal.
 - Archivar no convierte el servicio en «completado» por sí mismo ni reescribe
   aprobaciones: el completado sigue siendo derivado. Los recursos archivados
   quedan visibles en solo lectura.
@@ -135,11 +135,11 @@ La jerarquía es **contrato → servicio → trabajo/elemento**:
 ### Estado derivado
 
 - **Completado:** existe al menos un trabajo y todos los trabajos están
-  aprobados.
+  aprobados. Es derivado y no es un estado de ciclo de vida.
 - **No completado:** servicio vacío o con cualquier trabajo no aprobado,
   incluido un trabajo dividido sin elementos.
 - La UI puede mostrar porcentaje y etiquetas de atención. No existe un estado
-  manual de cierre.
+  manual de cierre; las listas separan Activos y Completados.
 - Añadir un elemento pendiente a un trabajo aprobado vuelve el trabajo y el
   servicio a no completados. Las aprobaciones de los demás elementos se
   conservan.

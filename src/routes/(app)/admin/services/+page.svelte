@@ -15,9 +15,10 @@
 	import DestructiveDelete from '#lib/components/destructive-delete.svelte';
 	import LifecycleBadge from '#lib/components/app/lifecycle-badge.svelte';
 	import LifecycleFilter from '#lib/components/app/lifecycle-filter.svelte';
+	import StatusBadge from '#lib/components/app/status-badge.svelte';
 	import LabeledCheckbox from '#lib/components/ui/labeled-checkbox/labeled-checkbox.svelte';
 	import { NativeSelect } from '#lib/components/ui/native-select';
-	import type { ServiceLifecycle } from '#lib/types';
+	import { matchesServiceFilter, type ServiceFilter } from '#lib/service-filters';
 	import type { PageProps } from './$types';
 
 	type ActionData = {
@@ -34,23 +35,25 @@
 	let createBuildingItemId = $state('');
 	let createName = $state('');
 	let createPlanned = $state(false);
-	let lifecycleFilter = $state<ServiceLifecycle>('active');
+	let lifecycleFilter = $state<ServiceFilter>('active');
 
-	const labels: Record<ServiceLifecycle, string> = {
+	const labels: Record<ServiceFilter, string> = {
 		active: 'Activos',
+		completed: 'Completados',
 		planned: 'En espera',
 		inactive: 'Inactivos',
 		archived: 'Archivados'
 	};
+
 	const options = $derived(
-		(['active', 'planned', 'inactive', 'archived'] as const).map((value) => ({
+		(['active', 'completed', 'planned', 'inactive', 'archived'] as const).map((value) => ({
 			value,
 			label: labels[value],
-			count: data.services.filter((service) => service.lifecycle === value).length
+			count: data.services.filter((service) => matchesServiceFilter(service, value)).length
 		}))
 	);
 	const visibleServices = $derived(
-		data.services.filter((service) => service.lifecycle === lifecycleFilter)
+		data.services.filter((service) => matchesServiceFilter(service, lifecycleFilter))
 	);
 	const activeContracts = $derived(
 		data.contracts.filter((contract) => contract.lifecycle === 'active')
@@ -193,6 +196,9 @@
 											{service.name}
 										</a>
 										<LifecycleBadge lifecycle={service.lifecycle} />
+										{#if service.completed}
+											<StatusBadge status="approved" label="Completado" />
+										{/if}
 									</div>
 									{#if service.description}
 										<p class="text-sm text-muted-foreground">{service.description}</p>
@@ -235,6 +241,9 @@
 											{service.name}
 										</a>
 										<LifecycleBadge lifecycle={service.lifecycle} />
+										{#if service.completed}
+											<StatusBadge status="approved" label="Completado" />
+										{/if}
 									</div>
 									{#if service.description}
 										<p class="mt-0.5 line-clamp-1 text-sm text-muted-foreground">

@@ -247,6 +247,7 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 		});
 
 		const summary = await dashboardSummary(db, admin);
+		expect(summary.serviceCount).toBe(0);
 		expect(summary.statusCounts.approved).toBe(1);
 		expect(summary.statusCounts.total).toBe(1);
 		expect(summary.approvedLast7).toBe(1);
@@ -262,10 +263,30 @@ await describeWithDatabase('DASH · tablero por rol', ({ db, client }) => {
 			rejectedTargets: 0
 		});
 
+		// El servicio completado no aparece en el pulso; se usa uno pendiente.
+		const pendingService = await createService(db, {
+			contractId,
+			name: 'Servicio pendiente panel',
+			actorId: admin.id
+		});
+		await assignUser(db, {
+			serviceId: pendingService.id,
+			userId: supervisor.id,
+			role: 'supervisor',
+			actorId: admin.id
+		});
+		await createWork(db, {
+			serviceId: pendingService.id,
+			mode: 'direct',
+			name: 'Trabajo pendiente panel',
+			actorId: admin.id
+		});
+
 		const services = await listServicePulse(db, supervisor, 20);
-		expect(services.find((row) => row.serviceId === service.id)).toMatchObject({
+		expect(services.find((row) => row.serviceId === service.id)).toBeUndefined();
+		expect(services.find((row) => row.serviceId === pendingService.id)).toMatchObject({
 			totalTargets: 1,
-			approvedTargets: 1,
+			approvedTargets: 0,
 			pendingReviews: 0,
 			rejectedTargets: 0
 		});

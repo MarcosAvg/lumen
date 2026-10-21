@@ -225,12 +225,6 @@ export async function setServiceLifecycle(
 			.limit(1);
 		if (!current) throw new DomainError(404, 'Servicio no encontrado.');
 		if (current.lifecycle === input.lifecycle) return;
-		if (current.lifecycle === 'archived') {
-			throw new DomainError(409, 'Un servicio archivado no puede reactivarse.');
-		}
-		if (input.lifecycle === 'planned') {
-			throw new DomainError(409, 'Un servicio existente no puede volver a la lista de espera.');
-		}
 
 		const [contract] = await tx
 			.select({ lifecycle: contracts.lifecycle })
@@ -240,11 +234,23 @@ export async function setServiceLifecycle(
 			.limit(1);
 		if (!contract) throw new DomainError(404, 'Contrato no encontrado.');
 
-		if (input.lifecycle === 'active' && contract.lifecycle !== 'active') {
-			throw new DomainError(409, 'Reactiva el contrato antes de activar este servicio.');
+		if (current.lifecycle === 'archived') {
+			if (input.lifecycle !== 'inactive') {
+				throw new DomainError(409, 'Un servicio archivado solo puede desarchivarse a inactivo.');
+			}
+			if (contract.lifecycle === 'archived') {
+				throw new DomainError(409, 'Desarchiva el contrato antes de desarchivar este servicio.');
+			}
+		} else {
+			if (input.lifecycle === 'planned') {
+				throw new DomainError(409, 'Un servicio existente no puede volver a la lista de espera.');
+			}
+			if (input.lifecycle === 'active' && contract.lifecycle !== 'active') {
+				throw new DomainError(409, 'Reactiva el contrato antes de activar este servicio.');
+			}
 		}
 
-		if (input.lifecycle === 'archived') {
+		if (current.lifecycle !== 'archived' && input.lifecycle === 'archived') {
 			const workRows = await tx
 				.select({ id: works.id, mode: works.mode })
 				.from(works)

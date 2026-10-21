@@ -17,6 +17,7 @@ import {
 } from '#lib/server/db/schema';
 import type { SessionUser, TargetStatus, WorkMode } from '#lib/types';
 import { listAllowedServiceIds } from './services';
+import { listServiceProgress } from './works';
 
 /**
  * Tablero por rol (docs/producto/experiencia.md). Todo se calcula dentro del **ámbito** del
@@ -378,52 +379,60 @@ export async function dashboardSummary(db: Database, user: SessionUser): Promise
 	const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
 	const parentWork = alias(works, 'parent_work');
-	const [servicesRow, statusRow, workTotals, pendingReviews, approvedLast7Row] = await Promise.all([
-		db
-			.select({ value: sql<number>`cast(count(*) as int)` })
-			.from(services)
-			.where(scope),
-		db
-			.select({
-				total: sql<number>`cast(count(*) as int)`,
-				pending: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'pending') as int)`,
-				inProgress: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'in_progress') as int)`,
-				inReview: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'in_review') as int)`,
-				rejected: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'rejected') as int)`,
-				approved: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'approved') as int)`
-			})
-			.from(evidenceTargets)
-			.leftJoin(works, eq(works.id, evidenceTargets.workId))
-			.leftJoin(elements, eq(elements.id, evidenceTargets.elementId))
-			.leftJoin(parentWork, eq(parentWork.id, elements.workId))
-			.innerJoin(
-				services,
-				or(eq(services.id, works.serviceId), eq(services.id, parentWork.serviceId))
-			)
-			.where(scope),
-		workTargetTotals(db, allowed),
-		countPendingReviews(db, user),
-		db
-			.select({ value: sql<number>`cast(count(*) as int)` })
-			.from(reviews)
-			.innerJoin(evidenceSubmissions, eq(evidenceSubmissions.id, reviews.submissionId))
-			.innerJoin(evidenceTargets, eq(evidenceTargets.id, evidenceSubmissions.targetId))
-			.leftJoin(works, eq(works.id, evidenceTargets.workId))
-			.leftJoin(elements, eq(elements.id, evidenceTargets.elementId))
-			.leftJoin(parentWork, eq(parentWork.id, elements.workId))
-			.innerJoin(
-				services,
-				or(eq(services.id, works.serviceId), eq(services.id, parentWork.serviceId))
-			)
-			.where(and(eq(reviews.decision, 'approved'), gte(reviews.reviewedAt, since), scope))
-	]);
+	const [activeServiceRows, statusRow, workTotals, pendingReviews, approvedLast7Row] =
+		await Promise.all([
+			db.select({ id: services.id }).from(services).where(scope),
+			db
+				.select({
+					total: sql<number>`cast(count(*) as int)`,
+					pending: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'pending') as int)`,
+					inProgress: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'in_progress') as int)`,
+					inReview: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'in_review') as int)`,
+					rejected: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'rejected') as int)`,
+					approved: sql<number>`cast(count(*) filter (where ${evidenceTargets.currentStatus} = 'approved') as int)`
+				})
+				.from(evidenceTargets)
+				.leftJoin(works, eq(works.id, evidenceTargets.workId))
+				.leftJoin(elements, eq(elements.id, evidenceTargets.elementId))
+				.leftJoin(parentWork, eq(parentWork.id, elements.workId))
+				.innerJoin(
+					services,
+					or(eq(services.id, works.serviceId), eq(services.id, parentWork.serviceId))
+				)
+				.where(scope),
+			workTargetTotals(db, allowed),
+			countPendingReviews(db, user),
+			db
+				.select({ value: sql<number>`cast(count(*) as int)` })
+				.from(reviews)
+				.innerJoin(evidenceSubmissions, eq(evidenceSubmissions.id, reviews.submissionId))
+				.innerJoin(evidenceTargets, eq(evidenceTargets.id, evidenceSubmissions.targetId))
+				.leftJoin(works, eq(works.id, evidenceTargets.workId))
+				.leftJoin(elements, eq(elements.id, evidenceTargets.elementId))
+				.leftJoin(parentWork, eq(parentWork.id, elements.workId))
+				.innerJoin(
+					services,
+					or(eq(services.id, works.serviceId), eq(services.id, parentWork.serviceId))
+				)
+				.where(and(eq(reviews.decision, 'approved'), gte(reviews.reviewedAt, since), scope))
+		]);
 
 	const adminCounts =
 		user.role === 'admin' ? await Promise.all([countActiveUsers(db), countContracts(db)]) : null;
 
+	const progress = await listServiceProgress(
+		db,
+		activeServiceRows.map((row) => row.id)
+	);
+	const completedServices = activeServiceRows.filter((row) => {
+		const entry = progress.get(row.id);
+		return (
+			entry !== undefined && entry.totalTargets > 0 && entry.approvedTargets === entry.totalTargets
+		);
+	}).length;
 	const counts = statusRow[0];
 	return {
-		serviceCount: servicesRow[0]?.value ?? 0,
+		serviceCount: activeServiceRows.length - completedServices,
 		totalTargets: counts?.total ?? 0,
 		approvedTargets: counts?.approved ?? 0,
 		workTotal: workTotals.length,
@@ -596,6 +605,7 @@ export async function listServicePulse(
 				lastActivity: stat?.lastActivity ?? null
 			};
 		})
+		.filter((row) => !(row.totalTargets > 0 && row.approvedTargets === row.totalTargets))
 		.sort((a, b) => {
 			const score = (row: ServicePulse) =>
 				row.pendingReviews + row.rejectedTargets + (row.totalTargets === 0 ? 100 : 0);

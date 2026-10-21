@@ -39,6 +39,7 @@
 	let membersOpen = $state(false);
 	let deleteOpen = $state(false);
 	let archiveOpen = $state(false);
+	let unarchiveOpen = $state(false);
 	let revokeTarget = $state<{ id: string; displayName: string } | null>(null);
 
 	const hasRunningServices = $derived(
@@ -81,6 +82,7 @@
 		async ({ update }) => {
 			await update({ reset: false });
 			archiveOpen = false;
+			unarchiveOpen = false;
 		};
 	// Los márgenes se guardan sin recargar y sin resetear los campos.
 	const submitMargins: NonNullable<Parameters<typeof enhance>[1]> =
@@ -174,7 +176,14 @@
 							>
 						</form>
 					{/if}
-					{#if data.contract.lifecycle !== 'archived'}
+					{#if data.contract.lifecycle === 'archived'}
+						<Button
+							variant="outline"
+							size="sm"
+							class="w-full sm:w-auto"
+							onclick={() => (unarchiveOpen = true)}>Desarchivar contrato</Button
+						>
+					{:else}
 						<Button
 							variant="outline"
 							size="sm"
@@ -185,8 +194,6 @@
 								: undefined}
 							onclick={() => (archiveOpen = true)}>Archivar contrato</Button
 						>
-					{/if}
-					{#if data.contract.lifecycle !== 'archived'}
 						<Button
 							variant="outline"
 							size="sm"
@@ -231,7 +238,12 @@
 												>
 													{service.name}
 												</a>
-												<LifecycleBadge lifecycle={service.lifecycle} />
+												<div class="flex flex-wrap items-center gap-2">
+													<LifecycleBadge lifecycle={service.lifecycle} />
+													{#if service.lifecycle === 'active' && service.totalTargets > 0 && service.approvedTargets === service.totalTargets}
+														<StatusBadge status="approved" label="Completado" />
+													{/if}
+												</div>
 											</div>
 											{#if service.description}
 												<p class="line-clamp-1 text-sm text-muted-foreground">
@@ -547,8 +559,8 @@
 		<AlertDialog.Header>
 			<AlertDialog.Title>¿Archivar el contrato «{data.contract.name}»?</AlertDialog.Title>
 			<AlertDialog.Description>
-				Quedará en solo lectura y no podrá reactivarse. Sus servicios archivados, entregas y fotos
-				se conservan.
+				Quedará en solo lectura; podrás desarchivarlo a Inactivo. Sus servicios archivados, entregas
+				y fotos se conservan.
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
@@ -557,6 +569,25 @@
 				<input type="hidden" name="contractId" value={data.contract.id} />
 				<input type="hidden" name="lifecycle" value="archived" />
 				<Button type="submit" variant="destructive">Archivar contrato</Button>
+			</form>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={unarchiveOpen}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>¿Desarchivar el contrato «{data.contract.name}»?</AlertDialog.Title>
+			<AlertDialog.Description>
+				Pasará a Inactivo. Sus servicios seguirán archivados y podrás desarchivarlos después.
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancelar</AlertDialog.Cancel>
+			<form method="POST" action="?/setLifecycle" use:enhance={submitLifecycle}>
+				<input type="hidden" name="contractId" value={data.contract.id} />
+				<input type="hidden" name="lifecycle" value="inactive" />
+				<Button type="submit">Desarchivar contrato</Button>
 			</form>
 		</AlertDialog.Footer>
 	</AlertDialog.Content>

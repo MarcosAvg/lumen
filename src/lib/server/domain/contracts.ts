@@ -374,11 +374,11 @@ export async function setContractLifecycle(
 			.limit(1);
 		if (!current) throw new DomainError(404, 'Contrato no encontrado.');
 		if (current.lifecycle === input.lifecycle) return;
-		if (current.lifecycle === 'archived') {
-			throw new DomainError(409, 'Un contrato archivado no puede reactivarse.');
+		if (current.lifecycle === 'archived' && input.lifecycle !== 'inactive') {
+			throw new DomainError(409, 'Un contrato archivado solo puede desarchivarse a inactivo.');
 		}
 
-		if (input.lifecycle === 'inactive') {
+		if (current.lifecycle !== 'archived' && input.lifecycle === 'inactive') {
 			const [row] = await tx
 				.select({ value: sql<number>`cast(count(*) as int)` })
 				.from(services)
@@ -396,7 +396,7 @@ export async function setContractLifecycle(
 			}
 		}
 
-		if (input.lifecycle === 'archived') {
+		if (current.lifecycle !== 'archived' && input.lifecycle === 'archived') {
 			const [row] = await tx
 				.select({ value: sql<number>`cast(count(*) as int)` })
 				.from(services)

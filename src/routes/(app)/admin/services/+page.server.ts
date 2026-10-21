@@ -4,6 +4,7 @@ import { getDatabase } from '#lib/server/db';
 import { listCatalogsWithItems } from '#lib/server/domain/catalogs';
 import { listContractsForUser } from '#lib/server/domain/contracts';
 import { createService, listServicesForUser } from '#lib/server/domain/services';
+import { listServiceProgress } from '#lib/server/domain/works';
 import { failFrom, parseForm } from '#lib/server/forms';
 import { createServiceSchema } from '#lib/schemas/services';
 import type { Actions, PageServerLoad } from './$types';
@@ -16,9 +17,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		listContractsForUser(db, admin),
 		listCatalogsWithItems(db)
 	]);
+	const progress = await listServiceProgress(
+		db,
+		services.map((service) => service.id)
+	);
 	return {
 		title: 'Servicios',
-		services,
+		services: services.map((service) => {
+			const entry = progress.get(service.id) ?? { totalTargets: 0, approvedTargets: 0 };
+			return {
+				...service,
+				totalTargets: entry.totalTargets,
+				approvedTargets: entry.approvedTargets,
+				completed: entry.totalTargets > 0 && entry.approvedTargets === entry.totalTargets
+			};
+		}),
 		contracts,
 		buildingCatalogs: allCatalogs.filter((catalog) => catalog.typeSystemRole === 'building')
 	};
