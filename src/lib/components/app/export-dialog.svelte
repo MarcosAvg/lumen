@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '#lib/components/ui/button';
 	import * as Dialog from '#lib/components/ui/dialog';
@@ -38,13 +37,9 @@
 	let includePdf = $state(true);
 	let includeCompiledPdf = $state(false);
 	let includeNonActive = $state(false);
-	let exporting = $state(false);
-	let exportStatus = $state('');
-	let exportSlow = $state(false);
-	let exportUrl = $state('');
 	let exportFrame: HTMLIFrameElement | null = null;
-	let slowTimer: ReturnType<typeof setTimeout> | undefined;
-	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+	let toastId: string | number | undefined;
+	let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
 	let frameCleanupTimer: ReturnType<typeof setTimeout> | undefined;
 
 	onMount(() => {
@@ -82,29 +77,24 @@
 	];
 
 	function cleanupExport() {
-		if (slowTimer) clearTimeout(slowTimer);
-		if (closeTimer) clearTimeout(closeTimer);
+		if (timeoutTimer) clearTimeout(timeoutTimer);
 		if (frameCleanupTimer) clearTimeout(frameCleanupTimer);
-		slowTimer = undefined;
-		closeTimer = undefined;
+		timeoutTimer = undefined;
 		frameCleanupTimer = undefined;
 		exportFrame?.remove();
 		exportFrame = null;
-	}
-
-	function resetExportUi() {
-		exporting = false;
-		exportStatus = '';
-		exportSlow = false;
-		exportUrl = '';
+		if (toastId !== undefined) {
+			toast.dismiss(toastId);
+			toastId = undefined;
+		}
 	}
 
 	function triggerDownload(url: string) {
 		cleanupExport();
-		exportUrl = url;
-		exporting = true;
-		exportSlow = false;
-		exportStatus = 'Preparando los archivos de la exportación. La descarga empezará en breve.';
+
+		const id = toast.loading('Procesando exportación…', { duration: Infinity });
+		toastId = id;
+		let settled = false;
 
 		const iframe = document.createElement('iframe');
 		iframe.name = `lumen-export-${Date.now()}`;
@@ -114,14 +104,14 @@
 		iframe.addEventListener(
 			'load',
 			() => {
-				if (slowTimer) clearTimeout(slowTimer);
-				exportSlow = false;
-				exportStatus = 'Descarga iniciada. Revisa las descargas del navegador.';
-				closeTimer = setTimeout(() => {
-					exporting = false;
-					open = false;
-					toast.success('Descarga iniciada.');
-				}, 600);
+				if (settled) {
+					iframe.remove();
+					return;
+				}
+				settled = true;
+				if (timeoutTimer) clearTimeout(timeoutTimer);
+				toast.success('Descarga iniciada.', { id });
+				toastId = undefined;
 				frameCleanupTimer = setTimeout(() => {
 					iframe.remove();
 					if (exportFrame === iframe) exportFrame = null;
@@ -129,12 +119,13 @@
 			},
 			{ once: true }
 		);
-		slowTimer = setTimeout(() => {
-			if (!exporting) return;
-			exportSlow = true;
-			exportStatus =
-				'La descarga sigue en curso. Puedes cerrar esta ventana y revisar las descargas del navegador.';
-		}, 4_000);
+		timeoutTimer = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			toast.dismiss(id);
+			if (toastId === id) toastId = undefined;
+			// No se elimina el iframe: la descarga puede seguir en curso.
+		}, 30_000);
 		iframe.src = url;
 		document.body.append(iframe);
 		exportFrame = iframe;
@@ -165,6 +156,7 @@
 		} catch {
 			// Ignorado: la exportación no depende de guardar la preferencia.
 		}
+		open = false;
 		triggerDownload(url.toString());
 	}
 
@@ -173,12 +165,7 @@
 
 <Button variant="outline" size="sm" class={className} onclick={() => (open = true)}>{label}</Button>
 
-<Dialog.Root
-	bind:open
-	onOpenChange={(value) => {
-		if (!value) resetExportUi();
-	}}
->
+<Dialog.Root bind:open>
 	<Dialog.Content>
 		<Dialog.Header>
 			<Dialog.Title>Exportar evidencias</Dialog.Title>
@@ -187,33 +174,7 @@
 			</Dialog.Description>
 		</Dialog.Header>
 
-		<Dialog.Body class="space-y-5" aria-busy={exporting}>
-			{#if exporting}
-				<div
-					class="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3"
-					role="status"
-					aria-live="polite"
-				>
-					<LoaderCircle class="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden="true" />
-					<div class="min-w-0 space-y-1">
-						<p class="text-sm font-medium">Preparando exportación…</p>
-						<p class="text-xs text-muted-foreground">{exportStatus}</p>
-						{#if exportSlow && exportUrl}
-							<!-- eslint-disable svelte/no-navigation-without-resolve -->
-							<a
-								class="inline-block text-xs font-medium text-primary underline underline-offset-2"
-								href={exportUrl}
-								target="_blank"
-								rel="noopener"
-							>
-								Si no empieza, abrir la descarga en otra pestaña
-							</a>
-							<!-- eslint-enable svelte/no-navigation-without-resolve -->
-						{/if}
-					</div>
-				</div>
-			{/if}
-
+		<Dialog.Body class="space-y-5">
 			<div class="space-y-2">
 				<p class="text-sm font-medium">Registro (XLSX)</p>
 				<div class="grid grid-cols-2 gap-2">
@@ -221,8 +182,7 @@
 						<button
 							type="button"
 							aria-pressed={variant === option.value}
-							disabled={exporting}
-							class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 {variant ===
+							class="rounded-lg border px-3 py-2 text-sm font-medium transition-colors {variant ===
 							option.value
 								? 'border-primary bg-primary/10 text-foreground'
 								: 'border-input text-muted-foreground hover:bg-muted'}"
@@ -239,26 +199,13 @@
 			</div>
 
 			<div class="space-y-2">
-				<LabeledCheckbox
-					bind:checked={includeXlsx}
-					label="Incluir registro XLSX"
-					disabled={exporting}
-				/>
-				<LabeledCheckbox
-					bind:checked={includePhotos}
-					label="Incluir fotografías"
-					disabled={exporting}
-				/>
-				<LabeledCheckbox
-					bind:checked={includePdf}
-					label="Incluir PDF de evidencia por trabajo"
-					disabled={exporting}
-				/>
+				<LabeledCheckbox bind:checked={includeXlsx} label="Incluir registro XLSX" />
+				<LabeledCheckbox bind:checked={includePhotos} label="Incluir fotografías" />
+				<LabeledCheckbox bind:checked={includePdf} label="Incluir PDF de evidencia por trabajo" />
 				{#if allowCompiledPdf}
 					<LabeledCheckbox
 						bind:checked={includeCompiledPdf}
 						label="Incluir PDF recopilado por servicio"
-						disabled={exporting}
 					/>
 					<p class="text-xs text-muted-foreground">
 						El recopilado incluye solo trabajos con evidencia aprobada. Es un archivo adicional y no
@@ -269,7 +216,6 @@
 					<LabeledCheckbox
 						bind:checked={includeNonActive}
 						label="Incluir servicios en espera, inactivos o archivados"
-						disabled={exporting}
 					/>
 					<p class="text-xs text-muted-foreground">
 						Por defecto solo se exportan servicios activos.
@@ -287,13 +233,8 @@
 		</Dialog.Body>
 
 		<Dialog.Footer>
-			<Dialog.Close>{exporting ? 'Cerrar' : 'Cancelar'}</Dialog.Close>
-			<Button disabled={!canDownload || exporting} onclick={download}>
-				{#if exporting}
-					<LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
-				{/if}
-				{exporting ? 'Preparando…' : 'Descargar'}
-			</Button>
+			<Dialog.Close>Cancelar</Dialog.Close>
+			<Button disabled={!canDownload} onclick={download}>Descargar</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
